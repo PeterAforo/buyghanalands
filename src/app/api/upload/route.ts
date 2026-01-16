@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,10 +35,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Listing not found or unauthorized" }, { status: 404 });
     }
 
-    // Create upload directory
-    const uploadDir = path.join(process.cwd(), "public", "uploads", listingId);
-    await mkdir(uploadDir, { recursive: true });
-
     const uploadedFiles = [];
 
     for (const file of files) {
@@ -56,24 +51,22 @@ export async function POST(request: NextRequest) {
       }
 
       // Generate unique filename
-      const ext = path.extname(file.name);
-      const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
-      const filepath = path.join(uploadDir, filename);
+      const ext = file.name.split('.').pop() || 'bin';
+      const filename = `${listingId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
 
-      // Write file
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filepath, buffer);
+      // Upload to Vercel Blob
+      const blob = await put(filename, file, {
+        access: "public",
+      });
 
       // Create database record
       const mediaType = isImage ? "IMAGE" : "DOCUMENT";
-      const url = `/uploads/${listingId}/${filename}`;
 
       const media = await prisma.listingMedia.create({
         data: {
           listingId,
           type: mediaType,
-          url,
+          url: blob.url,
           sortOrder: uploadedFiles.length,
         },
       });

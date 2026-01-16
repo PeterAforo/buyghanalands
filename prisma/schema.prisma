@@ -136,6 +136,7 @@ enum ResolutionOutcome {
 }
 
 enum PaymentProvider {
+  FLUTTERWAVE
   PAYSTACK
   HUBTEL
   OTHER
@@ -203,6 +204,7 @@ model User {
   id              String        @id @default(cuid())
   email           String?       @unique
   phone           String        @unique
+  phoneVerified   Boolean       @default(false)
   passwordHash    String?
   fullName        String
   avatarUrl       String?
@@ -242,6 +244,19 @@ model User {
   @@index([createdAt])
   @@index([email])
   @@index([phone])
+}
+
+model OTPVerification {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  code      String
+  userId    String?
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
 }
 
 model Listing {

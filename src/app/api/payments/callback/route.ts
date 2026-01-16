@@ -1,25 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyPayment } from "@/lib/paystack";
+import { verifyPaymentByTxRef } from "@/lib/flutterwave";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const reference = searchParams.get("reference");
+    const txRef = searchParams.get("tx_ref");
+    const status = searchParams.get("status");
+    const transactionId = searchParams.get("transaction_id");
 
-    if (!reference) {
+    if (!txRef) {
       return NextResponse.redirect(
         new URL("/dashboard?payment=error", request.url)
       );
     }
 
-    // Verify payment with Paystack
-    const verification = await verifyPayment(reference);
+    // If Flutterwave says cancelled, mark as failed
+    if (status === "cancelled") {
+      await prisma.payment.updateMany({
+        where: { providerRef: txRef },
+        data: { status: "FAILED" },
+      });
+      return NextResponse.redirect(
+        new URL("/dashboard?payment=cancelled", request.url)
+      );
+    }
 
-    if (!verification.status || verification.data.status !== "success") {
+    // Verify payment with Flutterwave
+    const verification = await verifyPaymentByTxRef(txRef);
+
+    if (verification.status !== "success" || verification.data?.status !== "successful") {
       // Update payment status to failed
       await prisma.payment.updateMany({
-        where: { providerRef: reference },
+        where: { providerRef: txRef },
         data: { status: "FAILED" },
       });
 
@@ -30,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     // Update payment status to success
     const payment = await prisma.payment.findFirst({
-      where: { providerRef: reference },
+      where: { providerRef: txRef },
     });
 
     if (!payment) {

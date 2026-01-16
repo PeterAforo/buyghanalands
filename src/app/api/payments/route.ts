@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import {
-  initializePayment,
-  generateReference,
-  convertToPesewas,
-} from "@/lib/paystack";
+import { initializePayment } from "@/lib/flutterwave";
+
+function generateReference(): string {
+  return `BGL-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+}
 
 const initializePaymentSchema = z.object({
   transactionId: z.string().optional(),
@@ -26,10 +26,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = initializePaymentSchema.parse(body);
 
-    // Get user email
+    // Get user details
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { email: true, phone: true },
+      select: { email: true, phone: true, fullName: true },
     });
 
     if (!user?.email) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       data: {
         transactionId: data.transactionId,
         listingId: data.listingId,
-        provider: "PAYSTACK",
+        provider: "FLUTTERWAVE",
         type: data.type,
         status: "INITIATED",
         amount: data.amount,
@@ -55,22 +55,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Initialize Paystack payment
-    const callbackUrl = `${process.env.NEXTAUTH_URL}/api/payments/callback`;
-
-    const paystackResponse = await initializePayment({
+    // Initialize Flutterwave payment
+    const flutterwaveResponse = await initializePayment({
+      amount: data.amount,
       email: user.email,
-      amount: convertToPesewas(data.amount),
-      reference,
-      callbackUrl,
-      metadata: {
+      phone: user.phone,
+      name: user.fullName,
+      txRef: reference,
+      currency: "GHS",
+      meta: {
         paymentId: payment.id,
         userId: session.user.id,
         type: data.type,
       },
     });
 
-    if (!paystackResponse.status) {
+    if (flutterwaveResponse.status !== "success" || !flutterwaveResponse.data?.link) {
       await prisma.payment.update({
         where: { id: payment.id },
         data: { status: "FAILED" },
@@ -89,8 +89,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       paymentId: payment.id,
-      authorizationUrl: paystackResponse.data.authorization_url,
-      reference: paystackResponse.data.reference,
+      paymentUrl: flutterwaveResponse.data.link,
+      reference,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -24,22 +24,59 @@ const createListingSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search");
     const region = searchParams.get("region");
     const landType = searchParams.get("landType");
+    const tenureType = searchParams.get("tenureType");
     const minPrice = searchParams.get("minPrice");
     const maxPrice = searchParams.get("maxPrice");
-    const verified = searchParams.get("verified");
+    const minSize = searchParams.get("minSize");
+    const maxSize = searchParams.get("maxSize");
+    const verificationLevel = searchParams.get("verificationLevel");
+    const sortBy = searchParams.get("sortBy") || "newest";
 
     const where: any = {
       status: "PUBLISHED",
     };
 
+    // Text search
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { region: { contains: search, mode: "insensitive" } },
+        { district: { contains: search, mode: "insensitive" } },
+        { town: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
     if (region) where.region = region;
     if (landType) where.landType = landType;
+    if (tenureType) where.tenureType = tenureType;
     if (minPrice) where.priceGhs = { ...where.priceGhs, gte: parseInt(minPrice) };
     if (maxPrice) where.priceGhs = { ...where.priceGhs, lte: parseInt(maxPrice) };
-    if (verified === "true") {
-      where.verificationLevel = "LEVEL_3_OFFICIAL_VERIFIED";
+    if (minSize) where.sizeAcres = { ...where.sizeAcres, gte: parseFloat(minSize) };
+    if (maxSize) where.sizeAcres = { ...where.sizeAcres, lte: parseFloat(maxSize) };
+    if (verificationLevel) where.verificationLevel = verificationLevel;
+
+    // Sorting
+    let orderBy: any = { publishedAt: "desc" };
+    switch (sortBy) {
+      case "oldest":
+        orderBy = { publishedAt: "asc" };
+        break;
+      case "price_low":
+        orderBy = { priceGhs: "asc" };
+        break;
+      case "price_high":
+        orderBy = { priceGhs: "desc" };
+        break;
+      case "size_low":
+        orderBy = { sizeAcres: "asc" };
+        break;
+      case "size_high":
+        orderBy = { sizeAcres: "desc" };
+        break;
     }
 
     const listings = await prisma.listing.findMany({
@@ -57,13 +94,20 @@ export async function GET(request: NextRequest) {
           orderBy: { sortOrder: "asc" },
         },
       },
-      orderBy: {
-        publishedAt: "desc",
-      },
+      orderBy,
       take: 50,
     });
 
-    return NextResponse.json(listings);
+    // Serialize BigInt fields
+    const serializedListings = listings.map((listing) => ({
+      ...listing,
+      priceGhs: listing.priceGhs.toString(),
+      sizeAcres: listing.sizeAcres.toString(),
+      latitude: listing.latitude?.toString() || null,
+      longitude: listing.longitude?.toString() || null,
+    }));
+
+    return NextResponse.json(serializedListings);
   } catch (error) {
     console.error("Error fetching listings:", error);
     return NextResponse.json(
