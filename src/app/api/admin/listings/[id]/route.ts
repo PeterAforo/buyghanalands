@@ -36,7 +36,8 @@ export async function PUT(
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
-    let newStatus: string;
+    type ListingStatusType = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "PUBLISHED" | "SUSPENDED" | "REJECTED" | "SOLD";
+    let newStatus: ListingStatusType;
 
     switch (action) {
       case "approve":
