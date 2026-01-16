@@ -241,6 +241,18 @@ model User {
   permitApplications   PermitApplication[]
   professionalProfile  ProfessionalProfile?
 
+  // Pro features relations
+  subscriptions          Subscription[]
+  featuredListings       FeaturedListing[]
+  listingAlerts          ListingAlert[]
+  sellerBadge            SellerBadge?
+  badgesIssued           SellerBadge[]          @relation("BadgeIssuer")
+  escrowInsurances       EscrowInsurance[]
+  insuranceClaims        InsuranceClaim[]
+  documentVerifications  DocumentVerification[]
+  agentProfile           AgentProfile?
+  agentClients           AgentClient[]
+
   @@index([createdAt])
   @@index([email])
   @@index([phone])
@@ -299,6 +311,11 @@ model Listing {
   messages             Message[]
   serviceRequests      ServiceRequest[]
   permitApplications   PermitApplication[]
+
+  // Pro features relations
+  featuredListings     FeaturedListing[]
+  virtualTours         VirtualTour[]
+  agentListings        AgentListing[]
 
   @@index([sellerId, status])
   @@index([status, publishedAt])
@@ -388,6 +405,9 @@ model Document {
   bookings        Booking[]
   messages        Message[]
 
+  // Pro features relations
+  verifications   DocumentVerification[]
+
   @@index([listingId, type])
   @@index([transactionId, type])
 }
@@ -455,6 +475,10 @@ model Transaction {
   supportTickets   SupportTicket[]
   serviceRequests  ServiceRequest[]
   permitApplications PermitApplication[]
+
+  // Pro features relations
+  escrowInsurance    EscrowInsurance?
+  agentCommissions   AgentCommission[]
 
   @@index([buyerId, status])
   @@index([sellerId, status])
@@ -1078,4 +1102,344 @@ model WebhookDelivery {
 
   @@index([endpointId, createdAt])
   @@index([status, nextRetryAt])
+}
+
+// Pro Features Models
+
+enum SubscriptionPlan {
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  SUSPENDED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+model Subscription {
+  id           String             @id @default(cuid())
+  userId       String
+  user         User               @relation(fields: [userId], references: [id])
+  plan         SubscriptionPlan
+  billingCycle BillingCycle       @default(MONTHLY)
+  priceGhs     Int
+  status       SubscriptionStatus @default(PENDING)
+  features     Json?
+  startDate    DateTime
+  endDate      DateTime
+  cancelledAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  payments SubscriptionPayment[]
+
+  @@index([userId, status])
+  @@index([endDate])
+}
+
+model SubscriptionPayment {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  amountGhs      Int
+  status         PaymentStatus
+  providerRef    String?
+  paidAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId, createdAt])
+}
+
+enum FeaturedListingStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model FeaturedListing {
+  id        String                @id @default(cuid())
+  listingId String
+  listing   Listing               @relation(fields: [listingId], references: [id])
+  userId    String
+  user      User                  @relation(fields: [userId], references: [id])
+  startDate DateTime
+  endDate   DateTime
+  priceGhs  Int
+  priority  Int                   @default(0)
+  status    FeaturedListingStatus @default(PENDING_PAYMENT)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([listingId, status])
+  @@index([status, endDate])
+}
+
+enum AlertFrequency {
+  INSTANT
+  DAILY
+  WEEKLY
+}
+
+model ListingAlert {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  name            String
+  criteria        Json
+  notifyEmail     Boolean        @default(true)
+  notifySms       Boolean        @default(false)
+  frequency       AlertFrequency @default(INSTANT)
+  isActive        Boolean        @default(true)
+  lastTriggeredAt DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId, isActive])
+  @@index([frequency, isActive])
+}
+
+enum SellerBadgeLevel {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum SellerBadgeStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model SellerBadge {
+  id         String            @id @default(cuid())
+  userId     String            @unique
+  user       User              @relation(fields: [userId], references: [id])
+  level      SellerBadgeLevel  @default(BRONZE)
+  status     SellerBadgeStatus @default(ACTIVE)
+  issuedAt   DateTime
+  issuedById String?
+  issuedBy   User?             @relation("BadgeIssuer", fields: [issuedById], references: [id])
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([status, expiresAt])
+}
+
+enum VirtualTourType {
+  PHOTO_360
+  VIDEO
+  DRONE
+  WALKTHROUGH
+}
+
+model VirtualTour {
+  id           String          @id @default(cuid())
+  listingId    String
+  listing      Listing         @relation(fields: [listingId], references: [id])
+  type         VirtualTourType
+  url          String
+  thumbnailUrl String?
+  title        String?
+  description  String?
+  sortOrder    Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([listingId, sortOrder])
+}
+
+enum InsuranceCoverageLevel {
+  BASIC
+  STANDARD
+  PREMIUM
+}
+
+enum EscrowInsuranceStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  CLAIM_FILED
+  CLAIM_APPROVED
+  CLAIM_REJECTED
+  EXPIRED
+}
+
+model EscrowInsurance {
+  id                String                 @id @default(cuid())
+  transactionId     String                 @unique
+  transaction       Transaction            @relation(fields: [transactionId], references: [id])
+  buyerId           String
+  buyer             User                   @relation(fields: [buyerId], references: [id])
+  coverageLevel     InsuranceCoverageLevel
+  premiumGhs        Int
+  coverageAmountGhs Int
+  status            EscrowInsuranceStatus  @default(PENDING_PAYMENT)
+  features          Json?
+  expiresAt         DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  claims InsuranceClaim[]
+
+  @@index([buyerId, status])
+  @@index([status, expiresAt])
+}
+
+enum InsuranceClaimStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum InsuranceClaimReason {
+  FRAUD
+  TITLE_ISSUE
+  DOCUMENT_FORGERY
+  SELLER_DEFAULT
+  OTHER
+}
+
+model InsuranceClaim {
+  id            String               @id @default(cuid())
+  insuranceId   String
+  insurance     EscrowInsurance      @relation(fields: [insuranceId], references: [id])
+  claimantId    String
+  claimant      User                 @relation(fields: [claimantId], references: [id])
+  reason        InsuranceClaimReason
+  description   String
+  evidenceUrls  String[]
+  claimAmountGhs Int
+  approvedAmountGhs Int?
+  status        InsuranceClaimStatus @default(SUBMITTED)
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNote    String?
+  paidAt        DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([insuranceId, status])
+  @@index([claimantId, createdAt])
+}
+
+enum DocumentVerificationStatus {
+  PENDING
+  PASSED
+  FAILED
+  REVIEW_NEEDED
+}
+
+model DocumentVerification {
+  id            String                     @id @default(cuid())
+  documentId    String
+  document      Document                   @relation(fields: [documentId], references: [id])
+  requestedById String
+  requestedBy   User                       @relation(fields: [requestedById], references: [id])
+  documentType  String
+  status        DocumentVerificationStatus @default(PENDING)
+  checks        Json?
+  completedAt   DateTime?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  @@index([documentId, createdAt])
+  @@index([requestedById, createdAt])
+}
+
+model AgentProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  agencyName      String
+  licenseNumber   String?
+  bio             String?
+  serviceRegions  String[]
+  commissionRate  Float    @default(5)
+  specializations String[]
+  isVerified      Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clients         AgentClient[]
+  managedListings AgentListing[]
+  commissions     AgentCommission[]
+
+  @@index([isActive, isVerified])
+}
+
+enum AgentClientStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+model AgentClient {
+  id        String            @id @default(cuid())
+  agentId   String
+  agent     AgentProfile      @relation(fields: [agentId], references: [id])
+  clientId  String
+  client    User              @relation(fields: [clientId], references: [id])
+  status    AgentClientStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([agentId, clientId])
+  @@index([agentId, status])
+}
+
+model AgentListing {
+  id        String       @id @default(cuid())
+  agentId   String
+  agent     AgentProfile @relation(fields: [agentId], references: [id])
+  listingId String
+  listing   Listing      @relation(fields: [listingId], references: [id])
+  createdAt DateTime     @default(now())
+
+  @@unique([agentId, listingId])
+  @@index([agentId])
+}
+
+model AgentCommission {
+  id            String       @id @default(cuid())
+  agentId       String
+  agent         AgentProfile @relation(fields: [agentId], references: [id])
+  transactionId String
+  transaction   Transaction  @relation(fields: [transactionId], references: [id])
+  amountGhs     Int
+  rate          Float
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([agentId, status])
+  @@index([transactionId])
+}
+
+model WhatsAppSession {
+  id            String   @id @default(cuid())
+  phone         String   @unique
+  state         String   @default("MAIN_MENU")
+  data          Json?
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([phone])
+  @@index([lastMessageAt])
 }
