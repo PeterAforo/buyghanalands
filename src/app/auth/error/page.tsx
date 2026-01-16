@@ -45,12 +45,12 @@ export default function AuthErrorPage() {
           </div>
 
           <div className="space-y-3">
-            <Button asChild className="w-full">
-              <Link href="/auth/login">
+            <Link href="/auth/login">
+              <Button className="w-full">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Sign In
-              </Link>
-            </Button>
+              </Button>
+            </Link>
 
             <p className="text-center text-sm text-gray-600">
               Need help?{" "}
