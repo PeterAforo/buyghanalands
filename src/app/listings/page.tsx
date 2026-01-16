@@ -134,7 +134,7 @@ export default async function ListingsPage() {
                           <h3 className="font-semibold text-gray-900 line-clamp-1">
                             {listing.title}
                           </h3>
-                          <div className="flex items-center mt-1 text-sm text-gray-500">
+                          <div className="flex items-center mt-1 text-sm text-gray-600">
                             <MapPin className="h-4 w-4 mr-1" />
                             {listing.town}, {listing.district}
                           </div>
@@ -147,7 +147,7 @@ export default async function ListingsPage() {
                             {formatPrice(listing.priceGhs)}
                           </p>
                         </div>
-                        <div className="flex items-center text-sm text-gray-500">
+                        <div className="flex items-center text-sm text-gray-600">
                           <Ruler className="h-4 w-4 mr-1" />
                           {Number(listing.sizeAcres).toFixed(2)} acres
                         </div>
@@ -155,11 +155,11 @@ export default async function ListingsPage() {
 
                       <div className="mt-4 flex items-center justify-between pt-4 border-t">
                         <div className="flex items-center text-sm">
-                          <span className="text-gray-500">
+                          <span className="text-gray-600">
                             {listing.landType.toLowerCase().replace("_", " ")}
                           </span>
-                          <span className="mx-2 text-gray-300">•</span>
-                          <span className="text-gray-500">
+                          <span className="mx-2 text-gray-400">•</span>
+                          <span className="text-gray-600">
                             {listing.tenureType.toLowerCase()}
                           </span>
                         </div>
