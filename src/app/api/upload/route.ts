@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Listing not found or unauthorized" }, { status: 404 });
     }
 
-    const uploadedFiles = [];
+    const uploadedFiles: { id: string; url: string; type: string }[] = [];
 
     for (const file of files) {
       // Validate file type
