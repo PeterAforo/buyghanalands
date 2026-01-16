@@ -1,0 +1,350 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  ArrowLeft,
+  User,
+  Phone,
+  Mail,
+  Shield,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Camera,
+  FileText,
+} from "lucide-react";
+
+interface UserProfile {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string;
+  roles: string[];
+  kycTier: string;
+  accountStatus: string;
+  createdAt: string;
+  _count: {
+    listings: number;
+    transactionsAsBuyer: number;
+    transactionsAsSeller: number;
+  };
+}
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getKycBadge(tier: string) {
+  switch (tier) {
+    case "TIER_2_GHANA_CARD":
+      return { label: "Verified (Ghana Card)", variant: "success" as const, icon: CheckCircle };
+    case "TIER_1_ID_UPLOAD":
+      return { label: "ID Uploaded", variant: "warning" as const, icon: AlertCircle };
+    default:
+      return { label: "Unverified", variant: "secondary" as const, icon: AlertCircle };
+  }
+}
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const { data: session, status: authStatus, update: updateSession } = useSession();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+  });
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const response = await fetch("/api/profile");
+        if (response.ok) {
+          const data = await response.json();
+          setProfile(data);
+          setFormData({
+            fullName: data.fullName,
+            email: data.email || "",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (session?.user) {
+      fetchProfile();
+    }
+  }, [session]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setProfile(updated);
+        setEditMode(false);
+        setMessage({ type: "success", text: "Profile updated successfully" });
+        await updateSession();
+      } else {
+        const error = await response.json();
+        setMessage({ type: "error", text: error.error || "Failed to update profile" });
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "Failed to update profile" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (authStatus === "loading" || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    router.push("/auth/login?callbackUrl=/dashboard/profile");
+    return null;
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="mx-auto max-w-2xl px-4">
+          <p className="text-center text-gray-500">Failed to load profile</p>
+        </div>
+      </div>
+    );
+  }
+
+  const kycBadge = getKycBadge(profile.kycTier);
+  const KycIcon = kycBadge.icon;
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-4 mb-6">
+          <Link href="/dashboard">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Dashboard
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+        </div>
+
+        {message && (
+          <div
+            className={`mb-6 p-4 rounded-lg ${
+              message.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
+        {/* Profile Header */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-6">
+              <div className="h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center">
+                <User className="h-10 w-10 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900">{profile.fullName}</h2>
+                <p className="text-gray-500">{profile.phone}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant={kycBadge.variant}>
+                    <KycIcon className="h-3 w-3 mr-1" />
+                    {kycBadge.label}
+                  </Badge>
+                  {profile.roles.includes("SELLER") && (
+                    <Badge variant="outline">Seller</Badge>
+                  )}
+                </div>
+              </div>
+              {!editMode && (
+                <Button onClick={() => setEditMode(true)}>Edit Profile</Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Profile Details */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Personal Information</CardTitle>
+            <CardDescription>
+              {editMode ? "Update your personal details" : "Your account information"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              {editMode ? (
+                <Input
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  placeholder="Enter your full name"
+                />
+              ) : (
+                <p className="text-gray-900">{profile.fullName}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-gray-400" />
+                <p className="text-gray-900">{profile.phone}</p>
+                <Badge variant="outline" className="text-xs">Verified</Badge>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              {editMode ? (
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Enter your email address"
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  <p className="text-gray-900">{profile.email || "Not provided"}</p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
+              <p className="text-gray-900">{formatDate(profile.createdAt)}</p>
+            </div>
+
+            {editMode && (
+              <div className="flex gap-3 pt-4">
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditMode(false);
+                    setFormData({
+                      fullName: profile.fullName,
+                      email: profile.email || "",
+                    });
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* KYC Verification */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-emerald-600" />
+              Identity Verification
+            </CardTitle>
+            <CardDescription>
+              Verify your identity to unlock all features
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium">Current Status</p>
+                  <Badge variant={kycBadge.variant} className="mt-1">
+                    <KycIcon className="h-3 w-3 mr-1" />
+                    {kycBadge.label}
+                  </Badge>
+                </div>
+                <Link href="/dashboard/profile/kyc">
+                  <Button>
+                    <FileText className="h-4 w-4 mr-2" />
+                    {profile.kycTier === "TIER_0_PHONE_ONLY" ? "Start Verification" : "Update Documents"}
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="text-sm text-gray-600">
+                <p className="font-medium mb-2">Benefits of verification:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Higher transaction limits</li>
+                  <li>Verified badge on your listings</li>
+                  <li>Increased trust from buyers</li>
+                  <li>Priority customer support</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Activity Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Activity Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-2xl font-bold text-emerald-600">{profile._count.listings}</p>
+                <p className="text-sm text-gray-500">Listings</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-2xl font-bold text-emerald-600">{profile._count.transactionsAsBuyer}</p>
+                <p className="text-sm text-gray-500">Purchases</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-2xl font-bold text-emerald-600">{profile._count.transactionsAsSeller}</p>
+                <p className="text-sm text-gray-500">Sales</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
