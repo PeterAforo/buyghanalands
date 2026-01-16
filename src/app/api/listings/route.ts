@@ -136,7 +136,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(listing, { status: 201 });
+    // Convert BigInt to string for JSON serialization
+    const serializedListing = {
+      ...listing,
+      priceGhs: listing.priceGhs.toString(),
+    };
+
+    return NextResponse.json(serializedListing, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
