@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { addDays } from "date-fns";
+import { notifyOfferReceived } from "@/lib/notifications";
 
 const createOfferSchema = z.object({
   listingId: z.string().min(1),
@@ -89,6 +90,9 @@ export async function POST(request: NextRequest) {
         diff: { amountGhs: data.amountGhs, listingId: data.listingId },
       },
     });
+
+    // Send notification to seller (async, don't block response)
+    notifyOfferReceived(offer.listing.sellerId, offer.listing.title, data.amountGhs).catch(console.error);
 
     return NextResponse.json(offer, { status: 201 });
   } catch (error) {

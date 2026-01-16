@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyPaymentByTxRef } from "@/lib/flutterwave";
+import { notifyTransactionFunded } from "@/lib/notifications";
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,9 +64,12 @@ export async function GET(request: NextRequest) {
     // Handle post-payment logic based on payment type
     if (payment.type === "TRANSACTION_FUNDING" && payment.transactionId) {
       // Update transaction status to FUNDED
-      await prisma.transaction.update({
+      const transaction = await prisma.transaction.update({
         where: { id: payment.transactionId },
         data: { status: "FUNDED" },
+        include: {
+          listing: { select: { title: true } },
+        },
       });
 
       // Create audit log
@@ -78,6 +82,9 @@ export async function GET(request: NextRequest) {
           diff: { from: "ESCROW_REQUESTED", to: "FUNDED" },
         },
       });
+
+      // Notify seller that escrow is funded
+      notifyTransactionFunded(transaction.sellerId, transaction.listing.title, Number(payment.amount)).catch(console.error);
 
       return NextResponse.redirect(
         new URL(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { notifyOfferAccepted, notifyOfferCountered } from "@/lib/notifications";
 
 export async function GET(
   request: NextRequest,
@@ -109,6 +110,14 @@ export async function PUT(
           status: "CREATED",
         },
       });
+
+      // Notify buyer that offer was accepted
+      notifyOfferAccepted(offer.buyerId, offer.listing.title, Number(offer.amountGhs)).catch(console.error);
+    }
+
+    if (status === "COUNTERED" && counterAmount) {
+      // Notify buyer of counter offer
+      notifyOfferCountered(offer.buyerId, offer.listing.title, counterAmount).catch(console.error);
     }
 
     const updatedOffer = await prisma.offer.update({

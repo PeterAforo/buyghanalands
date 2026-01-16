@@ -184,7 +184,18 @@ export default async function AdminDashboard() {
         </div>
 
         {/* Action Cards */}
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
+        <div className="grid gap-4 md:grid-cols-5 mb-8">
+          <Link href="/admin/users">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="p-6 text-center">
+                <div className="mx-auto h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+                <p className="font-medium">User Management</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.totalUsers}</p>
+              </CardContent>
+            </Card>
+          </Link>
           <Link href="/admin/listings">
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-6 text-center">
