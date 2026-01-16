@@ -23,6 +23,7 @@ const createListingSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
     const region = searchParams.get("region");
@@ -34,10 +35,16 @@ export async function GET(request: NextRequest) {
     const maxSize = searchParams.get("maxSize");
     const verificationLevel = searchParams.get("verificationLevel");
     const sortBy = searchParams.get("sortBy") || "newest";
+    const mine = searchParams.get("mine") === "true";
 
-    const where: any = {
-      status: "PUBLISHED",
-    };
+    const where: any = {};
+
+    // If fetching user's own listings
+    if (mine && session?.user?.id) {
+      where.sellerId = session.user.id;
+    } else {
+      where.status = "PUBLISHED";
+    }
 
     // Text search
     if (search) {
@@ -92,6 +99,9 @@ export async function GET(request: NextRequest) {
         media: {
           take: 1,
           orderBy: { sortOrder: "asc" },
+        },
+        _count: {
+          select: { offers: true },
         },
       },
       orderBy,
