@@ -24,6 +24,13 @@ import {
   FileText,
 } from "lucide-react";
 
+interface ListingMedia {
+  id: string;
+  type: string;
+  url: string;
+  sortOrder: number;
+}
+
 interface Listing {
   id: string;
   title: string;
@@ -42,6 +49,7 @@ interface Listing {
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+  media?: ListingMedia[];
 }
 
 function getStatusBadge(status: string) {
@@ -194,20 +202,45 @@ export default function DashboardListingDetailPage({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: "photo" | "document") => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || !listingId) return;
     
     setActionLoading(type === "photo" ? "photo" : "document");
+    setError(null);
     
-    // For now, show a message that file upload will be implemented
-    // In production, you would upload to S3/R2 and save to database
-    setTimeout(() => {
-      setSuccessMessage(`${type === "photo" ? "Photos" : "Documents"} upload feature coming soon!`);
-      setTimeout(() => setSuccessMessage(null), 3000);
+    try {
+      const formData = new FormData();
+      formData.append("listingId", listingId);
+      formData.append("type", type);
+      
+      for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]);
+      }
+      
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        setError(result.error || "Failed to upload files");
+      } else {
+        setSuccessMessage(result.message || `${type === "photo" ? "Photos" : "Documents"} uploaded successfully!`);
+        setTimeout(() => setSuccessMessage(null), 3000);
+        // Refresh listing to show new media
+        const listingResponse = await fetch(`/api/listings/${listingId}`);
+        if (listingResponse.ok) {
+          const updatedListing = await listingResponse.json();
+          setListing(updatedListing);
+        }
+      }
+    } catch {
+      setError("Failed to upload files. Please try again.");
+    } finally {
       setActionLoading(null);
-    }, 1000);
-    
-    // Reset the input
-    e.target.value = "";
+      e.target.value = "";
+    }
   };
 
   if (authStatus === "loading" || loading) {
@@ -606,6 +639,57 @@ export default function DashboardListingDetailPage({
             </CardContent>
           </Card>
         </div>
+
+        {/* Photos */}
+        {listing.media && listing.media.filter(m => m.type === "IMAGE").length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Photos ({listing.media.filter(m => m.type === "IMAGE").length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {listing.media
+                  .filter(m => m.type === "IMAGE")
+                  .map((media) => (
+                    <div key={media.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                      <img
+                        src={media.url}
+                        alt="Listing photo"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Documents */}
+        {listing.media && listing.media.filter(m => m.type === "DOCUMENT").length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Documents ({listing.media.filter(m => m.type === "DOCUMENT").length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {listing.media
+                  .filter(m => m.type === "DOCUMENT")
+                  .map((media) => (
+                    <a
+                      key={media.id}
+                      href={media.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-3 rounded-lg border hover:bg-gray-50"
+                    >
+                      <FileText className="h-5 w-5 text-gray-500" />
+                      <span className="text-sm text-gray-700">{media.url.split('/').pop()}</span>
+                    </a>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Description */}
         <Card className="mt-6">
