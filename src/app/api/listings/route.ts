@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search");
+    const search = searchParams.get("search") || searchParams.get("q");
     const region = searchParams.get("region");
     const landType = searchParams.get("landType");
     const tenureType = searchParams.get("tenureType");
@@ -34,8 +34,12 @@ export async function GET(request: NextRequest) {
     const minSize = searchParams.get("minSize");
     const maxSize = searchParams.get("maxSize");
     const verificationLevel = searchParams.get("verificationLevel");
+    const verified = searchParams.get("verified") === "true";
     const sortBy = searchParams.get("sortBy") || "newest";
     const mine = searchParams.get("mine") === "true";
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const skip = (page - 1) * limit;
 
     const where: any = {};
 
@@ -65,6 +69,9 @@ export async function GET(request: NextRequest) {
     if (minSize) where.sizeAcres = { ...where.sizeAcres, gte: parseFloat(minSize) };
     if (maxSize) where.sizeAcres = { ...where.sizeAcres, lte: parseFloat(maxSize) };
     if (verificationLevel) where.verificationLevel = verificationLevel;
+    if (verified) {
+      where.verificationLevel = { in: ["LEVEL_2_PLATFORM_REVIEWED", "LEVEL_3_OFFICIAL_VERIFIED"] };
+    }
 
     // Sorting
     let orderBy: any = { publishedAt: "desc" };
@@ -105,7 +112,8 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy,
-      take: 50,
+      skip,
+      take: limit,
     });
 
     // Serialize BigInt fields
@@ -117,7 +125,7 @@ export async function GET(request: NextRequest) {
       longitude: listing.longitude?.toString() || null,
     }));
 
-    return NextResponse.json(serializedListings);
+    return NextResponse.json({ listings: serializedListings, page, limit });
   } catch (error) {
     console.error("Error fetching listings:", error);
     return NextResponse.json(
