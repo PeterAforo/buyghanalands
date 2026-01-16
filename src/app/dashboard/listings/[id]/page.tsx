@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -18,6 +18,10 @@ import {
   MapPin,
   Ruler,
   Calendar,
+  Loader2,
+  X,
+  Image as ImageIcon,
+  FileText,
 } from "lucide-react";
 
 interface Listing {
@@ -75,6 +79,11 @@ export default function DashboardListingDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [listingId, setListingId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     params.then((p) => setListingId(p.id));
@@ -105,6 +114,101 @@ export default function DashboardListingDetailPage({
 
     fetchListing();
   }, [listingId]);
+
+  const handlePublish = async () => {
+    if (!listingId) return;
+    setActionLoading("publish");
+    try {
+      const response = await fetch(`/api/listings/${listingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "PUBLISHED", publishedAt: new Date().toISOString() }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setListing(updated);
+        setSuccessMessage("Listing published successfully!");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError("Failed to publish listing");
+      }
+    } catch {
+      setError("Failed to publish listing");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!listingId) return;
+    setActionLoading("unpublish");
+    try {
+      const response = await fetch(`/api/listings/${listingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DRAFT" }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setListing(updated);
+        setSuccessMessage("Listing unpublished");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError("Failed to unpublish listing");
+      }
+    } catch {
+      setError("Failed to unpublish listing");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!listingId) return;
+    setActionLoading("delete");
+    try {
+      const response = await fetch(`/api/listings/${listingId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        router.push("/dashboard?deleted=true");
+      } else {
+        setError("Failed to delete listing");
+        setShowDeleteConfirm(false);
+      }
+    } catch {
+      setError("Failed to delete listing");
+      setShowDeleteConfirm(false);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePhotoUpload = () => {
+    photoInputRef.current?.click();
+  };
+
+  const handleDocUpload = () => {
+    docInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: "photo" | "document") => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    setActionLoading(type === "photo" ? "photo" : "document");
+    
+    // For now, show a message that file upload will be implemented
+    // In production, you would upload to S3/R2 and save to database
+    setTimeout(() => {
+      setSuccessMessage(`${type === "photo" ? "Photos" : "Documents"} upload feature coming soon!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+      setActionLoading(null);
+    }, 1000);
+    
+    // Reset the input
+    e.target.value = "";
+  };
 
   if (authStatus === "loading" || loading) {
     return (
@@ -152,6 +256,85 @@ export default function DashboardListingDetailPage({
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        {/* Hidden file inputs */}
+        <input
+          type="file"
+          ref={photoInputRef}
+          className="hidden"
+          accept="image/*"
+          multiple
+          onChange={(e) => handleFileChange(e, "photo")}
+        />
+        <input
+          type="file"
+          ref={docInputRef}
+          className="hidden"
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          multiple
+          onChange={(e) => handleFileChange(e, "document")}
+        />
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-md mx-4">
+              <CardHeader>
+                <CardTitle className="text-red-600">Delete Listing</CardTitle>
+                <CardDescription>
+                  Are you sure you want to delete this listing? This action cannot be undone.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={actionLoading === "delete"}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={actionLoading === "delete"}
+                >
+                  {actionLoading === "delete" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="fixed top-4 right-4 bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5" />
+            {successMessage}
+            <button onClick={() => setSuccessMessage(null)}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError(null)}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* Back Link */}
         <Link
           href="/dashboard"
@@ -179,14 +362,16 @@ export default function DashboardListingDetailPage({
                 View Public
               </Button>
             </Link>
-            <Button variant="outline" size="sm">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+            <Link href={`/dashboard/listings/${listing.id}/edit`}>
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            </Link>
           </div>
         </div>
 
-        {/* Status Card */}
+        {/* Status Card - Draft */}
         {listing.status === "DRAFT" && (
           <Card className="mb-6 border-yellow-200 bg-yellow-50">
             <CardContent className="py-4">
@@ -202,8 +387,56 @@ export default function DashboardListingDetailPage({
                     </p>
                   </div>
                 </div>
-                <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700">
-                  Publish Listing
+                <Button
+                  size="sm"
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                  onClick={handlePublish}
+                  disabled={actionLoading === "publish"}
+                >
+                  {actionLoading === "publish" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    "Publish Listing"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Status Card - Published */}
+        {listing.status === "PUBLISHED" && (
+          <Card className="mb-6 border-emerald-200 bg-emerald-50">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                  <div>
+                    <p className="font-medium text-emerald-800">
+                      This listing is live
+                    </p>
+                    <p className="text-sm text-emerald-700">
+                      Your listing is visible to potential buyers
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleUnpublish}
+                  disabled={actionLoading === "unpublish"}
+                >
+                  {actionLoading === "unpublish" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Unpublishing...
+                    </>
+                  ) : (
+                    "Unpublish"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -311,9 +544,23 @@ export default function DashboardListingDetailPage({
                   </>
                 )}
               </div>
-              <Button variant="outline" className="w-full mt-4">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Documents
+              <Button
+                variant="outline"
+                className="w-full mt-4"
+                onClick={handleDocUpload}
+                disabled={actionLoading === "document"}
+              >
+                {actionLoading === "document" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Upload Documents
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -324,17 +571,34 @@ export default function DashboardListingDetailPage({
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Photos
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={handlePhotoUpload}
+                disabled={actionLoading === "photo"}
+              >
+                {actionLoading === "photo" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    Upload Photos
+                  </>
+                )}
               </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Listing
-              </Button>
+              <Link href={`/dashboard/listings/${listing.id}/edit`} className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Listing
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setShowDeleteConfirm(true)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Listing
