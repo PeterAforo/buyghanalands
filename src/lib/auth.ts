@@ -48,11 +48,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.phone = user.phone;
-        token.roles = user.roles;
-        token.kycTier = user.kycTier;
-        token.accountStatus = user.accountStatus;
+        token.id = user.id ?? "";
+        token.phone = user.phone ?? "";
+        token.roles = user.roles ?? [];
+        token.kycTier = user.kycTier ?? "";
+        token.accountStatus = user.accountStatus ?? "";
       }
       return token;
     },
