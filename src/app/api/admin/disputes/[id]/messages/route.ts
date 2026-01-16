@@ -35,25 +35,45 @@ export async function POST(
 
     const dispute = await prisma.dispute.findUnique({
       where: { id: disputeId },
+      include: { transaction: true },
     });
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
 
-    const message = await prisma.disputeMessage.create({
+    // Use the Message model with transactionId to link to dispute
+    // Send to both buyer and seller
+    const message = await prisma.message.create({
       data: {
-        disputeId,
         senderId: session.user.id,
-        senderType: "ADMIN",
-        content: data.content,
+        receiverId: dispute.transaction.buyerId, // Primary recipient
+        transactionId: dispute.transactionId,
+        body: `[ADMIN - Dispute #${disputeId.slice(0, 8)}] ${data.content}`,
       },
       include: {
         sender: { select: { fullName: true } },
       },
     });
 
-    return NextResponse.json(message, { status: 201 });
+    // Also send to seller
+    await prisma.message.create({
+      data: {
+        senderId: session.user.id,
+        receiverId: dispute.transaction.sellerId,
+        transactionId: dispute.transactionId,
+        body: `[ADMIN - Dispute #${disputeId.slice(0, 8)}] ${data.content}`,
+      },
+    });
+
+    return NextResponse.json({
+      id: message.id,
+      content: data.content,
+      senderType: "ADMIN",
+      senderId: session.user.id,
+      createdAt: message.createdAt,
+      sender: message.sender,
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

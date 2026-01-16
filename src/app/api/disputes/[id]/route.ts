@@ -30,18 +30,40 @@ export async function GET(
             seller: { select: { id: true, fullName: true } },
           },
         },
-        messages: {
-          include: {
-            sender: { select: { fullName: true } },
-          },
-          orderBy: { createdAt: "asc" },
-        },
       },
     });
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
+
+    // Fetch messages related to this dispute's transaction
+    const messages = await prisma.message.findMany({
+      where: {
+        transactionId: dispute.transactionId,
+        body: { contains: `[Dispute #${id.slice(0, 8)}]` },
+      },
+      include: {
+        sender: { select: { fullName: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // Transform messages to include senderType
+    const transformedMessages = messages.map((msg) => {
+      let senderType: "BUYER" | "SELLER" | "ADMIN" = "ADMIN";
+      if (msg.senderId === dispute.transaction.buyerId) senderType = "BUYER";
+      else if (msg.senderId === dispute.transaction.sellerId) senderType = "SELLER";
+      
+      return {
+        id: msg.id,
+        content: msg.body.replace(`[Dispute #${id.slice(0, 8)}] `, "").replace(`[ADMIN - Dispute #${id.slice(0, 8)}] `, ""),
+        senderType,
+        senderId: msg.senderId,
+        createdAt: msg.createdAt,
+        sender: msg.sender,
+      };
+    });
 
     // Check authorization
     const isBuyer = dispute.transaction.buyerId === session.user.id;
@@ -57,6 +79,7 @@ export async function GET(
         ...dispute.transaction,
         agreedPriceGhs: dispute.transaction.agreedPriceGhs.toString(),
       },
+      messages: transformedMessages,
     });
   } catch (error) {
     console.error("Error fetching dispute:", error);

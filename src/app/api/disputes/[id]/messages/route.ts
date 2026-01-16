@@ -40,22 +40,31 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Determine sender type
+    // Determine sender type and receiver
     const senderType = isBuyer ? "BUYER" : "SELLER";
+    const receiverId = isBuyer ? dispute.transaction.sellerId : dispute.transaction.buyerId;
 
-    const message = await prisma.disputeMessage.create({
+    // Use the Message model with transactionId to link to dispute
+    const message = await prisma.message.create({
       data: {
-        disputeId,
         senderId: session.user.id,
-        senderType,
-        content: data.content,
+        receiverId,
+        transactionId: dispute.transactionId,
+        body: `[Dispute #${disputeId.slice(0, 8)}] ${data.content}`,
       },
       include: {
         sender: { select: { fullName: true } },
       },
     });
 
-    return NextResponse.json(message, { status: 201 });
+    return NextResponse.json({
+      id: message.id,
+      content: data.content,
+      senderType,
+      senderId: session.user.id,
+      createdAt: message.createdAt,
+      sender: message.sender,
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -44,12 +44,6 @@ export async function GET(
             seller: { select: { id: true, fullName: true, phone: true } },
           },
         },
-        messages: {
-          include: {
-            sender: { select: { fullName: true } },
-          },
-          orderBy: { createdAt: "asc" },
-        },
       },
     });
 
@@ -57,12 +51,41 @@ export async function GET(
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
 
+    // Fetch messages related to this dispute's transaction
+    const messages = await prisma.message.findMany({
+      where: {
+        transactionId: dispute.transactionId,
+        body: { contains: `Dispute #${id.slice(0, 8)}` },
+      },
+      include: {
+        sender: { select: { fullName: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // Transform messages to include senderType
+    const transformedMessages = messages.map((msg) => {
+      let senderType: "BUYER" | "SELLER" | "ADMIN" = "ADMIN";
+      if (msg.senderId === dispute.transaction.buyerId) senderType = "BUYER";
+      else if (msg.senderId === dispute.transaction.sellerId) senderType = "SELLER";
+      
+      return {
+        id: msg.id,
+        content: msg.body.replace(`[Dispute #${id.slice(0, 8)}] `, "").replace(`[ADMIN - Dispute #${id.slice(0, 8)}] `, ""),
+        senderType,
+        senderId: msg.senderId,
+        createdAt: msg.createdAt,
+        sender: msg.sender,
+      };
+    });
+
     return NextResponse.json({
       ...dispute,
       transaction: {
         ...dispute.transaction,
         agreedPriceGhs: dispute.transaction.agreedPriceGhs.toString(),
       },
+      messages: transformedMessages,
     });
   } catch (error) {
     console.error("Error fetching dispute:", error);
@@ -138,13 +161,34 @@ export async function PUT(
             seller: { select: { id: true, fullName: true, phone: true } },
           },
         },
-        messages: {
-          include: {
-            sender: { select: { fullName: true } },
-          },
-          orderBy: { createdAt: "asc" },
-        },
       },
+    });
+
+    // Fetch messages related to this dispute
+    const messages = await prisma.message.findMany({
+      where: {
+        transactionId: updatedDispute.transactionId,
+        body: { contains: `Dispute #${id.slice(0, 8)}` },
+      },
+      include: {
+        sender: { select: { fullName: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const transformedMessages = messages.map((msg) => {
+      let senderType: "BUYER" | "SELLER" | "ADMIN" = "ADMIN";
+      if (msg.senderId === updatedDispute.transaction.buyerId) senderType = "BUYER";
+      else if (msg.senderId === updatedDispute.transaction.sellerId) senderType = "SELLER";
+      
+      return {
+        id: msg.id,
+        content: msg.body.replace(`[Dispute #${id.slice(0, 8)}] `, "").replace(`[ADMIN - Dispute #${id.slice(0, 8)}] `, ""),
+        senderType,
+        senderId: msg.senderId,
+        createdAt: msg.createdAt,
+        sender: msg.sender,
+      };
     });
 
     // Update transaction status based on resolution
@@ -183,6 +227,7 @@ export async function PUT(
         ...updatedDispute.transaction,
         agreedPriceGhs: updatedDispute.transaction.agreedPriceGhs.toString(),
       },
+      messages: transformedMessages,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
