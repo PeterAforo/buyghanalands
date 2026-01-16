@@ -1,36 +1,140 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Buy Ghana Lands
+
+Ghana's trusted platform for secure land transactions. Verified listings, protected payments, and professional services for buyers and sellers.
+
+## Features
+
+- **Verified Listings** - Platform-reviewed and Lands Commission verified properties
+- **Protected Payments** - Escrow-style transaction protection via Paystack
+- **Document Vault** - Secure storage for land documents with access controls
+- **Professional Network** - Connect with surveyors, lawyers, and architects
+- **Building Permits** - Apply for and track permit applications
+- **Multi-role Support** - Buyers, sellers, agents, and professionals
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Database**: NeonDB (PostgreSQL + PostGIS)
+- **ORM**: Prisma 7
+- **Authentication**: Auth.js (NextAuth v5)
+- **Styling**: Tailwind CSS
+- **Payments**: Paystack
+- **Maps**: Mapbox
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- npm or yarn
+- NeonDB account (or PostgreSQL with PostGIS)
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/PeterAforo/buyghanalands.git
+cd buyghanalands
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Edit `.env` with your credentials:
+```env
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
+AUTH_SECRET="your-secret-key"
+NEXTAUTH_URL="http://localhost:3000"
+MAPBOX_ACCESS_TOKEN="pk...."
+PAYSTACK_SECRET_KEY="sk_..."
+PAYSTACK_PUBLIC_KEY="pk_..."
+```
 
-## Learn More
+4. Push database schema:
+```bash
+npm run db:push
+```
 
-To learn more about Next.js, take a look at the following resources:
+5. Generate Prisma client:
+```bash
+npm run db:generate
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+6. Run development server:
+```bash
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+├── app/                    # Next.js App Router pages
+│   ├── api/               # API routes
+│   ├── admin/             # Admin dashboard
+│   ├── auth/              # Authentication pages
+│   ├── dashboard/         # User dashboard
+│   ├── listings/          # Land listings
+│   ├── permits/           # Building permits
+│   └── professionals/     # Professional services
+├── components/            # React components
+│   ├── layout/           # Header, footer
+│   ├── providers/        # Context providers
+│   └── ui/               # UI components
+├── lib/                   # Utilities and configurations
+│   ├── auth.ts           # Auth.js configuration
+│   ├── db.ts             # Prisma client
+│   ├── paystack.ts       # Payment integration
+│   ├── utils.ts          # Helper functions
+│   └── validations.ts    # Zod schemas
+└── types/                 # TypeScript types
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API Endpoints
+
+- `POST /api/auth/register` - User registration
+- `GET/POST /api/listings` - Land listings CRUD
+- `GET/POST /api/offers` - Offer management
+- `GET/POST /api/transactions` - Transaction management
+- `GET/POST /api/payments` - Payment initialization
+- `GET/POST /api/verifications` - Verification requests
+- `GET/POST /api/messages` - Messaging
+
+## User Roles
+
+- **BUYER** - Browse and purchase land
+- **SELLER** - List and sell land
+- **AGENT** - Manage multiple listings
+- **PROFESSIONAL** - Offer surveying, legal, architectural services
+- **ADMIN** - Platform management
+- **SUPPORT** - Customer support
+- **MODERATOR** - Content moderation
+
+## Deployment
+
+Deploy to Vercel:
+
+```bash
+vercel
+```
+
+Or use the Vercel dashboard to connect your GitHub repository.
+
+## License
+
+Private - All rights reserved.
+
+## Support
+
+For support, email support@buyghanalands.com

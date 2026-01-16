@@ -1,0 +1,1063 @@
+// Buy Ghana Lands - Prisma Schema
+// NeonDB (Postgres) + PostGIS
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  AGENT
+  PROFESSIONAL
+  ADMIN
+  SUPPORT
+  COMPLIANCE
+  FINANCE
+  MODERATOR
+}
+
+enum KycTier {
+  TIER_0_OTP
+  TIER_1_ID_UPLOAD
+  TIER_2_GHANA_CARD
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum ListingStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  PUBLISHED
+  SUSPENDED
+  REJECTED
+  ARCHIVED
+  SOLD
+}
+
+enum ListingTenureType {
+  FREEHOLD
+  LEASEHOLD
+  CUSTOMARY
+}
+
+enum ListingLandType {
+  RESIDENTIAL
+  COMMERCIAL
+  AGRICULTURAL
+  MIXED
+}
+
+enum VerificationLevel {
+  LEVEL_0_UNVERIFIED
+  LEVEL_1_DOCS_UPLOADED
+  LEVEL_2_PLATFORM_REVIEWED
+  LEVEL_3_OFFICIAL_VERIFIED
+}
+
+enum VerificationStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+}
+
+enum DocumentType {
+  INDENTURE_DEED
+  SITE_PLAN
+  CADASTRAL_PLAN
+  LAND_TITLE_CERTIFICATE
+  LETTERS_OF_ADMINISTRATION
+  FAMILY_RESOLUTION
+  OTHER
+  SELLER_ID
+  VERIFICATION_CERTIFICATE
+  TRANSACTION_AGREEMENT
+}
+
+enum AccessPolicy {
+  PRIVATE
+  LOGGED_IN_REDACTED
+  TRANSACTION_PARTIES
+  PUBLIC
+}
+
+enum OfferStatus {
+  SENT
+  COUNTERED
+  ACCEPTED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum TransactionStatus {
+  CREATED
+  ESCROW_REQUESTED
+  FUNDED
+  VERIFICATION_PERIOD
+  DISPUTED
+  READY_TO_RELEASE
+  RELEASED
+  REFUNDED
+  PARTIAL_SETTLED
+  CLOSED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  MEDIATION
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+enum ResolutionOutcome {
+  RELEASE
+  REFUND
+  PARTIAL
+  TERMINATE
+}
+
+enum PaymentProvider {
+  PAYSTACK
+  HUBTEL
+  OTHER
+}
+
+enum PaymentType {
+  LISTING_FEE
+  TRANSACTION_FUNDING
+  PAYOUT
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+  CANCELLED
+}
+
+enum FraudCaseStatus {
+  OPEN
+  INVESTIGATING
+  ACTION_TAKEN
+  CLOSED
+}
+
+enum ReportTargetType {
+  LISTING
+  USER
+  MESSAGE
+  TRANSACTION
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  ACTIONED
+  DISMISSED
+}
+
+enum AuditEntityType {
+  USER
+  LISTING
+  LISTING_VERSION
+  OFFER
+  TRANSACTION
+  PAYMENT
+  VERIFICATION_REQUEST
+  DISPUTE
+  FRAUD_CASE
+  REPORT
+  DOCUMENT
+  MESSAGE
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+}
+
+model User {
+  id              String        @id @default(cuid())
+  email           String?       @unique
+  phone           String        @unique
+  passwordHash    String?
+  fullName        String
+  avatarUrl       String?
+  roles           UserRole[]
+  kycTier         KycTier       @default(TIER_0_OTP)
+  accountStatus   AccountStatus @default(ACTIVE)
+  language        String        @default("en")
+  marketingOptIn  Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  listings             Listing[]              @relation("UserListings")
+  offers               Offer[]                @relation("UserOffers")
+  sentMessages         Message[]              @relation("UserSentMessages")
+  receivedMessages     Message[]              @relation("UserReceivedMessages")
+  transactionsAsBuyer  Transaction[]          @relation("BuyerTransactions")
+  transactionsAsSeller Transaction[]          @relation("SellerTransactions")
+  verificationRequests VerificationRequest[]  @relation("UserVerificationRequests")
+  documents            Document[]             @relation("UserDocuments")
+  reportsFiled         Report[]               @relation("UserReportsFiled")
+  fraudCasesOpened     FraudCase[]            @relation("UserFraudCasesOpened")
+  supportTickets       SupportTicket[]
+  auditLogs            AuditLog[]
+  documentAccessLogs   DocumentAccessLog[]
+  listingVersions      ListingVersion[]
+  verificationAssigned VerificationRequest[]  @relation("AssignedVerifications")
+  disputes             Dispute[]
+  payments             Payment[]              @relation("PayerPayments")
+  payoutsReceived      Payment[]              @relation("PayeePayments")
+  fraudCasesSubject    FraudCase[]            @relation("FraudCaseSubject")
+  permitStatusChanges  PermitStatusHistory[]
+  reviews              Review[]
+  serviceRequests      ServiceRequest[]
+  permitApplications   PermitApplication[]
+  professionalProfile  ProfessionalProfile?
+
+  @@index([createdAt])
+  @@index([email])
+  @@index([phone])
+}
+
+model Listing {
+  id                String            @id @default(cuid())
+  sellerId          String
+  seller            User              @relation("UserListings", fields: [sellerId], references: [id])
+  status            ListingStatus     @default(DRAFT)
+  title             String
+  description       String
+  region            String
+  district          String
+  town              String
+  latitude          Decimal           @db.Decimal(10, 7)
+  longitude         Decimal           @db.Decimal(10, 7)
+  landType          ListingLandType
+  tenureType        ListingTenureType
+  leaseDurationYears Int?
+  sizeAcres         Decimal           @db.Decimal(12, 4)
+  sizePlots         Int?
+  priceGhs          BigInt
+  negotiable        Boolean           @default(true)
+  verificationLevel VerificationLevel @default(LEVEL_0_UNVERIFIED)
+  currentVersionId  String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  publishedAt       DateTime?
+  expiresAt         DateTime?
+
+  versions             ListingVersion[]
+  media                ListingMedia[]
+  documents            Document[]            @relation("ListingDocuments")
+  boundaries           GeoBoundary[]
+  offers               Offer[]
+  transactions         Transaction[]
+  reports              Report[]              @relation("ListingReports")
+  verificationRequests VerificationRequest[]
+  payments             Payment[]
+  fraudCases           FraudCase[]
+  messages             Message[]
+  serviceRequests      ServiceRequest[]
+  permitApplications   PermitApplication[]
+
+  @@index([sellerId, status])
+  @@index([status, publishedAt])
+  @@index([region, district])
+}
+
+model ListingVersion {
+  id                 String            @id @default(cuid())
+  listingId          String
+  listing            Listing           @relation(fields: [listingId], references: [id])
+  versionNumber      Int
+  status             ListingStatus     @default(UNDER_REVIEW)
+  title              String
+  description        String
+  region             String
+  district           String
+  town               String
+  latitude           Decimal           @db.Decimal(10, 7)
+  longitude          Decimal           @db.Decimal(10, 7)
+  landType           ListingLandType
+  tenureType         ListingTenureType
+  leaseDurationYears Int?
+  sizeAcres          Decimal           @db.Decimal(12, 4)
+  sizePlots          Int?
+  priceGhs           BigInt
+  negotiable         Boolean
+  createdById        String
+  createdBy          User              @relation(fields: [createdById], references: [id])
+  createdAt          DateTime          @default(now())
+
+  @@unique([listingId, versionNumber])
+  @@index([listingId, createdAt])
+}
+
+model ListingMedia {
+  id           String    @id @default(cuid())
+  listingId    String
+  listing      Listing   @relation(fields: [listingId], references: [id])
+  type         MediaType
+  url          String
+  thumbnailUrl String?
+  sortOrder    Int       @default(0)
+  width        Int?
+  height       Int?
+  durationSec  Int?
+  createdAt    DateTime  @default(now())
+
+  @@index([listingId, sortOrder])
+}
+
+model GeoBoundary {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  geojson   Json?
+  areaSqm   Decimal? @db.Decimal(18, 4)
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+}
+
+model Document {
+  id              String       @id @default(cuid())
+  ownerId         String?
+  owner           User?        @relation("UserDocuments", fields: [ownerId], references: [id])
+  listingId       String?
+  listing         Listing?     @relation("ListingDocuments", fields: [listingId], references: [id])
+  transactionId   String?
+  transaction     Transaction? @relation("TransactionDocuments", fields: [transactionId], references: [id])
+  disputeId       String?
+  dispute         Dispute?     @relation("DisputeDocuments", fields: [disputeId], references: [id])
+  type            DocumentType
+  accessPolicy    AccessPolicy @default(PRIVATE)
+  url             String
+  redactedUrl     String?
+  sha256          String?      @db.VarChar(64)
+  fileSizeBytes   BigInt?
+  mimeType        String?
+  virusScanStatus String?
+  exifStripped    Boolean      @default(true)
+  watermarked     Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  accessLogs      DocumentAccessLog[]
+  permitDocuments PermitDocument[]
+  bookings        Booking[]
+  messages        Message[]
+
+  @@index([listingId, type])
+  @@index([transactionId, type])
+}
+
+model DocumentAccessLog {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  ip         String?
+  userAgent  String?
+  action     String
+  createdAt  DateTime @default(now())
+
+  @@index([documentId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Offer {
+  id            String      @id @default(cuid())
+  listingId     String
+  listing       Listing     @relation(fields: [listingId], references: [id])
+  buyerId       String
+  buyer         User        @relation("UserOffers", fields: [buyerId], references: [id])
+  parentOfferId String?
+  parentOffer   Offer?      @relation("OfferChain", fields: [parentOfferId], references: [id])
+  counterOffers Offer[]     @relation("OfferChain")
+  status        OfferStatus @default(SENT)
+  amountGhs     BigInt
+  message       String?
+  expiresAt     DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  transaction Transaction?
+
+  @@index([listingId, status])
+  @@index([buyerId, createdAt])
+}
+
+model Transaction {
+  id                  String            @id @default(cuid())
+  listingId           String
+  listing             Listing           @relation(fields: [listingId], references: [id])
+  offerId             String?           @unique
+  offer               Offer?            @relation(fields: [offerId], references: [id])
+  buyerId             String
+  buyer               User              @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  sellerId            String
+  seller              User              @relation("SellerTransactions", fields: [sellerId], references: [id])
+  status              TransactionStatus @default(CREATED)
+  agreedPriceGhs      BigInt
+  platformFeeBps      Int               @default(150)
+  verificationDaysMin Int               @default(7)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  closedAt            DateTime?
+
+  milestones       EscrowMilestone[]
+  payments         Payment[]
+  disputes         Dispute[]
+  documents        Document[]         @relation("TransactionDocuments")
+  messages         Message[]          @relation("TransactionMessages")
+  supportTickets   SupportTicket[]
+  serviceRequests  ServiceRequest[]
+  permitApplications PermitApplication[]
+
+  @@index([buyerId, status])
+  @@index([sellerId, status])
+  @@index([listingId, status])
+}
+
+model EscrowMilestone {
+  id                     String      @id @default(cuid())
+  transactionId          String
+  transaction            Transaction @relation(fields: [transactionId], references: [id])
+  name                   String
+  description            String?
+  amountGhs              BigInt
+  sortOrder              Int         @default(0)
+  requiresBuyerApproval  Boolean     @default(true)
+  requiresSellerApproval Boolean     @default(true)
+  requiresAdminApproval  Boolean     @default(false)
+  buyerApprovedAt        DateTime?
+  sellerApprovedAt       DateTime?
+  adminApprovedAt        DateTime?
+  dueAt                  DateTime?
+  completedAt            DateTime?
+  createdAt              DateTime    @default(now())
+
+  @@index([transactionId, sortOrder])
+}
+
+model Payment {
+  id            String          @id @default(cuid())
+  transactionId String?
+  transaction   Transaction?    @relation(fields: [transactionId], references: [id])
+  listingId     String?
+  listing       Listing?        @relation(fields: [listingId], references: [id])
+  provider      PaymentProvider
+  type          PaymentType
+  status        PaymentStatus   @default(INITIATED)
+  currency      String          @default("GHS")
+  amount        BigInt
+  fees          BigInt          @default(0)
+  netAmount     BigInt          @default(0)
+  providerRef   String?         @unique
+  receiptRef    String?
+  payerUserId   String?
+  payerUser     User?           @relation("PayerPayments", fields: [payerUserId], references: [id])
+  payeeUserId   String?
+  payeeUser     User?           @relation("PayeePayments", fields: [payeeUserId], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([transactionId, type, status])
+  @@index([listingId, type, status])
+}
+
+model VerificationRequest {
+  id             String             @id @default(cuid())
+  userId         String
+  user           User               @relation("UserVerificationRequests", fields: [userId], references: [id])
+  listingId      String
+  listing        Listing            @relation(fields: [listingId], references: [id])
+  levelRequested VerificationLevel
+  status         VerificationStatus @default(PENDING)
+  assignedToId   String?
+  assignedTo     User?              @relation("AssignedVerifications", fields: [assignedToId], references: [id])
+  checklist      Json?
+  outcomeNotes   String?
+  referenceNo    String?
+  completedAt    DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([listingId, status])
+  @@index([userId, createdAt])
+}
+
+model Dispute {
+  id                 String             @id @default(cuid())
+  transactionId      String
+  transaction        Transaction        @relation(fields: [transactionId], references: [id])
+  raisedById         String
+  raisedBy           User               @relation(fields: [raisedById], references: [id])
+  status             DisputeStatus      @default(OPEN)
+  summary            String
+  details            String?
+  sellerRespondedAt  DateTime?
+  platformReviewedAt DateTime?
+  resolvedAt         DateTime?
+  resolutionOutcome  ResolutionOutcome?
+  resolutionNotes    String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  documents Document[] @relation("DisputeDocuments")
+
+  @@index([transactionId, status])
+}
+
+model Message {
+  id              String       @id @default(cuid())
+  senderId        String
+  sender          User         @relation("UserSentMessages", fields: [senderId], references: [id])
+  receiverId      String
+  receiver        User         @relation("UserReceivedMessages", fields: [receiverId], references: [id])
+  listingId       String?
+  listing         Listing?     @relation(fields: [listingId], references: [id])
+  transactionId   String?
+  transaction     Transaction? @relation("TransactionMessages", fields: [transactionId], references: [id])
+  body            String
+  attachmentDocId String?
+  attachmentDoc   Document?    @relation(fields: [attachmentDocId], references: [id])
+  createdAt       DateTime     @default(now())
+  readAt          DateTime?
+
+  @@index([senderId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([transactionId, createdAt])
+}
+
+model Report {
+  id         String           @id @default(cuid())
+  reporterId String
+  reporter   User             @relation("UserReportsFiled", fields: [reporterId], references: [id])
+  targetType ReportTargetType
+  targetId   String
+  listingId  String?
+  listing    Listing?         @relation("ListingReports", fields: [listingId], references: [id])
+  status     ReportStatus     @default(OPEN)
+  reason     String
+  details    String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([targetType, targetId])
+  @@index([status, createdAt])
+}
+
+model FraudCase {
+  id          String          @id @default(cuid())
+  openedById  String
+  openedBy    User            @relation("UserFraudCasesOpened", fields: [openedById], references: [id])
+  listingId   String?
+  listing     Listing?        @relation(fields: [listingId], references: [id])
+  userId      String?
+  user        User?           @relation("FraudCaseSubject", fields: [userId], references: [id])
+  status      FraudCaseStatus @default(OPEN)
+  summary     String
+  evidence    Json?
+  actionTaken String?
+  closedAt    DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status, createdAt])
+  @@index([listingId])
+  @@index([userId])
+}
+
+model SupportTicket {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id])
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  subject       String
+  body          String
+  status        String       @default("OPEN")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([transactionId, createdAt])
+}
+
+model AuditLog {
+  id          String          @id @default(cuid())
+  entityType  AuditEntityType
+  entityId    String
+  actorType   ActorType       @default(USER)
+  actorUserId String?
+  actorUser   User?           @relation(fields: [actorUserId], references: [id])
+  action      String
+  diff        Json?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime        @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+// Professional Services Marketplace
+
+enum ProfessionalType {
+  SURVEYOR
+  LAWYER
+  ARCHITECT
+  ENGINEER
+  PLANNER
+  VALUER
+  OTHER
+}
+
+enum ProfessionalLicenseStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ServiceRequestStatus {
+  OPEN
+  OFFERED
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  IN_PROGRESS
+  DELIVERED
+  COMPLETED
+  DISPUTED
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+model ProfessionalProfile {
+  id               String                    @id @default(cuid())
+  userId           String                    @unique
+  user             User                      @relation(fields: [userId], references: [id])
+  professionalType ProfessionalType
+  bio              String?
+  companyName      String?
+  yearsExperience  Int?
+  serviceRegions   String[]
+  baseLocation     String?
+  latitude         Decimal?                  @db.Decimal(10, 7)
+  longitude        Decimal?                  @db.Decimal(10, 7)
+  licenseNumber    String?
+  licenseBody      String?
+  licenseStatus    ProfessionalLicenseStatus @default(UNVERIFIED)
+  portfolioUrl     String?
+  isActive         Boolean                   @default(true)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  services        ProfessionalService[]
+  requests        ServiceRequest[]          @relation("ProfessionalRequests")
+  bookings        Booking[]
+  reviewsReceived Review[]                  @relation("ProfessionalReviews")
+
+  @@index([professionalType, isActive])
+}
+
+model ProfessionalService {
+  id             String              @id @default(cuid())
+  professionalId String
+  professional   ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  title          String
+  description    String?
+  priceGhs       BigInt?
+  priceModel     String              @default("FIXED")
+  turnaroundDays Int?
+  isPublished    Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  serviceRequests ServiceRequest[]
+
+  @@index([professionalId, isPublished])
+}
+
+model ServiceRequest {
+  id               String               @id @default(cuid())
+  requesterId      String
+  requester        User                 @relation(fields: [requesterId], references: [id])
+  listingId        String?
+  listing          Listing?             @relation(fields: [listingId], references: [id])
+  transactionId    String?
+  transaction      Transaction?         @relation(fields: [transactionId], references: [id])
+  professionalId   String?
+  professional     ProfessionalProfile? @relation("ProfessionalRequests", fields: [professionalId], references: [id])
+  serviceId        String?
+  service          ProfessionalService? @relation(fields: [serviceId], references: [id])
+  status           ServiceRequestStatus @default(OPEN)
+  title            String
+  details          String?
+  preferredDate    DateTime?
+  locationNote     String?
+  offerPriceGhs    BigInt?
+  acceptedPriceGhs BigInt?
+  currency         String               @default("GHS")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  closedAt         DateTime?
+
+  booking Booking?
+
+  @@index([requesterId, createdAt])
+  @@index([professionalId, status])
+}
+
+model Booking {
+  id               String         @id @default(cuid())
+  serviceRequestId String         @unique
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+  professionalId   String
+  professional     ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  status           BookingStatus  @default(REQUESTED)
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  deliveredAt      DateTime?
+  completedAt      DateTime?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  deliverables Document[]
+  reviews      Review[]
+}
+
+model Review {
+  id             String              @id @default(cuid())
+  reviewerId     String
+  reviewer       User                @relation(fields: [reviewerId], references: [id])
+  professionalId String
+  professional   ProfessionalProfile @relation("ProfessionalReviews", fields: [professionalId], references: [id])
+  bookingId      String?
+  booking        Booking?            @relation(fields: [bookingId], references: [id])
+  rating         Int
+  comment        String?
+  createdAt      DateTime            @default(now())
+
+  @@index([professionalId, createdAt])
+  @@index([reviewerId, createdAt])
+}
+
+// Building Permit Processing
+
+enum PermitApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  QUERY_RAISED
+  RESUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PermitDocType {
+  SITE_PLAN
+  ARCHITECTURAL_DRAWINGS
+  STRUCTURAL_DRAWINGS
+  FIRE_REPORT
+  EPA_REPORT
+  OWNERSHIP_DOCS
+  ID_DOCS
+  RECEIPT
+  OTHER
+  PERMIT_CERTIFICATE
+}
+
+model DistrictAssembly {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  region        String
+  district      String
+  contactEmail  String?
+  contactPhone  String?
+  officeAddress String?
+  config        Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  permitApplications PermitApplication[]
+
+  @@index([region, district])
+}
+
+model PermitApplication {
+  id                 String                  @id @default(cuid())
+  applicantId        String
+  applicant          User                    @relation(fields: [applicantId], references: [id])
+  listingId          String?
+  listing            Listing?                @relation(fields: [listingId], references: [id])
+  transactionId      String?
+  transaction        Transaction?            @relation(fields: [transactionId], references: [id])
+  assemblyId         String
+  assembly           DistrictAssembly        @relation(fields: [assemblyId], references: [id])
+  status             PermitApplicationStatus @default(DRAFT)
+  projectTitle       String
+  projectDescription String?
+  landLocationNote   String?
+  plotSizeNote       String?
+  estimatedCostGhs   BigInt?
+  buildingType       String?
+  storeys            Int?
+  submittedAt        DateTime?
+  decidedAt          DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  documents     PermitDocument[]
+  statusHistory PermitStatusHistory[]
+  queries       PermitQuery[]
+  payments      PermitFeePayment[]
+
+  @@index([applicantId, createdAt])
+  @@index([assemblyId, status])
+}
+
+model PermitDocument {
+  id                  String            @id @default(cuid())
+  permitApplicationId String
+  permitApplication   PermitApplication @relation(fields: [permitApplicationId], references: [id])
+  type                PermitDocType
+  documentId          String
+  document            Document          @relation(fields: [documentId], references: [id])
+  createdAt           DateTime          @default(now())
+
+  @@index([permitApplicationId, type])
+}
+
+model PermitStatusHistory {
+  id                  String                   @id @default(cuid())
+  permitApplicationId String
+  permitApplication   PermitApplication        @relation(fields: [permitApplicationId], references: [id])
+  fromStatus          PermitApplicationStatus?
+  toStatus            PermitApplicationStatus
+  note                String?
+  changedById         String?
+  changedBy           User?                    @relation(fields: [changedById], references: [id])
+  createdAt           DateTime                 @default(now())
+
+  @@index([permitApplicationId, createdAt])
+}
+
+model PermitQuery {
+  id                  String            @id @default(cuid())
+  permitApplicationId String
+  permitApplication   PermitApplication @relation(fields: [permitApplicationId], references: [id])
+  title               String
+  details             String?
+  response            String?
+  status              String            @default("OPEN")
+  raisedAt            DateTime          @default(now())
+  respondedAt         DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([permitApplicationId, raisedAt])
+}
+
+model PermitFeePayment {
+  id                  String            @id @default(cuid())
+  permitApplicationId String
+  permitApplication   PermitApplication @relation(fields: [permitApplicationId], references: [id])
+  feeType             String
+  amount              BigInt
+  currency            String            @default("GHS")
+  status              PaymentStatus     @default(INITIATED)
+  providerRef         String?
+  paidAt              DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([permitApplicationId, feeType])
+}
+
+// USSD Support
+
+enum UssdSessionStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+model UssdSession {
+  id        String            @id @default(cuid())
+  msisdn    String
+  sessionId String            @unique
+  status    UssdSessionStatus @default(ACTIVE)
+  menuPath  String[]
+  data      Json?
+  startedAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  endedAt   DateTime?
+
+  @@index([msisdn, startedAt])
+  @@index([status, updatedAt])
+}
+
+// API / Developer Platform
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  SUSPENDED
+}
+
+enum ApiScope {
+  LISTINGS_READ
+  LISTINGS_WRITE
+  TRANSACTIONS_READ
+  TRANSACTIONS_WRITE
+  PROFESSIONALS_READ
+  PROFESSIONALS_WRITE
+  PERMITS_READ
+  PERMITS_WRITE
+  KYC_READ
+  KYC_WRITE
+  WEBHOOKS_MANAGE
+  ADMIN_READ
+}
+
+model ApiClient {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  contactEmail String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  apiKeys  ApiKey[]
+  webhooks WebhookEndpoint[]
+}
+
+model ApiKey {
+  id           String       @id @default(cuid())
+  clientId     String
+  client       ApiClient    @relation(fields: [clientId], references: [id])
+  keyHash      String       @unique
+  keyPrefix    String
+  scopes       ApiScope[]
+  status       ApiKeyStatus @default(ACTIVE)
+  rateLimit    Int          @default(1000)
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  usageLogs ApiUsageLog[]
+
+  @@index([clientId, status])
+}
+
+model ApiUsageLog {
+  id        String   @id @default(cuid())
+  keyId     String
+  key       ApiKey   @relation(fields: [keyId], references: [id])
+  method    String
+  path      String
+  status    Int
+  latencyMs Int
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([keyId, createdAt])
+  @@index([path, createdAt])
+}
+
+enum WebhookEventType {
+  LISTING_CREATED
+  LISTING_PUBLISHED
+  LISTING_SUSPENDED
+  OFFER_CREATED
+  OFFER_ACCEPTED
+  TRANSACTION_CREATED
+  TRANSACTION_STATUS_CHANGED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  VERIFICATION_STATUS_CHANGED
+  KYC_STATUS_CHANGED
+  PERMIT_STATUS_CHANGED
+  SERVICE_REQUEST_STATUS_CHANGED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RETRYING
+  DEAD
+}
+
+model WebhookEndpoint {
+  id         String             @id @default(cuid())
+  clientId   String
+  client     ApiClient          @relation(fields: [clientId], references: [id])
+  url        String
+  secret     String
+  events     WebhookEventType[]
+  isActive   Boolean            @default(true)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([clientId, isActive])
+}
+
+model WebhookDelivery {
+  id          String                @id @default(cuid())
+  endpointId  String
+  endpoint    WebhookEndpoint       @relation(fields: [endpointId], references: [id])
+  eventType   WebhookEventType
+  payload     Json
+  status      WebhookDeliveryStatus @default(PENDING)
+  attempts    Int                   @default(0)
+  lastError   String?
+  nextRetryAt DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([endpointId, createdAt])
+  @@index([status, nextRetryAt])
+}
