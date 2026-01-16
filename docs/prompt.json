@@ -1,0 +1,502 @@
+{
+  "product": {
+    "name": "Buy Ghana Lands",
+    "type": "SaaS marketplace + verification + escrow + professional services + permits",
+    "version": "1.1",
+    "status": "Active build spec",
+    "primary_goal": "Eliminate land fraud and streamline land purchase + verification + permits + construction documentation workflows.",
+    "target_region": "Ghana"
+  },
+  "tech_stack": {
+    "frontend": {
+      "framework": "Next.js (App Router)",
+      "language": "TypeScript",
+      "ui": "Tailwind CSS",
+      "animations": "Framer Motion",
+      "maps": "Mapbox (react-map-gl + mapbox-gl)"
+    },
+    "backend": {
+      "runtime": "Next.js Route Handlers (Server Actions where appropriate)",
+      "auth": "Auth.js (NextAuth v5) with JWT sessions",
+      "validation": "Zod",
+      "storage": "S3-compatible (or Cloudflare R2) for media + documents",
+      "queue_jobs": "Vercel Cron + background worker pattern (or Upstash QStash/Redis if needed)"
+    },
+    "database": {
+      "provider": "Neon (Postgres)",
+      "orm": "Prisma",
+      "geo": "PostGIS",
+      "search": "Postgres full-text + optional external search later",
+      "migrations": "Prisma Migrate"
+    },
+    "deployment": {
+      "hosting": "Vercel",
+      "cdn": "Vercel Edge + image optimization",
+      "env_management": "Vercel Environment Variables"
+    },
+    "integrations": {
+      "payments_primary": "Paystack",
+      "payments_backup": "Hubtel",
+      "sms": "mNotify (primary) + optional Hubtel SMS",
+      "email": "AWS SES or SendGrid",
+      "push": "Firebase Cloud Messaging",
+      "kyc": "Ghana Card verification provider abstraction (pluggable)",
+      "analytics": "Mixpanel or Amplitude",
+      "errors": "Sentry"
+    }
+  },
+  "legal_and_policy_anchors": {
+    "land_act_2020_act_1036": {
+      "notes": [
+        "Do not allow creation of prohibited freehold interests in stool/skin/clan/family land.",
+        "Non-citizens cannot hold freehold; leasehold constraints apply."
+      ],
+      "constraints_to_encode": [
+        "If buyer is non-citizen: max lease term = 50 years (policy gate).",
+        "If land is stool/skin/clan/family: prohibit common-law freehold entry; prefer customary interests/leasehold."
+      ]
+    },
+    "platform_policy": {
+      "disclaimers": [
+        "Platform provides verification facilitation and document review; does not guarantee ownership as legal advice.",
+        "Verified status means verified through recorded process and evidence; includes revocation capability."
+      ]
+    }
+  },
+  "core_modules": [
+    {
+      "module": "Public Landing + Map Hero",
+      "scope": "Guest browsing + discovery",
+      "key_features": [
+        "100vh map hero with listing markers",
+        "proximity sorting if geolocation granted",
+        "nearby listings",
+        "trust indicators: escrow + verification + diaspora-first",
+        "CTA to search, sign up, list land"
+      ]
+    },
+    {
+      "module": "User Management + Auth",
+      "scope": "Registration/login/OTP/roles/KYC gates",
+      "key_features": [
+        "multi-role accounts (buyer, seller, agent, professional)",
+        "phone OTP required",
+        "optional 2FA for high-risk actions",
+        "account flags: suspended, kycHold, payoutHold, fraudUnderInvestigation"
+      ]
+    },
+    {
+      "module": "Listings",
+      "scope": "Create, review, publish, search",
+      "key_features": [
+        "multi-step listing wizard",
+        "media uploads + watermark + compression",
+        "document vault (redacted vs full access)",
+        "map pin + polygon boundaries (GeoJSON/PostGIS)",
+        "admin moderation queue",
+        "listing versioning for major edits"
+      ]
+    },
+    {
+      "module": "Search + Discovery",
+      "scope": "Filters + map search + alerts",
+      "key_features": [
+        "filters: category, tenure type, lease term, verification level, price, size",
+        "saved searches + alerts",
+        "favorites"
+      ]
+    },
+    {
+      "module": "Messaging",
+      "scope": "Buyer-seller-agent communication",
+      "key_features": [
+        "in-app chat",
+        "attachments (policy-limited)",
+        "message moderation + abuse reporting"
+      ]
+    },
+    {
+      "module": "Offers + Transactions",
+      "scope": "Negotiation + transaction workspace",
+      "key_features": [
+        "offers + counters + expiry",
+        "transaction state machine + milestones",
+        "document exchange + audit trail",
+        "disputes + mediation workflow"
+      ]
+    },
+    {
+      "module": "Payments + Escrow",
+      "scope": "Listing fees, escrow funding, release, refunds",
+      "key_features": [
+        "PSP integration (Paystack primary)",
+        "escrow-like ledger + milestone approvals",
+        "payouts to bank/mobile money (via provider capability)",
+        "refunds + reconciliation",
+        "installment schedules (Phase 1 active)"
+      ]
+    },
+    {
+      "module": "Verification",
+      "scope": "Platform review + Lands Commission verified seal",
+      "key_features": [
+        "verification request workflow",
+        "tiered verification levels",
+        "certificate/reference storage",
+        "verified seal rendering rules",
+        "revocation + audit logs"
+      ]
+    },
+    {
+      "module": "Admin + Ops Console",
+      "scope": "Moderation, compliance, finance, support",
+      "key_features": [
+        "queues: listings, verifications, disputes, KYC, payouts",
+        "analytics dashboards",
+        "content management (FAQs/guides)",
+        "role-based operational access"
+      ]
+    }
+  ],
+  "future_modules_active_phase_2_3": [
+    {
+      "module": "Professional Services Marketplace",
+      "scope": "Surveyors, lawyers, architects, draftsmen, permit agents",
+      "key_features": [
+        "professional profiles + license verification display",
+        "service catalog + pricing",
+        "service requests + matching",
+        "bookings + deliverables vault",
+        "ratings + reviews",
+        "commission + subscription monetization"
+      ]
+    },
+    {
+      "module": "Building Permit Processing",
+      "scope": "Permit application + checklist + tracking",
+      "key_features": [
+        "permit application workspace",
+        "assembly checklist templates by district",
+        "document pack builder (site plan + drawings + ownership docs)",
+        "status tracking + queries/resubmissions",
+        "fees + receipts",
+        "optional assembly reviewer portal"
+      ]
+    },
+    {
+      "module": "Ghana Card Integration (KYC)",
+      "scope": "Identity verification and risk gating",
+      "key_features": [
+        "KYC requests + provider abstraction",
+        "manual review queue for exceptions",
+        "KYC holds enforced platform-wide"
+      ]
+    },
+    {
+      "module": "Mobile Apps (iOS/Android)",
+      "scope": "React Native client for buyers/sellers/professionals",
+      "key_features": [
+        "push notifications",
+        "offline cached listings",
+        "media upload optimized for low bandwidth"
+      ]
+    },
+    {
+      "module": "USSD Channel",
+      "scope": "Basic discovery + transaction status + support",
+      "key_features": [
+        "USSD session handling",
+        "search + shortlist",
+        "transaction status by MSISDN mapping + OTP"
+      ]
+    },
+    {
+      "module": "Public API / Developer Platform",
+      "scope": "Partners integrate listings/verification/status",
+      "key_features": [
+        "API clients + keys (hash stored)",
+        "scopes + rate limits",
+        "webhooks + retries + logs"
+      ]
+    }
+  ],
+  "listing_specification": {
+    "mandatory_classifications": {
+      "land_use_category": [
+        "RESIDENTIAL",
+        "COMMERCIAL",
+        "INDUSTRIAL",
+        "AGRICULTURAL",
+        "MIXED_USE",
+        "INSTITUTIONAL",
+        "RECREATIONAL"
+      ],
+      "tenure_type": [
+        "STOOL_LAND",
+        "SKIN_LAND",
+        "FAMILY_LAND",
+        "CUSTOMARY_FREEHOLD",
+        "LEASEHOLD",
+        "STATE_LAND",
+        "VESTED_LAND",
+        "PRIVATE_FREEHOLD"
+      ],
+      "title_status": [
+        "TITLED",
+        "UNTITLED",
+        "PENDING_REGISTRATION",
+        "UNKNOWN"
+      ]
+    },
+    "lease_rules": {
+      "required_if_tenure_is": ["LEASEHOLD", "STATE_LAND", "VESTED_LAND"],
+      "min_years": 1,
+      "max_years_for_citizen": 99,
+      "max_years_for_non_citizen": 50,
+      "store_fields": [
+        "lease_duration_years",
+        "lease_start_date_optional",
+        "lease_end_date_derived",
+        "remaining_years_derived",
+        "renewable_flag"
+      ]
+    },
+    "payment_models": {
+      "supported": ["OUTRIGHT", "INSTALLMENT"],
+      "installment_fields": [
+        "deposit_percent",
+        "installment_duration_months",
+        "installment_frequency",
+        "penalty_terms_optional",
+        "ownership_transfer_only_after_final_payment"
+      ]
+    },
+    "verified_seal": {
+      "verification_levels": [
+        "UNVERIFIED",
+        "DOCS_UPLOADED",
+        "PLATFORM_REVIEWED",
+        "LANDS_COMMISSION_VERIFIED"
+      ],
+      "seal_rules": [
+        "Show green verified seal only when status == LANDS_COMMISSION_VERIFIED",
+        "Seal links to verification certificate/reference (read-only)",
+        "Seal is immutable unless revoked by compliance/admin",
+        "Allow filter: Verified Only"
+      ]
+    }
+  },
+  "connected_user_workflows": {
+    "guest_to_buyer_or_seller": [
+      "Guest browses/searches listings and professionals",
+      "CTA triggers signup when saving, messaging, making offer, or listing land",
+      "User completes OTP verification and selects role(s): Buyer/Seller/Agent/Professional",
+      "User proceeds into role-specific dashboard"
+    ],
+    "buyer_purchase_to_build": [
+      "Buyer searches with filters (category, tenure, lease term, verified seal)",
+      "Buyer messages seller/agent; makes offer",
+      "Offer accepted -> Transaction created",
+      "Buyer selects OUTRIGHT or INSTALLMENT funding",
+      "Verification/Legal services requested via marketplace if needed",
+      "Transaction completes -> Buyer starts Permit workflow",
+      "Buyer hires Architect/Draftsman -> Construction documents delivered",
+      "Permit submitted and tracked to approval"
+    ],
+    "seller_listing_to_sale": [
+      "Seller creates listing with category + tenure + lease + payment model",
+      "Uploads media/docs -> submits for moderation",
+      "Optional: requests Land Commission verification to obtain verified seal",
+      "Receives offers -> negotiates -> transaction workspace",
+      "Escrow funded -> verification -> completion -> payout"
+    ],
+    "agent_and_professional_handoffs": [
+      "From listing/transaction/permit hub, user creates a ServiceRequest (site plan, title docs, permit handling, architectural drawings)",
+      "Matching suggests professionals by region + specialty + rating",
+      "Professional accepts -> Booking created",
+      "Deliverables uploaded -> attached to Transaction and/or PermitApplication",
+      "If disputes arise -> Dispute workflow freezes payouts until resolved"
+    ]
+  },
+  "rbac_and_policy": {
+    "roles": [
+      "GUEST",
+      "BUYER",
+      "SELLER",
+      "AGENT",
+      "PROFESSIONAL",
+      "SUPPORT",
+      "COMPLIANCE",
+      "FINANCE",
+      "MODERATOR",
+      "ADMIN",
+      "SUPER_ADMIN",
+      "ASSEMBLY_REVIEWER",
+      "LANDS_COMMISSION_REVIEWER"
+    ],
+    "hard_deny_overrides": [
+      "isSuspended blocks all writes (except support contact)",
+      "kycHold blocks publish listing, accept offer, fund transaction, payouts, permit submission (configurable)",
+      "payoutHold blocks payouts",
+      "fraudUnderInvestigation blocks publish + transaction progression beyond verification"
+    ],
+    "audit_logging_required_for": [
+      "payments and payouts",
+      "verification status changes",
+      "KYC decisions and overrides",
+      "transaction status transitions",
+      "admin/moderation actions",
+      "document access for full (non-redacted) files"
+    ]
+  },
+  "monetization": {
+    "revenue_streams": [
+      {
+        "name": "Listing Fees",
+        "applies_to": ["SELLER", "AGENT", "DEVELOPER"],
+        "notes": "Tiered visibility + featured slots"
+      },
+      {
+        "name": "Transaction Take Rate",
+        "applies_to": ["BUYER", "SELLER"],
+        "notes": "Escrow-style facilitated transactions"
+      },
+      {
+        "name": "Verification Fees",
+        "applies_to": ["SELLER", "BUYER"],
+        "notes": "Platform review + Lands Commission verified seal"
+      },
+      {
+        "name": "Professional Marketplace Commission",
+        "applies_to": ["PROFESSIONAL"],
+        "notes": "Commission per booking + optional subscription"
+      },
+      {
+        "name": "Permit Facilitation Fees",
+        "applies_to": ["BUYER", "SELLER", "AGENT"],
+        "notes": "Permit processing service + document pack coordination"
+      },
+      {
+        "name": "Developer Platform (API)",
+        "applies_to": ["PARTNERS"],
+        "notes": "API access subscription by scope and volume"
+      }
+    ],
+    "subscriptions": {
+      "buyer_plans": [
+        {
+          "plan": "BUYER_FREE",
+          "price_monthly_ghs": 0,
+          "features": ["browse/search", "message", "make offers", "basic alerts"]
+        },
+        {
+          "plan": "BUYER_PRO",
+          "price_monthly_ghs": 50,
+          "features": [
+            "priority support",
+            "advanced alerts + saved searches",
+            "installment-plan eligibility tools",
+            "early access to verified deals"
+          ]
+        }
+      ],
+      "seller_plans": [
+        {
+          "plan": "SELLER_FREE",
+          "price_monthly_ghs": 0,
+          "limits": { "active_listings": 1 },
+          "features": ["basic listing", "inbox", "offers"]
+        },
+        {
+          "plan": "SELLER_PLUS",
+          "price_monthly_ghs": 150,
+          "limits": { "active_listings": 50 },
+          "features": ["analytics", "boosted visibility", "bulk upload", "priority moderation"]
+        }
+      ],
+      "agent_plans": [
+        {
+          "plan": "AGENT_PRO",
+          "price_monthly_ghs": 300,
+          "features": [
+            "agent storefront/profile",
+            "team seats (optional add-on)",
+            "lead routing + CRM-lite",
+            "commission protections via transaction workspace"
+          ]
+        },
+        {
+          "plan": "DEVELOPER_REAL_ESTATE",
+          "price_monthly_ghs": 600,
+          "features": ["unlimited listings", "project/development pages", "premium placement", "API-lite access"]
+        }
+      ],
+      "professional_plans": [
+        {
+          "plan": "PROFESSIONAL_FREE",
+          "price_monthly_ghs": 0,
+          "features": ["directory listing (limited)", "receive requests (limited)"]
+        },
+        {
+          "plan": "PROFESSIONAL_PLUS",
+          "price_monthly_ghs": 200,
+          "features": ["full profile", "service catalog", "more leads", "portfolio + reviews"]
+        },
+        {
+          "plan": "VERIFIED_PARTNER",
+          "price_monthly_ghs": 400,
+          "features": ["priority matching", "verified partner badge", "reduced platform commission", "featured placement"]
+        }
+      ],
+      "enterprise_and_institutional": [
+        {
+          "plan": "INSTITUTIONAL",
+          "price_monthly_ghs": null,
+          "features": ["assembly workflow portal", "custom reports", "SLA support", "integrations"],
+          "pricing": "Custom"
+        }
+      ]
+    }
+  },
+  "engineering_deliverables": {
+    "required_outputs": [
+      "Full Next.js codebase compatible with Vercel",
+      "Neon Postgres + Prisma + PostGIS schema and migrations",
+      "RBAC enforcement middleware + helpers",
+      "Transaction state machine and validation guards",
+      "Verified seal logic and certificate storage",
+      "Installment schedule engine (tables + API + UI)",
+      "Professional marketplace flows (request->booking->deliverables)",
+      "Permit module with checklist templates and status tracking",
+      "USSD endpoint + session handling",
+      "Public API scaffolding with keys/scopes/webhooks",
+      "Seed scripts for roles, permissions, demo users, demo listings"
+    ],
+    "quality_bars": [
+      "Type-safe APIs and DB access",
+      "Strict server-side authorization for every mutation",
+      "Audit logs for sensitive actions",
+      "Security best practices: rate limiting, CSRF where needed, secure uploads, signed URLs",
+      "Performance: image optimization, pagination, efficient PostGIS queries"
+    ]
+  },
+  "environment_variables": {
+    "required": [
+      "DATABASE_URL",
+      "DIRECT_URL",
+      "AUTH_SECRET",
+      "NEXTAUTH_URL",
+      "MAPBOX_ACCESS_TOKEN",
+      "PAYSTACK_SECRET_KEY",
+      "PAYSTACK_PUBLIC_KEY",
+      "MNOTIFY_API_KEY",
+      "EMAIL_PROVIDER_API_KEY",
+      "S3_ENDPOINT",
+      "S3_BUCKET",
+      "S3_ACCESS_KEY",
+      "S3_SECRET_KEY",
+      "SENTRY_DSN",
+      "FCM_SERVER_KEY"
+    ]
+  }
+}

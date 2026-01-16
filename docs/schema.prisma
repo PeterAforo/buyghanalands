@@ -1,0 +1,1377 @@
+// schema.prisma
+// Buy Ghana Lands (PRD v1.1) — NeonDB (Postgres) + PostGIS + Prisma
+//
+// Notes:
+// 1) Enable PostGIS in Neon (SQL):  CREATE EXTENSION IF NOT EXISTS postgis;
+// 2) Prisma does not natively model PostGIS geometry types in all cases.
+//    We use Unsupported("geography") / Unsupported("geometry") where needed.
+// 3) Prefer storing the polygon in `GeoBoundary.geom` (PostGIS) and cache a
+//    lightweight version in JSON for UI if needed (optional field included).
+//
+// Recommended Prisma versions: latest stable Prisma + Node LTS.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  AGENT
+  PROFESSIONAL
+  ADMIN
+  SUPPORT
+}
+
+enum KycTier {
+  TIER_0_OTP
+  TIER_1_ID_UPLOAD
+  TIER_2_GHANA_CARD
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum ListingStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  PUBLISHED
+  SUSPENDED
+  REJECTED
+  ARCHIVED
+  SOLD
+}
+
+enum ListingTenureType {
+  FREEHOLD
+  LEASEHOLD
+  CUSTOMARY
+}
+
+enum ListingLandType {
+  RESIDENTIAL
+  COMMERCIAL
+  AGRICULTURAL
+  MIXED
+}
+
+enum VerificationLevel {
+  LEVEL_0_UNVERIFIED
+  LEVEL_1_DOCS_UPLOADED
+  LEVEL_2_PLATFORM_REVIEWED
+  LEVEL_3_OFFICIAL_VERIFIED
+}
+
+enum VerificationStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+}
+
+enum DocumentType {
+  INDENTURE_DEED
+  SITE_PLAN
+  CADASTRAL_PLAN
+  LAND_TITLE_CERTIFICATE
+  LETTERS_OF_ADMINISTRATION
+  FAMILY_RESOLUTION
+  OTHER
+  SELLER_ID
+  VERIFICATION_CERTIFICATE
+  TRANSACTION_AGREEMENT
+}
+
+enum AccessPolicy {
+  PRIVATE            // Only owner/admin
+  LOGGED_IN_REDACTED // Redacted preview for logged-in users
+  TRANSACTION_PARTIES // Full access only to transaction parties
+  PUBLIC             // Generally not recommended for sensitive docs
+}
+
+enum OfferStatus {
+  SENT
+  COUNTERED
+  ACCEPTED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum TransactionStatus {
+  CREATED
+  ESCROW_REQUESTED
+  FUNDED
+  VERIFICATION_PERIOD
+  DISPUTED
+  READY_TO_RELEASE
+  RELEASED
+  REFUNDED
+  PARTIAL_SETTLED
+  CLOSED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  MEDIATION
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+enum ResolutionOutcome {
+  RELEASE
+  REFUND
+  PARTIAL
+  TERMINATE
+}
+
+enum PaymentProvider {
+  PAYSTACK
+  HUBTEL
+  OTHER
+}
+
+enum PaymentType {
+  LISTING_FEE
+  TRANSACTION_FUNDING
+  PAYOUT
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+  CANCELLED
+}
+
+enum FraudCaseStatus {
+  OPEN
+  INVESTIGATING
+  ACTION_TAKEN
+  CLOSED
+}
+
+enum ReportTargetType {
+  LISTING
+  USER
+  MESSAGE
+  TRANSACTION
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  ACTIONED
+  DISMISSED
+}
+
+enum AuditEntityType {
+  USER
+  LISTING
+  LISTING_VERSION
+  OFFER
+  TRANSACTION
+  PAYMENT
+  VERIFICATION_REQUEST
+  DISPUTE
+  FRAUD_CASE
+  REPORT
+  DOCUMENT
+  MESSAGE
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+}
+
+model User {
+  id              String        @id @default(cuid())
+  email           String?       @unique
+  phone           String        @unique
+  passwordHash    String?
+  fullName        String
+  avatarUrl       String?
+  roles           UserRole[]
+  kycTier         KycTier       @default(TIER_0_OTP)
+  accountStatus   AccountStatus @default(ACTIVE)
+
+  // Preferences / settings
+  language        String        @default("en")
+  marketingOptIn  Boolean       @default(false)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  listings        Listing[]     @relation("UserListings")
+  offers          Offer[]       @relation("UserOffers")
+  sentMessages    Message[]     @relation("UserSentMessages")
+  receivedMessages Message[]    @relation("UserReceivedMessages")
+  transactionsAsBuyer  Transaction[] @relation("BuyerTransactions")
+  transactionsAsSeller Transaction[] @relation("SellerTransactions")
+  verificationRequests VerificationRequest[] @relation("UserVerificationRequests")
+  documents       Document[]    @relation("UserDocuments")
+
+  reportsFiled    Report[]      @relation("UserReportsFiled")
+  fraudCasesOpened FraudCase[]  @relation("UserFraudCasesOpened")
+  supportTickets  SupportTicket[]
+
+  @@index([createdAt])
+}
+
+model Listing {
+  id             String          @id @default(cuid())
+  sellerId       String
+  seller         User            @relation("UserListings", fields: [sellerId], references: [id])
+
+  status         ListingStatus   @default(DRAFT)
+  title          String
+  description    String
+
+  // Location fields (human-readable)
+  region         String
+  district       String
+  town          String
+
+  // Coordinates (point) — store as numeric columns plus optional PostGIS point
+  latitude       Decimal         @db.Decimal(10, 7)
+  longitude      Decimal         @db.Decimal(10, 7)
+
+  // Optional PostGIS point for fast geo queries (geography point)
+  // You can populate via DB trigger or application.
+  geoPoint       Unsupported("geography")?
+
+  landType       ListingLandType
+  tenureType     ListingTenureType
+  leaseDurationYears Int?
+
+  // Size
+  sizeAcres      Decimal         @db.Decimal(12, 4)
+  sizePlots      Int?
+
+  priceGhs       BigInt
+  negotiable     Boolean         @default(true)
+
+  // Verification snapshot for listing
+  verificationLevel VerificationLevel @default(LEVEL_0_UNVERIFIED)
+
+  // Versioning
+  currentVersionId String?
+  currentVersion   ListingVersion? @relation("CurrentListingVersion", fields: [currentVersionId], references: [id])
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+
+  // Relations
+  versions        ListingVersion[] @relation("ListingVersions")
+  media           ListingMedia[]
+  documents       Document[]       @relation("ListingDocuments")
+  boundaries      GeoBoundary[]
+  offers          Offer[]
+  transactions    Transaction[]
+  reports         Report[]         @relation("ListingReports")
+
+  @@index([sellerId, status])
+  @@index([status, publishedAt])
+  @@index([region, district])
+}
+
+model ListingVersion {
+  id            String        @id @default(cuid())
+  listingId     String
+  listing       Listing       @relation("ListingVersions", fields: [listingId], references: [id])
+
+  versionNumber Int
+  status        ListingStatus @default(UNDER_REVIEW)
+
+  // Immutable snapshot fields (copy from listing at version creation)
+  title         String
+  description   String
+  region        String
+  district      String
+  town          String
+  latitude      Decimal       @db.Decimal(10, 7)
+  longitude     Decimal       @db.Decimal(10, 7)
+  landType      ListingLandType
+  tenureType    ListingTenureType
+  leaseDurationYears Int?
+  sizeAcres     Decimal       @db.Decimal(12, 4)
+  sizePlots     Int?
+  priceGhs      BigInt
+  negotiable    Boolean
+
+  createdById   String
+  createdBy     User          @relation(fields: [createdById], references: [id])
+
+  createdAt     DateTime      @default(now())
+
+  // If this version is the listing's currentVersion
+  currentForListing Listing?  @relation("CurrentListingVersion")
+
+  @@unique([listingId, versionNumber])
+  @@index([listingId, createdAt])
+}
+
+model ListingMedia {
+  id          String    @id @default(cuid())
+  listingId   String
+  listing     Listing   @relation(fields: [listingId], references: [id])
+
+  type        MediaType
+  url         String
+  thumbnailUrl String?
+  sortOrder   Int       @default(0)
+
+  // Optional metadata
+  width       Int?
+  height      Int?
+  durationSec Int?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([listingId, sortOrder])
+}
+
+model GeoBoundary {
+  id          String    @id @default(cuid())
+  listingId   String
+  listing     Listing   @relation(fields: [listingId], references: [id])
+
+  // PostGIS geometry polygon (recommended: geometry with SRID 4326)
+  geom        Unsupported("geometry") // e.g., POLYGON / MULTIPOLYGON SRID 4326
+
+  // Optional cached GeoJSON for quick API responses
+  geojson     Json?
+
+  areaSqm     Decimal?  @db.Decimal(18, 4) // optionally computed
+  createdAt   DateTime  @default(now())
+
+  @@index([listingId])
+}
+
+model Document {
+  id            String       @id @default(cuid())
+
+  ownerId       String?
+  owner         User?        @relation("UserDocuments", fields: [ownerId], references: [id])
+
+  listingId     String?
+  listing       Listing?     @relation("ListingDocuments", fields: [listingId], references: [id])
+
+  transactionId String?
+  transaction   Transaction? @relation("TransactionDocuments", fields: [transactionId], references: [id])
+
+  disputeId     String?
+  dispute       Dispute?     @relation("DisputeDocuments", fields: [disputeId], references: [id])
+
+  type          DocumentType
+  accessPolicy  AccessPolicy @default(PRIVATE)
+
+  url           String
+  redactedUrl   String?
+
+  // Integrity and security
+  sha256        String?      @db.VarChar(64)
+  fileSizeBytes BigInt?
+  mimeType      String?
+  virusScanStatus String?    // e.g. CLEAN / INFECTED / PENDING (enum optional)
+  exifStripped  Boolean      @default(true)
+  watermarked   Boolean      @default(false)
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  accessLogs    DocumentAccessLog[]
+
+  @@index([listingId, type])
+  @@index([transactionId, type])
+}
+
+model DocumentAccessLog {
+  id          String   @id @default(cuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id])
+
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+
+  ip          String?
+  userAgent   String?
+  action      String   // VIEW / DOWNLOAD
+  createdAt   DateTime @default(now())
+
+  @@index([documentId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Offer {
+  id          String      @id @default(cuid())
+  listingId   String
+  listing     Listing     @relation(fields: [listingId], references: [id])
+
+  buyerId     String
+  buyer       User        @relation("UserOffers", fields: [buyerId], references: [id])
+
+  // Offer negotiation chain support
+  parentOfferId String?
+  parentOffer   Offer?     @relation("OfferChain", fields: [parentOfferId], references: [id])
+  counterOffers Offer[]    @relation("OfferChain")
+
+  status      OfferStatus  @default(SENT)
+  amountGhs   BigInt
+  message     String?
+  expiresAt   DateTime
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  transaction Transaction?
+
+  @@index([listingId, status])
+  @@index([buyerId, createdAt])
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  listingId     String
+  listing       Listing           @relation(fields: [listingId], references: [id])
+
+  offerId       String?           @unique
+  offer         Offer?            @relation(fields: [offerId], references: [id])
+
+  buyerId       String
+  buyer         User              @relation("BuyerTransactions", fields: [buyerId], references: [id])
+
+  sellerId      String
+  seller        User              @relation("SellerTransactions", fields: [sellerId], references: [id])
+
+  status        TransactionStatus @default(CREATED)
+
+  agreedPriceGhs BigInt
+  platformFeeBps Int              @default(150) // 1.5% default
+  verificationDaysMin Int         @default(7)
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  closedAt      DateTime?
+
+  milestones    EscrowMilestone[]
+  payments      Payment[]
+  disputes      Dispute[]
+  documents     Document[]        @relation("TransactionDocuments")
+  messages      Message[]         @relation("TransactionMessages")
+
+  @@index([buyerId, status])
+  @@index([sellerId, status])
+  @@index([listingId, status])
+}
+
+model EscrowMilestone {
+  id            String   @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  name          String
+  description   String?
+  amountGhs     BigInt
+  sortOrder     Int      @default(0)
+
+  // Approvals / gating
+  requiresBuyerApproval Boolean @default(true)
+  requiresSellerApproval Boolean @default(true)
+  requiresAdminApproval Boolean @default(false)
+
+  buyerApprovedAt DateTime?
+  sellerApprovedAt DateTime?
+  adminApprovedAt DateTime?
+
+  dueAt        DateTime?
+  completedAt  DateTime?
+
+  createdAt    DateTime @default(now())
+
+  @@index([transactionId, sortOrder])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  transactionId String?
+  transaction   Transaction?  @relation(fields: [transactionId], references: [id])
+
+  listingId     String?
+  listing       Listing?      @relation(fields: [listingId], references: [id])
+
+  provider      PaymentProvider
+  type          PaymentType
+  status        PaymentStatus  @default(INITIATED)
+
+  currency      String         @default("GHS")
+  amount        BigInt
+  fees          BigInt         @default(0)
+  netAmount     BigInt         @default(0)
+
+  providerRef   String?        @unique
+  receiptRef    String?
+
+  payerUserId   String?
+  payerUser     User?          @relation(fields: [payerUserId], references: [id])
+
+  payeeUserId   String?
+  payeeUser     User?          @relation(fields: [payeeUserId], references: [id])
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([transactionId, type, status])
+  @@index([listingId, type, status])
+}
+
+model VerificationRequest {
+  id           String             @id @default(cuid())
+  userId       String
+  user         User               @relation("UserVerificationRequests", fields: [userId], references: [id])
+
+  listingId    String
+  listing      Listing            @relation(fields: [listingId], references: [id])
+
+  levelRequested VerificationLevel
+  status       VerificationStatus @default(PENDING)
+
+  // Operational workflow
+  assignedToId String?
+  assignedTo   User?              @relation(fields: [assignedToId], references: [id])
+
+  checklist    Json?              // reviewer checklist
+  outcomeNotes String?
+  referenceNo  String?
+
+  completedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  documents    Document[]         // optional: attach verification artifacts (certificate, reports)
+
+  @@index([listingId, status])
+  @@index([userId, createdAt])
+}
+
+model Dispute {
+  id            String        @id @default(cuid())
+  transactionId String
+  transaction   Transaction   @relation(fields: [transactionId], references: [id])
+
+  raisedById    String
+  raisedBy      User          @relation(fields: [raisedById], references: [id])
+
+  status        DisputeStatus @default(OPEN)
+  summary       String
+  details       String?
+
+  sellerRespondedAt DateTime?
+  platformReviewedAt DateTime?
+  resolvedAt    DateTime?
+
+  resolutionOutcome ResolutionOutcome?
+  resolutionNotes String?
+
+  documents     Document[]    @relation("DisputeDocuments")
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([transactionId, status])
+}
+
+model Message {
+  id            String    @id @default(cuid())
+
+  senderId      String
+  sender        User      @relation("UserSentMessages", fields: [senderId], references: [id])
+
+  receiverId    String
+  receiver      User      @relation("UserReceivedMessages", fields: [receiverId], references: [id])
+
+  listingId     String?
+  listing       Listing?  @relation(fields: [listingId], references: [id])
+
+  transactionId String?
+  transaction   Transaction? @relation("TransactionMessages", fields: [transactionId], references: [id])
+
+  body          String
+  attachmentDocId String?
+  attachmentDoc Document? @relation(fields: [attachmentDocId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  readAt        DateTime?
+
+  @@index([senderId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([transactionId, createdAt])
+}
+
+model Report {
+  id            String         @id @default(cuid())
+  reporterId    String
+  reporter      User           @relation("UserReportsFiled", fields: [reporterId], references: [id])
+
+  targetType    ReportTargetType
+  targetId      String
+
+  listingId     String?
+  listing       Listing?       @relation("ListingReports", fields: [listingId], references: [id])
+
+  status        ReportStatus    @default(OPEN)
+  reason        String
+  details       String?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([targetType, targetId])
+  @@index([status, createdAt])
+}
+
+model FraudCase {
+  id            String          @id @default(cuid())
+  openedById    String
+  openedBy      User            @relation("UserFraudCasesOpened", fields: [openedById], references: [id])
+
+  listingId     String?
+  listing       Listing?        @relation(fields: [listingId], references: [id])
+
+  userId        String?
+  user          User?           @relation(fields: [userId], references: [id])
+
+  status        FraudCaseStatus @default(OPEN)
+  summary       String
+  evidence      Json?
+
+  actionTaken   String?
+  closedAt      DateTime?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([status, createdAt])
+  @@index([listingId])
+  @@index([userId])
+}
+
+model SupportTicket {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  subject       String
+  body          String
+  status        String   @default("OPEN") // keep flexible for Phase 1
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([transactionId, createdAt])
+}
+
+model AuditLog {
+  id          String         @id @default(cuid())
+  entityType  AuditEntityType
+  entityId    String
+
+  actorType   ActorType      @default(USER)
+  actorUserId String?
+  actorUser   User?          @relation(fields: [actorUserId], references: [id])
+
+  action      String         // CREATE / UPDATE / DELETE / STATUS_CHANGE / APPROVE / REJECT
+  diff        Json?          // before/after or patch
+  ip          String?
+  userAgent   String?
+
+  createdAt   DateTime       @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+// ==============================
+// Buy Ghana Lands — Schema Extensions
+// Add these models/enums to your existing schema.prisma
+// Scope: Professional Marketplace, Building Permits, Ghana Card KYC, Mobile Support,
+// USSD, Public API / Developer Platform
+// Target: NeonDB Postgres + PostGIS + Vercel serverless
+// ==============================
+
+enum ProfessionalType {
+  SURVEYOR
+  LAWYER
+  ARCHITECT
+  ENGINEER
+  PLANNER
+  VALUER
+  OTHER
+}
+
+enum ProfessionalLicenseStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ServiceRequestStatus {
+  OPEN
+  OFFERED
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  IN_PROGRESS
+  DELIVERED
+  COMPLETED
+  DISPUTED
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum PermitApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  QUERY_RAISED
+  RESUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PermitDocType {
+  SITE_PLAN
+  ARCHITECTURAL_DRAWINGS
+  STRUCTURAL_DRAWINGS
+  FIRE_REPORT
+  EPA_REPORT
+  OWNERSHIP_DOCS
+  ID_DOCS
+  RECEIPT
+  OTHER
+  PERMIT_CERTIFICATE
+}
+
+enum KycProvider {
+  NIA_PARTNER
+  SMILE_IDENTITY
+  OTHER
+}
+
+enum KycStatus {
+  INITIATED
+  PENDING
+  PASSED
+  FAILED
+  RETRY
+  MANUAL_REVIEW
+  CANCELLED
+}
+
+enum RiskFlagType {
+  MULTIPLE_LISTINGS_SAME_POLYGON
+  PRICE_ANOMALY
+  FREQUENT_DISPUTES
+  MULTIPLE_ACCOUNTS_SAME_DEVICE
+  KYC_FAILED
+  DOCUMENT_TAMPERING
+  OTHER
+}
+
+enum UssdSessionStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  SUSPENDED
+}
+
+enum ApiScope {
+  LISTINGS_READ
+  LISTINGS_WRITE
+  TRANSACTIONS_READ
+  TRANSACTIONS_WRITE
+  PROFESSIONALS_READ
+  PROFESSIONALS_WRITE
+  PERMITS_READ
+  PERMITS_WRITE
+  KYC_READ
+  KYC_WRITE
+  WEBHOOKS_MANAGE
+  ADMIN_READ
+}
+
+enum WebhookEventType {
+  LISTING_CREATED
+  LISTING_PUBLISHED
+  LISTING_SUSPENDED
+  OFFER_CREATED
+  OFFER_ACCEPTED
+  TRANSACTION_CREATED
+  TRANSACTION_STATUS_CHANGED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  VERIFICATION_STATUS_CHANGED
+  KYC_STATUS_CHANGED
+  PERMIT_STATUS_CHANGED
+  SERVICE_REQUEST_STATUS_CHANGED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RETRYING
+  DEAD
+}
+
+// ==============================
+// 20) Professional Services Marketplace
+// ==============================
+
+model ProfessionalProfile {
+  id              String                   @id @default(cuid())
+  userId          String                   @unique
+  user            User                     @relation(fields: [userId], references: [id])
+
+  professionalType ProfessionalType
+  bio             String?
+  companyName     String?
+  yearsExperience Int?
+  serviceRegions  String[]                 // e.g. ["Greater Accra", "Central"]
+  baseLocation    String?                  // human readable
+  latitude        Decimal?                 @db.Decimal(10, 7)
+  longitude       Decimal?                 @db.Decimal(10, 7)
+  geoPoint        Unsupported("geography")?
+
+  licenseNumber   String?
+  licenseBody     String?                  // GhIS, GIA, Ghana Bar, etc.
+  licenseStatus   ProfessionalLicenseStatus @default(UNVERIFIED)
+
+  portfolioUrl    String?
+  isActive        Boolean                  @default(true)
+
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  services        ProfessionalService[]
+  requests        ServiceRequest[]         @relation("ProfessionalRequests")
+  bookings        Booking[]
+  reviewsReceived Review[]                 @relation("ProfessionalReviews")
+
+  @@index([professionalType, isActive])
+}
+
+model ProfessionalService {
+  id              String               @id @default(cuid())
+  professionalId  String
+  professional    ProfessionalProfile  @relation(fields: [professionalId], references: [id])
+
+  title           String
+  description     String?
+  priceGhs        BigInt?
+  priceModel      String               @default("FIXED") // FIXED / HOURLY / QUOTE
+  turnaroundDays  Int?
+  isPublished     Boolean              @default(true)
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([professionalId, isPublished])
+}
+
+model ServiceRequest {
+  id              String               @id @default(cuid())
+
+  requesterId     String
+  requester       User                 @relation(fields: [requesterId], references: [id])
+
+  listingId       String?
+  listing         Listing?             @relation(fields: [listingId], references: [id])
+
+  transactionId   String?
+  transaction     Transaction?         @relation(fields: [transactionId], references: [id])
+
+  professionalId  String?
+  professional    ProfessionalProfile? @relation("ProfessionalRequests", fields: [professionalId], references: [id])
+
+  serviceId       String?
+  service         ProfessionalService? @relation(fields: [serviceId], references: [id])
+
+  status          ServiceRequestStatus @default(OPEN)
+
+  title           String
+  details         String?
+  preferredDate   DateTime?
+  locationNote    String?
+
+  offerPriceGhs   BigInt?
+  acceptedPriceGhs BigInt?
+  currency        String               @default("GHS")
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  closedAt        DateTime?
+
+  booking         Booking?
+  disputes        Dispute[]            // optional: link disputes to service requests if needed
+
+  @@index([requesterId, createdAt])
+  @@index([professionalId, status])
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  serviceRequestId String       @unique
+  serviceRequest  ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+
+  status          BookingStatus @default(REQUESTED)
+
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  deliveredAt     DateTime?
+  completedAt     DateTime?
+
+  notes           String?
+
+  // Payments for services: reuse Payment model, link via serviceBookingId
+  servicePaymentId String?      @unique
+
+  deliverables    Document[]    // deliverable docs (reports/drawings) via Document.owner/listing/transaction linkage
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Review {
+  id               String               @id @default(cuid())
+  reviewerId        String
+  reviewer          User                 @relation(fields: [reviewerId], references: [id])
+
+  professionalId    String
+  professional      ProfessionalProfile  @relation("ProfessionalReviews", fields: [professionalId], references: [id])
+
+  bookingId         String?
+  booking           Booking?             @relation(fields: [bookingId], references: [id])
+
+  rating            Int                  // 1-5
+  comment           String?
+
+  createdAt         DateTime             @default(now())
+
+  @@index([professionalId, createdAt])
+  @@index([reviewerId, createdAt])
+}
+
+// ==============================
+// 21) Building Permit Processing
+// ==============================
+
+model DistrictAssembly {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  region        String
+  district      String
+
+  contactEmail  String?
+  contactPhone  String?
+  officeAddress String?
+
+  // Configurable checklist and fee rules
+  config        Json?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  permitApplications PermitApplication[]
+  @@index([region, district])
+}
+
+model PermitApplication {
+  id              String                 @id @default(cuid())
+
+  applicantId     String
+  applicant       User                   @relation(fields: [applicantId], references: [id])
+
+  listingId       String?
+  listing         Listing?               @relation(fields: [listingId], references: [id])
+
+  transactionId   String?
+  transaction     Transaction?           @relation(fields: [transactionId], references: [id])
+
+  assemblyId      String
+  assembly        DistrictAssembly       @relation(fields: [assemblyId], references: [id])
+
+  status          PermitApplicationStatus @default(DRAFT)
+
+  projectTitle    String
+  projectDescription String?
+  landLocationNote String?
+  plotSizeNote    String?                // optional human-readable
+  estimatedCostGhs BigInt?
+  buildingType    String?                // residential/commercial etc
+  storeys         Int?
+
+  submittedAt     DateTime?
+  decidedAt       DateTime?
+
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  documents       PermitDocument[]
+  statusHistory   PermitStatusHistory[]
+  queries         PermitQuery[]
+  payments        PermitFeePayment[]
+
+  @@index([applicantId, createdAt])
+  @@index([assemblyId, status])
+}
+
+model PermitDocument {
+  id                String        @id @default(cuid())
+  permitApplicationId String
+  permitApplication PermitApplication @relation(fields: [permitApplicationId], references: [id])
+
+  type              PermitDocType
+  documentId        String
+  document          Document      @relation(fields: [documentId], references: [id])
+
+  createdAt         DateTime      @default(now())
+
+  @@index([permitApplicationId, type])
+}
+
+model PermitStatusHistory {
+  id                 String                 @id @default(cuid())
+  permitApplicationId String
+  permitApplication  PermitApplication      @relation(fields: [permitApplicationId], references: [id])
+
+  fromStatus         PermitApplicationStatus?
+  toStatus           PermitApplicationStatus
+  note               String?
+  changedById        String?
+  changedBy          User?                  @relation(fields: [changedById], references: [id])
+
+  createdAt          DateTime               @default(now())
+
+  @@index([permitApplicationId, createdAt])
+}
+
+model PermitQuery {
+  id                 String            @id @default(cuid())
+  permitApplicationId String
+  permitApplication  PermitApplication @relation(fields: [permitApplicationId], references: [id])
+
+  title              String
+  details            String?
+  response           String?
+  status             String            @default("OPEN") // OPEN/RESPONDED/CLOSED (kept flexible)
+  raisedAt           DateTime          @default(now())
+  respondedAt        DateTime?
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([permitApplicationId, raisedAt])
+}
+
+model PermitFeePayment {
+  id                 String            @id @default(cuid())
+  permitApplicationId String
+  permitApplication  PermitApplication @relation(fields: [permitApplicationId], references: [id])
+
+  paymentId          String            @unique
+  payment            Payment           @relation(fields: [paymentId], references: [id])
+
+  feeName            String
+  amount             BigInt
+  currency           String            @default("GHS")
+
+  createdAt          DateTime          @default(now())
+
+  @@index([permitApplicationId, createdAt])
+}
+
+// ==============================
+// 22) Ghana Card KYC Integration
+// ==============================
+
+model KycRequest {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+
+  provider      KycProvider @default(OTHER)
+  status        KycStatus   @default(INITIATED)
+
+  // Ghana Card / identity inputs (store minimal; avoid over-collection)
+  ghanaCardNo   String?
+  fullNameInput String?
+  dobInput      DateTime?
+  phoneInput    String?
+
+  // Provider references
+  providerRequestId String?
+  providerResultId  String?
+
+  // Decision outputs
+  score         Decimal?    @db.Decimal(5, 2)
+  outcome       String?     // PASS/FAIL/REVIEW etc.
+  reason        String?
+  rawResponse   Json?       // store cautiously; consider redaction policy
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  completedAt   DateTime?
+
+  logs          KycProviderLog[]
+  riskFlags     RiskFlag[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model KycProviderLog {
+  id            String     @id @default(cuid())
+  kycRequestId  String
+  kycRequest    KycRequest @relation(fields: [kycRequestId], references: [id])
+
+  direction     String     // OUTBOUND/INBOUND
+  eventType     String     // REQUEST/RESPONSE/WEBHOOK
+  payload       Json?
+  createdAt     DateTime   @default(now())
+
+  @@index([kycRequestId, createdAt])
+}
+
+model RiskFlag {
+  id            String       @id @default(cuid())
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id])
+
+  listingId     String?
+  listing       Listing?     @relation(fields: [listingId], references: [id])
+
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  kycRequestId  String?
+  kycRequest    KycRequest?  @relation(fields: [kycRequestId], references: [id])
+
+  type          RiskFlagType
+  severity      Int          @default(1) // 1-5
+  note          String?
+
+  createdAt     DateTime     @default(now())
+  resolvedAt    DateTime?
+  resolvedById  String?
+  resolvedBy    User?        @relation(fields: [resolvedById], references: [id])
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ==============================
+// 23) Mobile Apps Support (device registry + push tokens)
+// ==============================
+
+model UserDevice {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  platform      String   // IOS / ANDROID / WEB
+  deviceId      String?  // OS-specific device identifier (optional)
+  pushToken     String?  @unique
+  appVersion    String?
+  osVersion     String?
+  lastSeenAt    DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, platform])
+}
+
+// ==============================
+// 24) USSD Channel
+// ==============================
+
+model UssdSession {
+  id            String            @id @default(cuid())
+  sessionId     String            @unique // aggregator session id
+  msisdn        String            // user phone number
+  status        UssdSessionStatus @default(ACTIVE)
+
+  userId        String?
+  user          User?             @relation(fields: [userId], references: [id])
+
+  // USSD state machine (menu path)
+  currentStep   String            @default("START")
+  state         Json?             // store collected inputs during session
+
+  startedAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  endedAt       DateTime?
+
+  logs          UssdSessionLog[]
+
+  @@index([msisdn, startedAt])
+  @@index([status, updatedAt])
+}
+
+model UssdSessionLog {
+  id            String      @id @default(cuid())
+  ussdSessionId String
+  ussdSession   UssdSession @relation(fields: [ussdSessionId], references: [id])
+
+  direction     String      // IN/OUT
+  text          String
+  createdAt     DateTime    @default(now())
+
+  @@index([ussdSessionId, createdAt])
+}
+
+// ==============================
+// 25) Public API / Developer Platform
+// ==============================
+
+model ApiClient {
+  id          String   @id @default(cuid())
+  name        String
+  ownerUserId String
+  ownerUser   User     @relation(fields: [ownerUserId], references: [id])
+
+  isActive    Boolean  @default(true)
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  apiKeys     ApiKey[]
+  webhooks    WebhookEndpoint[]
+
+  @@index([ownerUserId, createdAt])
+}
+
+model ApiKey {
+  id          String      @id @default(cuid())
+  clientId    String
+  client      ApiClient   @relation(fields: [clientId], references: [id])
+
+  status      ApiKeyStatus @default(ACTIVE)
+  name        String?
+
+  // Store ONLY hash of secret key (never plaintext)
+  keyHash     String      @unique
+  scopes      ApiScope[]
+
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  usageLogs   ApiUsageLog[]
+
+  @@index([clientId, status])
+}
+
+model ApiUsageLog {
+  id          String   @id @default(cuid())
+  apiKeyId    String
+  apiKey      ApiKey   @relation(fields: [apiKeyId], references: [id])
+
+  method      String
+  path        String
+  statusCode  Int
+  durationMs  Int?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([apiKeyId, createdAt])
+  @@index([path, createdAt])
+}
+
+model WebhookEndpoint {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      ApiClient @relation(fields: [clientId], references: [id])
+
+  url         String
+  secretHash  String?  // HMAC signing secret hash
+  isActive    Boolean  @default(true)
+
+  events      WebhookEventType[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deliveries  WebhookDelivery[]
+
+  @@index([clientId, isActive])
+}
+
+model WebhookDelivery {
+  id              String               @id @default(cuid())
+  webhookEndpointId String
+  webhookEndpoint WebhookEndpoint      @relation(fields: [webhookEndpointId], references: [id])
+
+  eventType       WebhookEventType
+  payload         Json
+  status          WebhookDeliveryStatus @default(PENDING)
+
+  attempts        Int                  @default(0)
+  nextRetryAt     DateTime?
+  lastError       String?
+
+  deliveredAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([webhookEndpointId, createdAt])
+  @@index([status, nextRetryAt])
+}
