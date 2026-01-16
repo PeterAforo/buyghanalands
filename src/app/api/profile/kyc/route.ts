@@ -19,7 +19,7 @@ export async function GET() {
         kycTier: true,
         documents: {
           where: {
-            type: "ID_DOCUMENT",
+            type: "SELLER_ID",
           },
           select: {
             id: true,
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     const existingDocs = await prisma.document.findMany({
       where: {
         ownerId: session.user.id,
-        type: "ID_DOCUMENT",
+        type: "SELLER_ID",
       },
     });
     
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     const document = await prisma.document.create({
       data: {
         ownerId: session.user.id,
-        type: "ID_DOCUMENT",
+        type: "SELLER_ID",
         url: blob.url,
         verificationStatus: "PENDING",
         metadata: { kycType: docType },
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const allDocs = await prisma.document.findMany({
       where: { 
         ownerId: session.user.id,
-        type: "ID_DOCUMENT",
+        type: "SELLER_ID",
       },
     });
 
