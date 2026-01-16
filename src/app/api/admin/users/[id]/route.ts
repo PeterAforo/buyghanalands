@@ -41,7 +41,8 @@ export async function PUT(
       return NextResponse.json({ error: "Cannot modify your own account" }, { status: 400 });
     }
 
-    let newStatus: string;
+    type AccountStatusType = "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
+    let newStatus: AccountStatusType;
 
     switch (action) {
       case "suspend":
