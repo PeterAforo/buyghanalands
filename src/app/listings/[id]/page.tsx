@@ -1,27 +1,24 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 import { formatPrice, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   MapPin,
   Ruler,
   Calendar,
   User,
-  Phone,
   CheckCircle,
   Shield,
   FileText,
-  MessageSquare,
-  Heart,
-  Share2,
   ChevronLeft,
   AlertTriangle,
 } from "lucide-react";
+import { ListingActions } from "./listing-actions";
 
 async function getListing(id: string) {
   const listing = await prisma.listing.findUnique({
@@ -94,7 +91,10 @@ export default async function ListingDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const listing = await getListing(id);
+  const [listing, session] = await Promise.all([
+    getListing(id),
+    auth(),
+  ]);
 
   if (!listing) {
     notFound();
@@ -143,14 +143,17 @@ export default async function ListingDetailPage({
                     <Badge variant="secondary">Negotiable</Badge>
                   )}
                 </div>
-                <div className="absolute top-4 right-4 flex gap-2">
-                  <button className="p-2 bg-white rounded-full shadow hover:bg-gray-50">
-                    <Heart className="h-5 w-5 text-gray-600" />
-                  </button>
-                  <button className="p-2 bg-white rounded-full shadow hover:bg-gray-50">
-                    <Share2 className="h-5 w-5 text-gray-600" />
-                  </button>
-                </div>
+                <ListingActions 
+                  listingId={listing.id}
+                  listingTitle={listing.title}
+                  sellerId={listing.seller.id}
+                  sellerName={listing.seller.fullName}
+                  sellerPhone={listing.seller.phone}
+                  priceGhs={listing.priceGhs.toString()}
+                  isLoggedIn={!!session?.user}
+                  isOwnListing={session?.user?.id === listing.seller.id}
+                  variant="icons"
+                />
               </div>
               {listing.media.length > 1 && (
                 <div className="p-4 flex gap-2 overflow-x-auto">
@@ -336,16 +339,17 @@ export default async function ListingDetailPage({
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Button className="w-full">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Contact Seller
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <Phone className="h-4 w-4 mr-2" />
-                    Request Call Back
-                  </Button>
-                </div>
+                <ListingActions 
+                  listingId={listing.id}
+                  listingTitle={listing.title}
+                  sellerId={listing.seller.id}
+                  sellerName={listing.seller.fullName}
+                  sellerPhone={listing.seller.phone}
+                  priceGhs={listing.priceGhs.toString()}
+                  isLoggedIn={!!session?.user}
+                  isOwnListing={session?.user?.id === listing.seller.id}
+                  variant="contact"
+                />
               </CardContent>
             </Card>
 
@@ -359,9 +363,17 @@ export default async function ListingDetailPage({
                   Make an offer on this property. Your payment will be protected
                   in escrow until the transaction is complete.
                 </p>
-                <Button className="w-full" size="lg">
-                  Make an Offer
-                </Button>
+                <ListingActions 
+                  listingId={listing.id}
+                  listingTitle={listing.title}
+                  sellerId={listing.seller.id}
+                  sellerName={listing.seller.fullName}
+                  sellerPhone={listing.seller.phone}
+                  priceGhs={listing.priceGhs.toString()}
+                  isLoggedIn={!!session?.user}
+                  isOwnListing={session?.user?.id === listing.seller.id}
+                  variant="offer"
+                />
                 <p className="text-xs text-center text-gray-500">
                   Protected by Buy Ghana Lands Escrow
                 </p>
