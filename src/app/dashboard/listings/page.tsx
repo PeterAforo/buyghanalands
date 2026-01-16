@@ -207,7 +207,7 @@ export default function MyListingsPage() {
 
 function ListingCard({ listing }: { listing: Listing }) {
   const badge = getStatusBadge(listing.status);
-  const imageUrl = listing.media[0]?.url || "/placeholder-land.jpg";
+  const imageUrl = listing.media[0]?.url || "/placeholder-land.svg";
 
   return (
     <Link href={`/dashboard/listings/${listing.id}`}>

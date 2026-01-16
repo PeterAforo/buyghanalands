@@ -183,7 +183,7 @@ export default function DisputeDetailPage() {
   const isBuyer = dispute.transaction.buyerId === session.user?.id;
   const isSeller = dispute.transaction.sellerId === session.user?.id;
   const statusBadge = getStatusBadge(dispute.status);
-  const imageUrl = dispute.transaction.listing.media[0]?.url || "/placeholder-land.jpg";
+  const imageUrl = dispute.transaction.listing.media[0]?.url || "/placeholder-land.svg";
   const isActive = ["OPEN", "UNDER_REVIEW"].includes(dispute.status);
 
   return (

@@ -146,7 +146,7 @@ export default function TransactionsPage() {
                     : transaction.buyer;
                   const imageUrl =
                     transaction.listing.media[0]?.url ||
-                    "/placeholder-land.jpg";
+                    "/placeholder-land.svg";
 
                   return (
                     <Link

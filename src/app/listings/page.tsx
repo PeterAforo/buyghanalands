@@ -111,7 +111,7 @@ export default async function ListingsPage() {
             {listings.map((listing) => {
               const badge = getVerificationBadge(listing.verificationLevel);
               const imageUrl =
-                listing.media[0]?.url || "/placeholder-land.jpg";
+                listing.media[0]?.url || "/placeholder-land.svg";
 
               return (
                 <Link key={listing.id} href={`/listings/${listing.id}`}>

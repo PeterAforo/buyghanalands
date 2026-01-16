@@ -225,7 +225,7 @@ export default function AdminListingsPage() {
                               <div
                                 className="w-12 h-12 rounded bg-cover bg-center flex-shrink-0"
                                 style={{
-                                  backgroundImage: `url(${listing.media[0]?.url || "/placeholder-land.jpg"})`,
+                                  backgroundImage: `url(${listing.media[0]?.url || "/placeholder-land.svg"})`,
                                 }}
                               />
                               <div>

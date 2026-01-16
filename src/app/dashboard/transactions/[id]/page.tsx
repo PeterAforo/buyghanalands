@@ -228,7 +228,7 @@ export default function TransactionDetailPage() {
   const isBuyer = transaction.buyerId === session.user?.id;
   const isSeller = transaction.sellerId === session.user?.id;
   const statusInfo = getStatusInfo(transaction.status);
-  const imageUrl = transaction.listing.media[0]?.url || "/placeholder-land.jpg";
+  const imageUrl = transaction.listing.media[0]?.url || "/placeholder-land.svg";
   const platformFee = (parseInt(transaction.agreedPriceGhs) * transaction.platformFeeBps) / 10000;
 
   return (

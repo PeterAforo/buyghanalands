@@ -144,7 +144,7 @@ export default function DisputesPage() {
                   <div className="space-y-4">
                     {activeDisputes.map((dispute) => {
                       const badge = getStatusBadge(dispute.status);
-                      const imageUrl = dispute.transaction.listing.media[0]?.url || "/placeholder-land.jpg";
+                      const imageUrl = dispute.transaction.listing.media[0]?.url || "/placeholder-land.svg";
 
                       return (
                         <Link key={dispute.id} href={`/dashboard/disputes/${dispute.id}`}>
