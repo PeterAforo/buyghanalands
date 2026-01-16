@@ -24,20 +24,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's verification status
+    // Get user's KYC tier
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: {
-        kycTier: true,
-        verificationRequests: {
-          where: { type: "SELLER_VERIFICATION" },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
+      select: { kycTier: true },
     });
-
-    const latestRequest = user?.verificationRequests[0];
 
     // Check if user has verified seller badge
     const sellerBadge = await prisma.sellerBadge.findUnique({
@@ -46,7 +37,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       kycTier: user?.kycTier,
-      verificationRequest: latestRequest,
       badge: sellerBadge,
       isVerified: sellerBadge?.status === "ACTIVE",
     });
@@ -66,19 +56,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = verificationRequestSchema.parse(body);
 
-    // Check if user already has pending request
-    const existingRequest = await prisma.verificationRequest.findFirst({
-      where: {
-        userId: session.user.id,
-        type: "SELLER_VERIFICATION",
-        status: { in: ["PENDING", "IN_REVIEW"] },
-      },
-    });
-
-    if (existingRequest) {
-      return NextResponse.json({ error: "You already have a pending verification request" }, { status: 400 });
-    }
-
     // Check if already verified
     const existingBadge = await prisma.sellerBadge.findUnique({
       where: { userId: session.user.id },
@@ -88,13 +65,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "You are already a verified seller" }, { status: 400 });
     }
 
-    // Create verification request
-    const verificationRequest = await prisma.verificationRequest.create({
-      data: {
+    // Create or update seller badge with pending status
+    const badge = await prisma.sellerBadge.upsert({
+      where: { userId: session.user.id },
+      create: {
         userId: session.user.id,
-        type: "SELLER_VERIFICATION",
-        status: "PENDING",
-        metadata: {
+        level: "BRONZE",
+        status: "EXPIRED", // Use EXPIRED as pending state
+        issuedAt: new Date(),
+      },
+      update: {
+        status: "EXPIRED", // Pending review
+      },
+    });
+
+    // Store verification data in audit log for admin review
+    await prisma.auditLog.create({
+      data: {
+        entityType: "USER",
+        entityId: session.user.id,
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "SELLER_VERIFICATION_REQUEST",
+        diff: {
           businessName: data.businessName,
           businessRegistrationNumber: data.businessRegistrationNumber,
           tinNumber: data.tinNumber,
@@ -106,7 +99,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(verificationRequest, { status: 201 });
+    return NextResponse.json({ 
+      message: "Verification request submitted",
+      badge,
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });

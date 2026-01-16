@@ -54,18 +54,30 @@ export async function POST(
       access: "public",
     });
 
-    // Create document record
-    const document = await prisma.permitDocument.create({
+    // First create a Document record
+    const doc = await prisma.document.create({
       data: {
-        permitApplicationId: id,
-        type: docType as any,
-        documentId: null, // Link to Document model if needed
+        ownerId: session.user.id,
+        type: "OTHER",
         url: blob.url,
-        fileName: file.name,
+        mimeType: file.type,
+        fileSizeBytes: file.size,
       },
     });
 
-    return NextResponse.json(document, { status: 201 });
+    // Then create permit document linking to it
+    const permitDocument = await prisma.permitDocument.create({
+      data: {
+        permitApplicationId: id,
+        type: docType as any,
+        documentId: doc.id,
+      },
+      include: {
+        document: true,
+      },
+    });
+
+    return NextResponse.json(permitDocument, { status: 201 });
   } catch (error) {
     console.error("Error uploading permit document:", error);
     return NextResponse.json({ error: "Failed to upload document" }, { status: 500 });

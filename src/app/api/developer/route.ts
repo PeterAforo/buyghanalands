@@ -6,8 +6,26 @@ import crypto from "crypto";
 
 const createApiKeySchema = z.object({
   name: z.string().min(2),
-  permissions: z.array(z.enum(["READ_LISTINGS", "WRITE_LISTINGS", "READ_TRANSACTIONS", "WEBHOOKS"])),
+  scopes: z.array(z.enum(["LISTINGS_READ", "LISTINGS_WRITE", "TRANSACTIONS_READ", "TRANSACTIONS_WRITE", "PROFESSIONALS_READ", "WEBHOOKS_MANAGE"])).optional(),
 });
+
+async function getOrCreateApiClient(userId: string, userEmail: string | null) {
+  // Find existing client by contact email matching user
+  let client = await prisma.apiClient.findFirst({
+    where: { contactEmail: userEmail || `user-${userId}@buyghanalands.com` },
+  });
+
+  if (!client) {
+    client = await prisma.apiClient.create({
+      data: {
+        name: `User ${userId}`,
+        contactEmail: userEmail || `user-${userId}@buyghanalands.com`,
+      },
+    });
+  }
+
+  return client;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,27 +50,33 @@ export async function GET(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // Get user's API keys
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true },
+    });
+
+    const client = await getOrCreateApiClient(session.user.id, user?.email || null);
+
+    // Get user's API keys via client
     const apiKeys = await prisma.apiKey.findMany({
-      where: { userId: session.user.id },
+      where: { clientId: client.id },
       select: {
         id: true,
-        name: true,
         keyPrefix: true,
-        permissions: true,
+        scopes: true,
         lastUsedAt: true,
         createdAt: true,
-        isActive: true,
-        requestCount: true,
+        status: true,
+        rateLimit: true,
       },
       orderBy: { createdAt: "desc" },
     });
 
     // Get API usage stats
-    const usageStats = await prisma.apiUsage.groupBy({
-      by: ["endpoint"],
+    const usageStats = await prisma.apiUsageLog.groupBy({
+      by: ["path"],
       where: {
-        apiKey: { userId: session.user.id },
+        key: { clientId: client.id },
         createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
       },
       _count: true,
@@ -98,6 +122,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createApiKeySchema.parse(body);
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true },
+    });
+
+    const client = await getOrCreateApiClient(session.user.id, user?.email || null);
+
     // Generate API key
     const rawKey = `bgl_${crypto.randomBytes(32).toString("hex")}`;
     const hashedKey = crypto.createHash("sha256").update(rawKey).digest("hex");
@@ -105,22 +136,20 @@ export async function POST(request: NextRequest) {
 
     const apiKey = await prisma.apiKey.create({
       data: {
-        userId: session.user.id,
-        name: data.name,
+        clientId: client.id,
         keyHash: hashedKey,
         keyPrefix,
-        permissions: data.permissions,
-        isActive: true,
+        scopes: data.scopes || ["LISTINGS_READ"],
+        status: "ACTIVE",
       },
     });
 
     // Return the raw key only once
     return NextResponse.json({
       id: apiKey.id,
-      name: apiKey.name,
       key: rawKey, // Only shown once!
       keyPrefix,
-      permissions: apiKey.permissions,
+      scopes: apiKey.scopes,
       warning: "Save this key securely. It will not be shown again.",
     }, { status: 201 });
   } catch (error) {
@@ -146,16 +175,23 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Key ID required" }, { status: 400 });
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true },
+    });
+
+    const client = await getOrCreateApiClient(session.user.id, user?.email || null);
+
     const apiKey = await prisma.apiKey.findUnique({
       where: { id: keyId },
-      select: { userId: true },
+      select: { clientId: true },
     });
 
     if (!apiKey) {
       return NextResponse.json({ error: "API key not found" }, { status: 404 });
     }
 
-    if (apiKey.userId !== session.user.id) {
+    if (apiKey.clientId !== client.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

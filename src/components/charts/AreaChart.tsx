@@ -58,7 +58,7 @@ export function AreaChart({
             borderRadius: "8px",
             boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
           }}
-          formatter={(value: number) => [formatValue ? formatValue(value) : value, ""]}
+          formatter={(value) => [formatValue && typeof value === 'number' ? formatValue(value) : value ?? 0, ""]}
         />
         <defs>
           <linearGradient id={`gradient-${dataKey}`} x1="0" y1="0" x2="0" y2="1">

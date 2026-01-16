@@ -47,8 +47,8 @@ export async function POST(
       return NextResponse.json({ error: "Only requester can review" }, { status: 403 });
     }
 
-    // Must be completed
-    if (serviceRequest.status !== "COMPLETED" && serviceRequest.status !== "CLOSED") {
+    // Must be completed or delivered
+    if (serviceRequest.status !== "COMPLETED" && serviceRequest.status !== "DELIVERED") {
       return NextResponse.json({ error: "Can only review completed requests" }, { status: 400 });
     }
 

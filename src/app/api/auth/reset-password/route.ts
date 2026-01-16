@@ -19,12 +19,9 @@ export async function POST(request: NextRequest) {
         code: data.code,
         expiresAt: { gt: new Date() },
       },
-      include: {
-        user: true,
-      },
     });
 
-    if (!otpRecord || !otpRecord.user) {
+    if (!otpRecord || !otpRecord.userId) {
       return NextResponse.json(
         { error: "Invalid or expired code" },
         { status: 400 }

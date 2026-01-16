@@ -112,8 +112,8 @@ async function getOverviewAnalytics(userId: string, isAdmin: boolean | undefined
 
 async function getRevenueAnalytics(userId: string, isAdmin: boolean | undefined, startDate: Date) {
   const whereClause = isAdmin 
-    ? { status: "RELEASED", createdAt: { gte: startDate } }
-    : { sellerId: userId, status: "RELEASED", createdAt: { gte: startDate } };
+    ? { status: "RELEASED" as const, createdAt: { gte: startDate } }
+    : { sellerId: userId, status: "RELEASED" as const, createdAt: { gte: startDate } };
 
   const transactions = await prisma.transaction.findMany({
     where: whereClause,

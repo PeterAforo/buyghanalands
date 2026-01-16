@@ -24,11 +24,14 @@ export async function GET(request: NextRequest) {
       where: { userId: session.user.id },
       include: {
         clients: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            createdAt: true,
+          include: {
+            client: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+              },
+            },
           },
         },
         managedListings: {

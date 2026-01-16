@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
       await prisma.verificationRequest.update({
         where: { id: data.requestId },
         data: {
-          status: "APPROVED",
-          reviewedById: session.user.id,
-          reviewedAt: new Date(),
-          reviewNote: data.note,
+          status: "COMPLETED",
+          assignedToId: session.user.id,
+          completedAt: new Date(),
+          outcomeNotes: data.note,
         },
       });
 
@@ -129,9 +129,9 @@ export async function POST(request: NextRequest) {
         where: { id: data.requestId },
         data: {
           status: "REJECTED",
-          reviewedById: session.user.id,
-          reviewedAt: new Date(),
-          reviewNote: data.note,
+          assignedToId: session.user.id,
+          completedAt: new Date(),
+          outcomeNotes: data.note,
         },
       });
 
@@ -139,8 +139,8 @@ export async function POST(request: NextRequest) {
       await prisma.verificationRequest.update({
         where: { id: data.requestId },
         data: {
-          status: "INFO_REQUESTED",
-          reviewNote: data.note,
+          status: "PENDING",
+          outcomeNotes: data.note,
         },
       });
     }

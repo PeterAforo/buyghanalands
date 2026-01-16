@@ -65,17 +65,20 @@ export async function POST(
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file type
+    // Validate file type - map to VirtualTourType enum
     const allowedTypes = {
-      "360_PHOTO": ["image/jpeg", "image/png", "image/webp"],
+      "PHOTO_360": ["image/jpeg", "image/png", "image/webp"],
       "VIDEO": ["video/mp4", "video/webm", "video/quicktime"],
       "DRONE": ["video/mp4", "video/webm"],
       "WALKTHROUGH": ["video/mp4", "video/webm"],
     };
 
-    if (!allowedTypes[type as keyof typeof allowedTypes]?.includes(file.type)) {
+    const validTypes = ["PHOTO_360", "VIDEO", "DRONE", "WALKTHROUGH"] as const;
+    if (!validTypes.includes(type as any) || !allowedTypes[type as keyof typeof allowedTypes]?.includes(file.type)) {
       return NextResponse.json({ error: "Invalid file type for this tour type" }, { status: 400 });
     }
+    
+    const tourType = type as "PHOTO_360" | "VIDEO" | "DRONE" | "WALKTHROUGH";
 
     // Upload to Vercel Blob
     const ext = file.name.split('.').pop() || 'bin';
@@ -94,9 +97,9 @@ export async function POST(
     const tour = await prisma.virtualTour.create({
       data: {
         listingId: id,
-        type,
+        type: tourType,
         url: blob.url,
-        thumbnailUrl: type.includes("VIDEO") || type.includes("DRONE") ? null : blob.url,
+        thumbnailUrl: tourType === "VIDEO" || tourType === "DRONE" ? null : blob.url,
         title: title || null,
         description: description || null,
         sortOrder: (maxOrder._max.sortOrder || 0) + 1,

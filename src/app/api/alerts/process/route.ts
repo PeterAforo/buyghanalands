@@ -13,13 +13,14 @@ export async function POST(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const frequency = searchParams.get("frequency") || "INSTANT";
+    const frequencyParam = searchParams.get("frequency") || "INSTANT";
+    const frequency = frequencyParam as "INSTANT" | "DAILY" | "WEEKLY";
 
     // Get active alerts for this frequency
     const alerts = await prisma.listingAlert.findMany({
       where: {
         isActive: true,
-        frequency,
+        frequency: frequency,
       },
       include: {
         user: {
