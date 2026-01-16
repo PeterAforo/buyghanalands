@@ -94,7 +94,7 @@ export default async function ListingDetailPage({
   const { id } = await params;
   const listing = await getListing(id);
 
-  if (!listing || listing.status !== "PUBLISHED") {
+  if (!listing) {
     notFound();
   }
 
