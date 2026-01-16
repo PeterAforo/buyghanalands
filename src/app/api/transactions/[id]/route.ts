@@ -71,8 +71,10 @@ export async function GET(
   }
 }
 
+type TransactionStatusType = "CREATED" | "ESCROW_REQUESTED" | "FUNDED" | "VERIFICATION_PERIOD" | "DISPUTED" | "READY_TO_RELEASE" | "RELEASED" | "REFUNDED" | "PARTIAL_SETTLED" | "CLOSED";
+
 const updateTransactionSchema = z.object({
-  status: z.string().optional(),
+  status: z.enum(["CREATED", "ESCROW_REQUESTED", "FUNDED", "VERIFICATION_PERIOD", "DISPUTED", "READY_TO_RELEASE", "RELEASED", "REFUNDED", "PARTIAL_SETTLED", "CLOSED"]).optional(),
 });
 
 export async function PUT(
