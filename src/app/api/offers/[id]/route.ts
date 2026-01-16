@@ -37,7 +37,7 @@ export async function GET(
 
     return NextResponse.json({
       ...offer,
-      amount: offer.amount.toString(),
+      amountGhs: offer.amountGhs.toString(),
     });
   } catch (error) {
     console.error("Error fetching offer:", error);
@@ -94,7 +94,7 @@ export async function PUT(
     const updateData: any = { status };
     
     if (status === "COUNTERED" && counterAmount) {
-      updateData.amount = counterAmount;
+      updateData.amountGhs = counterAmount;
     }
 
     if (status === "ACCEPTED") {
@@ -105,7 +105,7 @@ export async function PUT(
           listingId: offer.listingId,
           buyerId: offer.buyerId,
           sellerId: offer.listing.sellerId,
-          agreedPrice: offer.amount,
+          agreedPriceGhs: offer.amountGhs,
           status: "CREATED",
         },
       });
@@ -118,7 +118,7 @@ export async function PUT(
 
     return NextResponse.json({
       ...updatedOffer,
-      amount: updatedOffer.amount.toString(),
+      amountGhs: updatedOffer.amountGhs.toString(),
     });
   } catch (error) {
     console.error("Error updating offer:", error);
