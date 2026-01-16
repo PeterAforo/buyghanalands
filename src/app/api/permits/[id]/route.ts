@@ -41,11 +41,6 @@ export async function GET(
         },
         queries: {
           orderBy: { createdAt: "desc" },
-          include: {
-            responses: {
-              orderBy: { createdAt: "asc" },
-            },
-          },
         },
         payments: {
           orderBy: { createdAt: "desc" },
