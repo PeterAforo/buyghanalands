@@ -25,8 +25,7 @@ export async function GET() {
             id: true,
             type: true,
             url: true,
-            metadata: true,
-            verificationStatus: true,
+            mimeType: true,
             createdAt: true,
           },
           orderBy: { createdAt: "desc" },
@@ -38,14 +37,21 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Transform documents to include KYC type from metadata
-    const kycDocuments = user.documents.map((doc) => ({
-      id: doc.id,
-      type: (doc.metadata as any)?.kycType || "UNKNOWN",
-      status: doc.verificationStatus || "PENDING",
-      url: doc.url,
-      createdAt: doc.createdAt,
-    }));
+    // Transform documents - extract KYC type from URL path
+    const kycDocuments = user.documents.map((doc) => {
+      // Extract type from URL: kyc/{userId}/{TYPE}-{timestamp}
+      const urlParts = doc.url.split("/");
+      const fileName = urlParts[urlParts.length - 1] || "";
+      const kycType = fileName.split("-")[0] || "UNKNOWN";
+      
+      return {
+        id: doc.id,
+        type: kycType,
+        status: "PENDING", // Default status since Document doesn't have verificationStatus
+        url: doc.url,
+        createdAt: doc.createdAt,
+      };
+    });
 
     return NextResponse.json({
       kycTier: user.kycTier,
@@ -95,8 +101,10 @@ export async function POST(request: NextRequest) {
       },
     });
     
+    // Delete existing document of same type by checking URL pattern
     for (const doc of existingDocs) {
-      if ((doc.metadata as any)?.kycType === docType) {
+      const fileName = doc.url.split("/").pop() || "";
+      if (fileName.startsWith(docType)) {
         await prisma.document.delete({ where: { id: doc.id } });
       }
     }
@@ -107,8 +115,6 @@ export async function POST(request: NextRequest) {
         ownerId: session.user.id,
         type: "SELLER_ID",
         url: blob.url,
-        verificationStatus: "PENDING",
-        metadata: { kycType: docType },
       },
     });
 
@@ -120,9 +126,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const hasGhanaCard = allDocs.some((d) => (d.metadata as any)?.kycType === "GHANA_CARD");
-    const hasGhanaCardBack = allDocs.some((d) => (d.metadata as any)?.kycType === "GHANA_CARD_BACK");
-    const hasSelfie = allDocs.some((d) => (d.metadata as any)?.kycType === "SELFIE");
+    // Extract KYC types from URLs
+    const getKycType = (url: string) => {
+      const fileName = url.split("/").pop() || "";
+      return fileName.split("-")[0];
+    };
+
+    const hasGhanaCard = allDocs.some((d) => getKycType(d.url) === "GHANA_CARD");
+    const hasGhanaCardBack = allDocs.some((d) => getKycType(d.url) === "GHANA_CARD_BACK");
+    const hasSelfie = allDocs.some((d) => getKycType(d.url) === "SELFIE");
 
     type KycTierType = "TIER_0_OTP" | "TIER_1_ID_UPLOAD" | "TIER_2_GHANA_CARD";
     let newKycTier: KycTierType = "TIER_0_OTP";
@@ -130,14 +142,9 @@ export async function POST(request: NextRequest) {
       newKycTier = "TIER_1_ID_UPLOAD";
     }
 
-    // Check if all required docs are approved
-    const approvedDocs = allDocs.filter((d) => d.verificationStatus === "APPROVED");
-    const hasApprovedGhanaCard = approvedDocs.some((d) => (d.metadata as any)?.kycType === "GHANA_CARD");
-    const hasApprovedGhanaCardBack = approvedDocs.some((d) => (d.metadata as any)?.kycType === "GHANA_CARD_BACK");
-    const hasApprovedSelfie = approvedDocs.some((d) => (d.metadata as any)?.kycType === "SELFIE");
-
-    if (hasApprovedGhanaCard && hasApprovedGhanaCardBack && hasApprovedSelfie) {
-      newKycTier = "TIER_2_GHANA_CARD";
+    // For TIER_2, admin approval would be needed - simplified for now
+    if (hasGhanaCard && hasGhanaCardBack && hasSelfie) {
+      newKycTier = "TIER_1_ID_UPLOAD"; // Stay at TIER_1 until admin approves
     }
 
     await prisma.user.update({
@@ -149,7 +156,7 @@ export async function POST(request: NextRequest) {
       document: {
         id: document.id,
         type: docType,
-        status: document.verificationStatus,
+        status: "PENDING",
         url: document.url,
         createdAt: document.createdAt,
       },
