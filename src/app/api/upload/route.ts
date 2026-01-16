@@ -59,22 +59,20 @@ export async function POST(request: NextRequest) {
         access: "public",
       });
 
-      // Create database record
-      const mediaType = isImage ? "IMAGE" : "DOCUMENT";
-
-      const media = await prisma.listingMedia.create({
+      // Create database record - ListingMedia only supports PHOTO and VIDEO
+      const mediaRecord = await prisma.listingMedia.create({
         data: {
           listingId,
-          type: mediaType,
+          type: "PHOTO",
           url: blob.url,
           sortOrder: uploadedFiles.length,
         },
       });
 
       uploadedFiles.push({
-        id: media.id,
-        url: media.url,
-        type: media.type,
+        id: mediaRecord.id,
+        url: mediaRecord.url,
+        type: mediaRecord.type,
       });
     }
 
