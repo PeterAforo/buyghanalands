@@ -130,7 +130,8 @@ export async function PUT(
       await prisma.permitStatusHistory.create({
         data: {
           permitApplicationId: id,
-          status: "SUBMITTED",
+          fromStatus: "DRAFT",
+          toStatus: "SUBMITTED",
           note: "Application submitted for review",
         },
       });
@@ -140,7 +141,7 @@ export async function PUT(
       await prisma.permitStatusHistory.create({
         data: {
           permitApplicationId: id,
-          status: "CANCELLED",
+          toStatus: "CANCELLED",
           note: "Application cancelled by applicant",
         },
       });

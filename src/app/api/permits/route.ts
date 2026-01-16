@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     await prisma.permitStatusHistory.create({
       data: {
         permitApplicationId: permit.id,
-        status: "DRAFT",
+        toStatus: "DRAFT",
         note: "Application created",
       },
     });

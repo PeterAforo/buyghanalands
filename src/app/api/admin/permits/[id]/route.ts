@@ -73,7 +73,8 @@ export async function PUT(
     await prisma.permitStatusHistory.create({
       data: {
         permitApplicationId: id,
-        status: data.status,
+        fromStatus: permit.status,
+        toStatus: data.status,
         changedById: session.user.id,
         note: data.note || `Status changed to ${data.status}`,
       },
