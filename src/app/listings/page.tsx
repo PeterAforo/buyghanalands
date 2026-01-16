@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+
+export const dynamic = 'force-dynamic';
 import { formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
