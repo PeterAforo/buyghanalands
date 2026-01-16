@@ -11,17 +11,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { MapPin, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { LocationSelector, LocationData } from "@/components/ui/location-selector";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 
 const listingSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
   description: z.string().min(20, "Description must be at least 20 characters"),
   region: z.string().min(1, "Region is required"),
+  constituency: z.string().min(1, "Constituency is required"),
   district: z.string().min(1, "District is required"),
-  town: z.string().min(1, "Town is required"),
-  latitude: z.string().regex(/^-?\d+\.?\d*$/, "Invalid latitude"),
-  longitude: z.string().regex(/^-?\d+\.?\d*$/, "Invalid longitude"),
+  town: z.string().optional(),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
   landType: z.enum(["RESIDENTIAL", "COMMERCIAL", "AGRICULTURAL", "MIXED"]),
   tenureType: z.enum(["FREEHOLD", "LEASEHOLD", "CUSTOMARY"]),
   leaseDurationYears: z.string().optional(),
@@ -32,25 +34,6 @@ const listingSchema = z.object({
 });
 
 type ListingFormData = z.infer<typeof listingSchema>;
-
-const regions = [
-  "Greater Accra",
-  "Ashanti",
-  "Western",
-  "Central",
-  "Eastern",
-  "Volta",
-  "Northern",
-  "Upper East",
-  "Upper West",
-  "Bono",
-  "Bono East",
-  "Ahafo",
-  "Western North",
-  "Oti",
-  "North East",
-  "Savannah",
-];
 
 const steps = [
   { id: 1, name: "Basic Info", description: "Title and description" },
@@ -64,11 +47,20 @@ export default function CreateListingPage() {
   const { data: session, status } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [locationData, setLocationData] = useState<LocationData>({
+    region: "",
+    constituency: "",
+    district: "",
+    town: "",
+    latitude: "",
+    longitude: "",
+  });
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
     trigger,
   } = useForm<ListingFormData>({
@@ -81,6 +73,16 @@ export default function CreateListingPage() {
   });
 
   const tenureType = watch("tenureType");
+
+  const handleLocationChange = (data: LocationData) => {
+    setLocationData(data);
+    setValue("region", data.region);
+    setValue("constituency", data.constituency);
+    setValue("district", data.district);
+    setValue("town", data.town || "");
+    setValue("latitude", data.latitude || "");
+    setValue("longitude", data.longitude || "");
+  };
 
   if (status === "loading") {
     return (
@@ -98,7 +100,7 @@ export default function CreateListingPage() {
   const nextStep = async () => {
     const fieldsToValidate: (keyof ListingFormData)[][] = [
       ["title", "description"],
-      ["region", "district", "town", "latitude", "longitude"],
+      ["region", "constituency", "district"],
       ["landType", "tenureType", "sizeAcres"],
       ["priceGhs"],
     ];
@@ -122,8 +124,8 @@ export default function CreateListingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          latitude: parseFloat(data.latitude),
-          longitude: parseFloat(data.longitude),
+          latitude: data.latitude ? parseFloat(data.latitude) : undefined,
+          longitude: data.longitude ? parseFloat(data.longitude) : undefined,
           sizeAcres: parseFloat(data.sizeAcres),
           sizePlots: data.sizePlots ? parseInt(data.sizePlots) : null,
           priceGhs: parseInt(data.priceGhs),
@@ -266,68 +268,20 @@ export default function CreateListingPage() {
               {/* Step 2: Location */}
               {currentStep === 2 && (
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Region
-                    </label>
-                    <Select {...register("region")} error={errors.region?.message}>
-                      <option value="">Select a region</option>
-                      {regions.map((region) => (
-                        <option key={region} value={region}>
-                          {region}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        District
-                      </label>
-                      <Input
-                        placeholder="e.g., Accra Metropolitan"
-                        {...register("district")}
-                        error={errors.district?.message}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Town/Area
-                      </label>
-                      <Input
-                        placeholder="e.g., East Legon"
-                        {...register("town")}
-                        error={errors.town?.message}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Latitude
-                      </label>
-                      <Input
-                        placeholder="e.g., 5.6037"
-                        {...register("latitude")}
-                        error={errors.latitude?.message}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Longitude
-                      </label>
-                      <Input
-                        placeholder="e.g., -0.1870"
-                        {...register("longitude")}
-                        error={errors.longitude?.message}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    <MapPin className="inline h-4 w-4 mr-1" />
-                    You can get coordinates from Google Maps by right-clicking on
-                    the location
-                  </p>
+                  <LocationSelector
+                    value={locationData}
+                    onChange={handleLocationChange}
+                    showTown={true}
+                    showCoordinates={true}
+                    errors={{
+                      region: errors.region?.message,
+                      constituency: errors.constituency?.message,
+                      district: errors.district?.message,
+                      town: errors.town?.message,
+                      latitude: errors.latitude?.message,
+                      longitude: errors.longitude?.message,
+                    }}
+                  />
                 </div>
               )}
 

@@ -252,10 +252,11 @@ model Listing {
   title             String
   description       String
   region            String
+  constituency      String?
   district          String
-  town              String
-  latitude          Decimal           @db.Decimal(10, 7)
-  longitude         Decimal           @db.Decimal(10, 7)
+  town              String?
+  latitude          Decimal?          @db.Decimal(10, 7)
+  longitude         Decimal?          @db.Decimal(10, 7)
   landType          ListingLandType
   tenureType        ListingTenureType
   leaseDurationYears Int?
