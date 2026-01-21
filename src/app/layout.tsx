@@ -22,6 +22,10 @@ export const metadata: Metadata = {
     "land verification",
     "escrow Ghana",
   ],
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
