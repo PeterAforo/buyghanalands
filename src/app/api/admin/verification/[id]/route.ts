@@ -105,7 +105,7 @@ export async function PUT(
     const verificationRequest = await prisma.verificationRequest.findUnique({
       where: { id },
       include: {
-        listing: { select: { id: true, sellerId: true, title: true } },
+        listing: { select: { id: true, sellerId: true, title: true, verificationLevel: true } },
       },
     });
 

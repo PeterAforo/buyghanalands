@@ -193,6 +193,9 @@ enum AuditEntityType {
   REPORT
   DOCUMENT
   MESSAGE
+  KYC_REQUEST
+  PERMIT_APPLICATION
+  SUPPORT_TICKET
 }
 
 enum ActorType {
