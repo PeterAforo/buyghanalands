@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatPrice(amount: number | bigint): string {
-  const num = typeof amount === "bigint" ? Number(amount) : amount;
+export function formatPrice(amount: number | bigint | string): string {
+  const num = typeof amount === "bigint" ? Number(amount) : typeof amount === "string" ? parseFloat(amount) : amount;
   return new Intl.NumberFormat("en-GH", {
     style: "currency",
     currency: "GHS",

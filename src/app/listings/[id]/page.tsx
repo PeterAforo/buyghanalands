@@ -21,35 +21,70 @@ import {
 import { ListingActions } from "./listing-actions";
 
 async function getListing(id: string) {
-  const listing = await prisma.listing.findUnique({
-    where: { id },
-    include: {
-      seller: {
-        select: {
-          id: true,
-          fullName: true,
-          phone: true,
-          kycTier: true,
-          createdAt: true,
+  try {
+    const listing = await prisma.listing.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        region: true,
+        district: true,
+        town: true,
+        landType: true,
+        tenureType: true,
+        leaseDurationYears: true,
+        sizeAcres: true,
+        totalPlots: true,
+        priceGhs: true,
+        negotiable: true,
+        verificationLevel: true,
+        publishedAt: true,
+        seller: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            kycTier: true,
+            createdAt: true,
+          },
+        },
+        media: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            url: true,
+          },
+        },
+        documents: {
+          where: {
+            accessPolicy: { in: ["PUBLIC", "LOGGED_IN_REDACTED"] },
+          },
+          select: {
+            id: true,
+            type: true,
+          },
         },
       },
-      media: {
-        orderBy: { sortOrder: "asc" },
-      },
-      documents: {
-        where: {
-          accessPolicy: { in: ["PUBLIC", "LOGGED_IN_REDACTED"] },
-        },
-        select: {
-          id: true,
-          type: true,
-          createdAt: true,
-        },
-      },
-    },
-  });
+    });
 
-  return listing;
+    if (!listing) return null;
+
+    // Serialize BigInt, Decimal, and Date fields
+    return {
+      ...listing,
+      sizeAcres: listing.sizeAcres.toString(),
+      priceGhs: listing.priceGhs.toString(),
+      publishedAt: listing.publishedAt?.toISOString() ?? null,
+      seller: {
+        ...listing.seller,
+        createdAt: listing.seller.createdAt.toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching listing:", error);
+    return null;
+  }
 }
 
 function getVerificationInfo(level: string) {
