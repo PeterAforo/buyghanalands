@@ -58,13 +58,26 @@ export default async function ListingsPage() {
 
   // Serialize the listings for the client component
   // BigInt and Decimal types cannot be serialized to JSON directly
+  // Must explicitly map each field to avoid passing non-serializable types
   const serializedListings = listings.map((listing) => ({
-    ...listing,
+    id: listing.id,
+    title: listing.title,
+    description: listing.description,
+    region: listing.region,
+    district: listing.district,
+    town: listing.town,
+    landType: listing.landType,
+    tenureType: listing.tenureType,
     sizeAcres: listing.sizeAcres.toString(),
     priceGhs: listing.priceGhs.toString(),
-    pricePerPlotGhs: listing.pricePerPlotGhs?.toString() ?? null,
-    latitude: listing.latitude?.toString() ?? null,
-    longitude: listing.longitude?.toString() ?? null,
+    negotiable: listing.negotiable,
+    verificationLevel: listing.verificationLevel,
+    media: listing.media.map((m) => ({ url: m.url })),
+    seller: {
+      id: listing.seller.id,
+      fullName: listing.seller.fullName,
+      kycTier: listing.seller.kycTier,
+    },
   }));
 
   return (
