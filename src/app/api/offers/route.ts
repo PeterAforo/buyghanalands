@@ -17,10 +17,12 @@ export async function POST(request: NextRequest) {
     const session = await auth();
 
     if (!session?.user?.id) {
+      console.log("Offers API: Unauthorized - no session");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
+    console.log("Offers API: Received body:", JSON.stringify(body));
     const data = createOfferSchema.parse(body);
 
     // Check if listing exists and is published
@@ -30,10 +32,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!listing) {
+      console.log("Offers API: Listing not found:", data.listingId);
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
     if (listing.status !== "PUBLISHED") {
+      console.log("Offers API: Listing not published, status:", listing.status);
       return NextResponse.json(
         { error: "Listing is not available" },
         { status: 400 }
@@ -41,6 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (listing.sellerId === session.user.id) {
+      console.log("Offers API: User trying to offer on own listing");
       return NextResponse.json(
         { error: "Cannot make offer on your own listing" },
         { status: 400 }
@@ -57,6 +62,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingOffer) {
+      console.log("Offers API: User already has pending offer");
       return NextResponse.json(
         { error: "You already have a pending offer on this listing" },
         { status: 400 }
