@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
@@ -10,7 +10,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Phone, Lock, Eye, EyeOff } from "lucide-react";
+import { MapPin, Phone, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 
 const loginSchema = z.object({
   phone: z
@@ -24,6 +24,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const verified = searchParams.get("verified") === "true";
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +69,13 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {verified && (
+              <div className="flex items-center gap-2 p-3 text-sm text-emerald-600 bg-emerald-50 rounded-md">
+                <CheckCircle className="h-4 w-4" />
+                Email verified successfully! You can now sign in.
+              </div>
+            )}
+
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
                 {error}

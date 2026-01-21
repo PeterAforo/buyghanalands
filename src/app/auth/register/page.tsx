@@ -15,7 +15,7 @@ import { MapPin, Phone, Lock, Eye, EyeOff, User, Mail } from "lucide-react";
 const registerSchema = z
   .object({
     fullName: z.string().min(2, "Full name is required"),
-    email: z.string().email("Invalid email address").optional().or(z.literal("")),
+    email: z.string().email("Valid email address is required"),
     phone: z
       .string()
       .min(10, "Phone number must be at least 10 digits")
@@ -64,7 +64,8 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/auth/login?registered=true");
+      // Redirect to verification pending page
+      router.push("/auth/verify-email?email=" + encodeURIComponent(data.email));
     } catch {
       setError("Something went wrong. Please try again.");
     }
@@ -109,7 +110,7 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Email (Optional)
+                Email <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />

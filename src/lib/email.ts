@@ -163,3 +163,50 @@ export function getOfferNotificationEmailHtml(type: "received" | "accepted" | "c
     </html>
   `;
 }
+
+export async function sendVerificationEmail(email: string, name: string, verificationUrl: string): Promise<{ success: boolean; error?: string }> {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #059669; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9fafb; }
+        .button { display: inline-block; background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+        .warning { color: #b45309; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Verify Your Email</h1>
+        </div>
+        <div class="content">
+          <p>Hi ${name},</p>
+          <p>Thank you for registering with BuyGhanaLands! Please verify your email address by clicking the button below:</p>
+          <p style="text-align: center;">
+            <a href="${verificationUrl}" class="button">Verify Email Address</a>
+          </p>
+          <p class="warning">This link will expire in 24 hours.</p>
+          <p>If you didn't create an account with BuyGhanaLands, you can safely ignore this email.</p>
+        </div>
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} BuyGhanaLands. All rights reserved.</p>
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; font-size: 11px;">${verificationUrl}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: "Verify your email - BuyGhanaLands",
+    html,
+    text: `Hi ${name}, Please verify your email by visiting: ${verificationUrl}. This link expires in 24 hours.`,
+  });
+}
