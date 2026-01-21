@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 function formatPrice(price: string | number) {
@@ -64,7 +64,7 @@ function getVerificationBadge(level: string) {
   }
 }
 
-export function ListingsClient({ initialListings, regions, landTypes }: ListingsClientProps) {
+function ListingsClientInner({ initialListings, regions, landTypes }: ListingsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -489,5 +489,33 @@ function ListingListItem({ listing }: { listing: Listing }) {
         </div>
       </Card>
     </Link>
+  );
+}
+
+export function ListingsClient({ initialListings, regions, landTypes }: ListingsClientProps) {
+  return (
+    <Suspense fallback={
+      <div className="bg-gray-50 min-h-screen">
+        <div className="bg-white border-b">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+            <div className="h-8 w-48 bg-gray-200 animate-pulse rounded" />
+            <div className="h-4 w-64 bg-gray-100 animate-pulse rounded mt-2" />
+          </div>
+        </div>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-72 bg-gray-200 animate-pulse rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </div>
+    }>
+      <ListingsClientInner 
+        initialListings={initialListings} 
+        regions={regions} 
+        landTypes={landTypes} 
+      />
+    </Suspense>
   );
 }
