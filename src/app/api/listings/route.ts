@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
         tenureType: data.tenureType,
         leaseDurationYears: data.leaseDurationYears,
         sizeAcres: data.sizeAcres,
-        sizePlots: data.sizePlots,
+        totalPlots: data.sizePlots || 1,
         priceGhs: data.priceGhs,
         negotiable: data.negotiable,
         status: "DRAFT",

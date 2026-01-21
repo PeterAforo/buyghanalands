@@ -188,10 +188,10 @@ export default async function ListingDetailPage({
                     <p className="text-3xl font-bold text-emerald-600">
                       {formatPrice(listing.priceGhs)}
                     </p>
-                    {listing.sizePlots && (
+                    {listing.totalPlots > 1 && (
                       <p className="text-sm text-gray-500">
                         {formatPrice(
-                          Number(listing.priceGhs) / listing.sizePlots
+                          Number(listing.priceGhs) / listing.totalPlots
                         )}{" "}
                         per plot
                       </p>
@@ -208,9 +208,9 @@ export default async function ListingDetailPage({
                     <p className="font-semibold">
                       {Number(listing.sizeAcres).toFixed(2)} acres
                     </p>
-                    {listing.sizePlots && (
+                    {listing.totalPlots > 1 && (
                       <p className="text-sm text-gray-500">
-                        ({listing.sizePlots} plots)
+                        ({listing.totalPlots} plots)
                       </p>
                     )}
                   </div>

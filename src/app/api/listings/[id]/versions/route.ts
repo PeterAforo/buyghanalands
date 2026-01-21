@@ -144,7 +144,7 @@ export async function POST(
         tenureType: data.tenureType || listing.tenureType,
         leaseDurationYears: data.leaseDurationYears ?? listing.leaseDurationYears,
         sizeAcres: data.sizeAcres || listing.sizeAcres,
-        sizePlots: data.sizePlots ?? listing.sizePlots,
+        sizePlots: data.sizePlots ?? listing.totalPlots,
         priceGhs: data.priceGhs ? BigInt(data.priceGhs) : listing.priceGhs,
         negotiable: data.negotiable ?? listing.negotiable,
         createdById: session.user.id,
