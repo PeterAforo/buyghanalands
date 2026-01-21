@@ -139,6 +139,7 @@ enum PaymentProvider {
   FLUTTERWAVE
   PAYSTACK
   HUBTEL
+  BANK_TRANSFER
   OTHER
 }
 
