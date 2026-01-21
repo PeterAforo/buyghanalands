@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     if (listing.status !== "PUBLISHED") {
       console.log("Offers API: Listing not published, status:", listing.status);
       return NextResponse.json(
-        { error: "Listing is not available" },
+        { error: `Listing is not available (status: ${listing.status})` },
         { status: 400 }
       );
     }
