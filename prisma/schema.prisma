@@ -254,6 +254,9 @@ model User {
   agentClients           AgentClient[]
   favorites              Favorite[]
   savedSearches          SavedSearch[]
+  kycRequests            KycRequest[]
+  kycReviewed            KycRequest[]           @relation("KycReviewer")
+  deviceTokens           DeviceToken[]
 
   @@index([createdAt])
   @@index([email])
@@ -1105,6 +1108,68 @@ model WebhookDelivery {
 
   @@index([endpointId, createdAt])
   @@index([status, nextRetryAt])
+}
+
+// KYC / Ghana Card Integration
+
+enum KycStatus {
+  INITIATED
+  PENDING
+  PASSED
+  FAILED
+  RETRY
+  MANUAL_REVIEW
+}
+
+enum KycReason {
+  SELLER_VERIFICATION
+  HIGH_VALUE_TRANSACTION
+  PROFESSIONAL_REGISTRATION
+  MANUAL_REQUEST
+}
+
+model KycRequest {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  ghanaCardNumber String
+  selfieUrl       String?
+  reason          KycReason @default(MANUAL_REQUEST)
+  status          KycStatus @default(INITIATED)
+  providerRef     String?
+  providerPayload Json?
+  reviewNotes     String?
+  reviewedById    String?
+  reviewedBy      User?     @relation("KycReviewer", fields: [reviewedById], references: [id])
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+// Push Notification Device Tokens
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+model DeviceToken {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  token      String         @unique
+  platform   DevicePlatform
+  deviceName String?
+  isActive   Boolean        @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([userId, isActive])
 }
 
 // Pro Features Models
