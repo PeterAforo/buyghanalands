@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 async function isVerifier(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
@@ -136,11 +137,15 @@ export async function PUT(
     }
 
     // Update verification request
+    const checklistValue = data.checklist 
+      ? data.checklist 
+      : (verificationRequest.checklist ?? Prisma.JsonNull);
+    
     const updated = await prisma.verificationRequest.update({
       where: { id },
       data: {
         status: newStatus,
-        checklist: data.checklist || verificationRequest.checklist,
+        checklist: checklistValue,
         outcomeNotes: data.outcomeNotes,
         referenceNo: data.referenceNo,
         completedAt: new Date(),
