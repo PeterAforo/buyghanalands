@@ -252,6 +252,8 @@ model User {
   documentVerifications  DocumentVerification[]
   agentProfile           AgentProfile?
   agentClients           AgentClient[]
+  favorites              Favorite[]
+  savedSearches          SavedSearch[]
 
   @@index([createdAt])
   @@index([email])
@@ -316,6 +318,7 @@ model Listing {
   featuredListings     FeaturedListing[]
   virtualTours         VirtualTour[]
   agentListings        AgentListing[]
+  favorites            Favorite[]
 
   @@index([sellerId, status])
   @@index([status, publishedAt])
@@ -1442,4 +1445,33 @@ model WhatsAppSession {
 
   @@index([phone])
   @@index([lastMessageAt])
+}
+
+// User Favorites and Saved Searches
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId, createdAt])
+}
+
+model SavedSearch {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  name         String
+  filters      Json
+  alertEnabled Boolean  @default(false)
+  lastRunAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([alertEnabled])
 }
