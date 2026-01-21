@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { X, Loader2, DollarSign } from "lucide-react";
+import { X, Loader2, DollarSign, CheckCircle } from "lucide-react";
 
 interface MakeOfferModalProps {
   listingId: string;
@@ -26,6 +26,7 @@ export function MakeOfferModal({
   const [amount, setAmount] = useState(askingPrice.toString());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +50,11 @@ export function MakeOfferModal({
         return;
       }
 
-      onSuccess();
+      setSuccess(true);
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 2000);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -79,6 +84,13 @@ export function MakeOfferModal({
           <CardDescription>{listingTitle}</CardDescription>
         </CardHeader>
         <CardContent>
+          {success ? (
+            <div className="text-center py-8">
+              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Offer Submitted!</h3>
+              <p className="text-gray-600">The seller will be notified of your offer.</p>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
@@ -141,6 +153,7 @@ export function MakeOfferModal({
               By submitting, you agree to our terms of service. The seller will be notified of your offer.
             </p>
           </form>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -131,12 +131,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type"); // "sent" or "received"
+    const type = searchParams.get("type"); // "sent", "received", or null for all
 
-    const where =
-      type === "sent"
-        ? { buyerId: session.user.id }
-        : { listing: { sellerId: session.user.id } };
+    let where;
+    if (type === "sent") {
+      where = { buyerId: session.user.id };
+    } else if (type === "received") {
+      where = { listing: { sellerId: session.user.id } };
+    } else {
+      // Return both sent and received offers
+      where = {
+        OR: [
+          { buyerId: session.user.id },
+          { listing: { sellerId: session.user.id } },
+        ],
+      };
+    }
 
     const offers = await prisma.offer.findMany({
       where,
@@ -148,6 +158,10 @@ export async function GET(request: NextRequest) {
             priceGhs: true,
             town: true,
             district: true,
+            sellerId: true,
+            seller: {
+              select: { id: true, fullName: true },
+            },
           },
         },
         buyer: {
@@ -157,7 +171,17 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(offers);
+    // Serialize BigInt values
+    const serializedOffers = offers.map((offer) => ({
+      ...offer,
+      amountGhs: offer.amountGhs.toString(),
+      listing: {
+        ...offer.listing,
+        priceGhs: offer.listing.priceGhs.toString(),
+      },
+    }));
+
+    return NextResponse.json(serializedOffers);
   } catch (error) {
     console.error("Error fetching offers:", error);
     return NextResponse.json(

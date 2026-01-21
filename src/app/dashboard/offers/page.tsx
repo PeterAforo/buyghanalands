@@ -22,7 +22,7 @@ interface Offer {
   id: string;
   listingId: string;
   buyerId: string;
-  amount: string;
+  amountGhs: string;
   status: string;
   expiresAt: string;
   createdAt: string;
@@ -30,6 +30,7 @@ interface Offer {
     id: string;
     title: string;
     priceGhs: string;
+    sellerId: string;
     seller: { id: string; fullName: string };
   };
   buyer: { id: string; fullName: string };
@@ -143,7 +144,7 @@ export default function OffersPage() {
       });
       if (response.ok) {
         setOffers((prev) =>
-          prev.map((o) => (o.id === offerId ? { ...o, status: "COUNTERED", amount } : o))
+          prev.map((o) => (o.id === offerId ? { ...o, status: "COUNTERED", amountGhs: amount } : o))
         );
         setShowCounter(null);
       }
@@ -168,7 +169,7 @@ export default function OffersPage() {
   }
 
   const receivedOffers = offers.filter(
-    (o) => o.listing.seller.id === session.user?.id
+    (o) => o.listing.sellerId === session.user?.id
   );
   const sentOffers = offers.filter((o) => o.buyerId === session.user?.id);
 
@@ -216,7 +217,7 @@ export default function OffersPage() {
                           </p>
                           <div className="flex items-center gap-4 mt-2">
                             <span className="text-lg font-semibold text-emerald-600">
-                              {formatPrice(offer.amount)}
+                              {formatPrice(offer.amountGhs)}
                             </span>
                             <span className="text-sm text-gray-500">
                               (Listed: {formatPrice(offer.listing.priceGhs)})
@@ -337,7 +338,7 @@ export default function OffersPage() {
                           </p>
                           <div className="flex items-center gap-4 mt-2">
                             <span className="text-lg font-semibold text-emerald-600">
-                              {formatPrice(offer.amount)}
+                              {formatPrice(offer.amountGhs)}
                             </span>
                           </div>
                         </div>
