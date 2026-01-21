@@ -32,12 +32,15 @@ export async function POST(request: NextRequest) {
       select: { email: true, phone: true, fullName: true },
     });
 
-    if (!user?.email) {
+    if (!user) {
       return NextResponse.json(
-        { error: "Email required for payment" },
-        { status: 400 }
+        { error: "User not found" },
+        { status: 404 }
       );
     }
+
+    // Use email if available, otherwise generate a placeholder from phone
+    const payerEmail = user.email || `${user.phone.replace(/\D/g, '')}@buyghanalands.com`;
 
     const reference = generateReference();
 
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Initialize Flutterwave payment
     const flutterwaveResponse = await initializePayment({
       amount: data.amount,
-      email: user.email,
+      email: payerEmail,
       phone: user.phone,
       name: user.fullName,
       txRef: reference,
