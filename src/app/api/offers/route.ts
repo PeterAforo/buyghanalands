@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       data: {
         listingId: data.listingId,
         buyerId: session.user.id,
-        amountGhs: data.amountGhs,
+        amountGhs: BigInt(Math.round(data.amountGhs)),
         message: data.message,
         expiresAt: addDays(new Date(), data.expiresInDays),
         status: "SENT",
@@ -94,7 +94,11 @@ export async function POST(request: NextRequest) {
     // Send notification to seller (async, don't block response)
     notifyOfferReceived(offer.listing.sellerId, offer.listing.title, data.amountGhs).catch(console.error);
 
-    return NextResponse.json(offer, { status: 201 });
+    // Serialize BigInt for JSON response
+    return NextResponse.json({
+      ...offer,
+      amountGhs: offer.amountGhs.toString(),
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error("Zod validation error:", JSON.stringify(error.issues));
