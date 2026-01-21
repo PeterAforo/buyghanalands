@@ -1,6 +1,65 @@
 @import "tailwindcss";
 
+/* ============================================
+   Design System Tokens
+   ============================================ */
 :root {
+  /* Brand Colors */
+  --c-brand-primary: #0B7D5B;
+  --c-brand-primary-hover: #096E50;
+  --c-brand-primary-soft: rgba(11, 125, 91, 0.14);
+  --c-brand-accent: #20E3B2;
+  --c-brand-accent-soft: rgba(32, 227, 178, 0.16);
+
+  /* Neutral Colors */
+  --c-neutral-ink: #0B1F17;
+  --c-neutral-ink-soft: rgba(11, 31, 23, 0.74);
+  --c-neutral-surface: #FFFFFF;
+  --c-neutral-surface-alt: #F6F8F7;
+  --c-neutral-border: rgba(15, 23, 42, 0.12);
+
+  /* Dark Theme Colors (for dark sections) */
+  --c-dark-bg: #06241C;
+  --c-dark-bg2: #041E17;
+  --c-dark-surface: rgba(255, 255, 255, 0.06);
+  --c-dark-surface-hover: rgba(255, 255, 255, 0.10);
+  --c-dark-border: rgba(255, 255, 255, 0.12);
+  --c-dark-text: #F2FBF7;
+  --c-dark-muted: rgba(242, 251, 247, 0.78);
+  --c-dark-subtle: rgba(242, 251, 247, 0.62);
+  --c-dark-disabled: rgba(242, 251, 247, 0.42);
+
+  /* Status Colors */
+  --c-status-success: #18B27A;
+  --c-status-warning: #F59E0B;
+  --c-status-danger: #EF4444;
+  --c-status-info: #3B82F6;
+
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ls-tight: -0.02em;
+  --ls-normal: 0em;
+  --ls-caps: 0.08em;
+
+  /* Radius */
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 10px 32px rgba(0, 0, 0, 0.12);
+  --shadow-glow-green: 0 0 0 1px rgba(32, 227, 178, 0.22), 0 16px 40px rgba(0, 0, 0, 0.18);
+
+  /* Spacing */
+  --container-max: 1200px;
+  --gutter: clamp(16px, 4vw, 32px);
+  --section-y: clamp(56px, 7vw, 96px);
+  --stack-sm: 12px;
+  --stack-md: 18px;
+  --stack-lg: 28px;
+
+  /* Legacy compatibility */
   --background: #ffffff;
   --foreground: #111827;
 }
@@ -13,18 +72,79 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--c-neutral-surface);
+  color: var(--c-neutral-ink);
+  font-family: var(--font-sans);
+  line-height: 1.65;
 }
 
-/* Ensure good text contrast */
-h1, h2, h3, h4, h5, h6 {
-  color: #111827;
+/* ============================================
+   Typography Scale
+   ============================================ */
+h1 {
+  font-size: clamp(2.25rem, 3vw, 3.25rem);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: var(--ls-tight);
+  color: var(--c-neutral-ink);
+}
+
+h2 {
+  font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: var(--ls-tight);
+  color: var(--c-neutral-ink);
+}
+
+h3 {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  font-weight: 650;
+  color: var(--c-neutral-ink);
 }
 
 p {
-  color: #374151;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--c-neutral-ink-soft);
+}
+
+/* ============================================
+   Dark Section Text Utilities
+   ============================================ */
+.dark-section {
+  background-color: var(--c-dark-bg);
+}
+
+.dark-section h1,
+.dark-section h2,
+.dark-section h3,
+.dark-section h4 {
+  color: var(--c-dark-text);
+}
+
+.dark-section p {
+  color: var(--c-dark-muted);
+}
+
+.text-dark-text {
+  color: var(--c-dark-text) !important;
+}
+
+.text-dark-muted {
+  color: var(--c-dark-muted) !important;
+}
+
+.text-dark-subtle {
+  color: var(--c-dark-subtle) !important;
+}
+
+/* Card on dark background */
+.card-on-dark {
+  background-color: var(--c-dark-surface);
+  border: 1px solid var(--c-dark-border);
+  border-radius: var(--radius-card);
 }
 
 /* Fix for any light gray text */
@@ -133,4 +253,126 @@ html.lenis body {
 
 .lenis.lenis-scrolling iframe {
   pointer-events: none;
+}
+
+/* ============================================
+   Hero Visual Box Animations
+   ============================================ */
+.hero-visual-box {
+  position: relative;
+  background: var(--c-dark-surface);
+  border: 1px solid var(--c-dark-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-glow-green);
+  overflow: hidden;
+}
+
+.hero-visual-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(32, 227, 178, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(32, 227, 178, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+/* Pin pulse animation */
+[data-pin] {
+  will-change: transform, opacity;
+}
+
+/* Scan line animation */
+[data-scan] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(32, 227, 178, 0.08) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-pin],
+  [data-scan] {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* ============================================
+   How It Works Line Draw
+   ============================================ */
+[data-how-line] {
+  transform-origin: left center;
+  will-change: transform;
+}
+
+/* ============================================
+   Card Hover Effects
+   ============================================ */
+[data-card-hover] {
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-card-hover]:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-card-hover] {
+    transition: none;
+  }
+  [data-card-hover]:hover {
+    transform: none;
+  }
+}
+
+/* ============================================
+   Micro-reassurance styling
+   ============================================ */
+[data-assurance] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 450;
+  color: var(--c-dark-muted);
+}
+
+.light-section [data-assurance] {
+  color: var(--c-neutral-ink-soft);
+}
+
+/* ============================================
+   Animation Initial States (GSAP)
+   ============================================ */
+[data-hero-headline],
+[data-hero-sub],
+[data-hero-ctas] > *,
+[data-trust-item],
+[data-how-step],
+[data-reveal-group] > * {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-hero-headline],
+  [data-hero-sub],
+  [data-hero-ctas] > *,
+  [data-trust-item],
+  [data-how-step],
+  [data-reveal-group] > * {
+    opacity: 1;
+  }
 }
