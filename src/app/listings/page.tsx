@@ -57,10 +57,14 @@ export default async function ListingsPage() {
   ]);
 
   // Serialize the listings for the client component
+  // BigInt and Decimal types cannot be serialized to JSON directly
   const serializedListings = listings.map((listing) => ({
     ...listing,
     sizeAcres: listing.sizeAcres.toString(),
     priceGhs: listing.priceGhs.toString(),
+    pricePerPlotGhs: listing.pricePerPlotGhs?.toString() ?? null,
+    latitude: listing.latitude?.toString() ?? null,
+    longitude: listing.longitude?.toString() ?? null,
   }));
 
   return (
