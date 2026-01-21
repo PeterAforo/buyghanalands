@@ -312,7 +312,10 @@ model Listing {
   tenureType        ListingTenureType
   leaseDurationYears Int?
   sizeAcres         Decimal           @db.Decimal(12, 4)
-  sizePlots         Int?
+  totalPlots        Int               @default(1)
+  availablePlots    Int               @default(1)
+  soldPlots         Int               @default(0)
+  pricePerPlotGhs   BigInt?
   priceGhs          BigInt
   negotiable        Boolean           @default(true)
   verificationLevel VerificationLevel @default(LEVEL_0_UNVERIFIED)
