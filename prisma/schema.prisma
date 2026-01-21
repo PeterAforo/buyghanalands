@@ -148,6 +148,8 @@ enum PaymentType {
   PAYOUT
   REFUND
   ADJUSTMENT
+  PROFESSIONAL_PAYOUT
+  SERVICE_FEE
 }
 
 enum PaymentStatus {
