@@ -60,8 +60,10 @@ async function getAnalytics() {
 
   // Calculate growth percentages
   const userGrowth = newUsersPrevMonth > 0 ? ((newUsersThisMonth - newUsersPrevMonth) / newUsersPrevMonth) * 100 : 0;
-  const revenueGrowth = (revenuePrevMonth._sum.amount || 0) > 0 
-    ? (((revenueThisMonth._sum.amount || 0) - (revenuePrevMonth._sum.amount || 0)) / Number(revenuePrevMonth._sum.amount || 1)) * 100 
+  const revThisMonth = Number(revenueThisMonth._sum.amount || 0);
+  const revPrevMonth = Number(revenuePrevMonth._sum.amount || 0);
+  const revenueGrowth = revPrevMonth > 0 
+    ? ((revThisMonth - revPrevMonth) / revPrevMonth) * 100 
     : 0;
 
   return {
