@@ -34,7 +34,7 @@ export async function GET(
       name: savedSearch.name,
       filters: savedSearch.filters,
       alertEnabled: savedSearch.alertEnabled,
-      lastAlertAt: savedSearch.lastAlertAt?.toISOString() || null,
+      lastRunAt: savedSearch.lastRunAt?.toISOString() || null,
       createdAt: savedSearch.createdAt.toISOString(),
     });
   } catch (error) {

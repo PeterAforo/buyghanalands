@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       name: s.name,
       filters: s.filters,
       alertEnabled: s.alertEnabled,
-      lastAlertAt: s.lastAlertAt?.toISOString() || null,
+      lastRunAt: s.lastRunAt?.toISOString() || null,
       createdAt: s.createdAt.toISOString(),
     }));
 
