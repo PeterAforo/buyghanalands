@@ -19,6 +19,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { ListingActions } from "./listing-actions";
+import { ListingMapWrapper } from "./listing-map-wrapper";
 
 async function getListing(id: string) {
   try {
@@ -31,6 +32,8 @@ async function getListing(id: string) {
         region: true,
         district: true,
         town: true,
+        latitude: true,
+        longitude: true,
         landType: true,
         tenureType: true,
         leaseDurationYears: true,
@@ -79,6 +82,8 @@ async function getListing(id: string) {
       region: listing.region,
       district: listing.district,
       town: listing.town,
+      latitude: listing.latitude ? Number(listing.latitude) : null,
+      longitude: listing.longitude ? Number(listing.longitude) : null,
       landType: listing.landType,
       tenureType: listing.tenureType,
       leaseDurationYears: listing.leaseDurationYears,
@@ -305,6 +310,20 @@ export default async function ListingDetailPage({
                     {listing.description}
                   </p>
                 </div>
+
+                {/* Map */}
+                {listing.latitude && listing.longitude && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">
+                      Location on Map
+                    </h3>
+                    <ListingMapWrapper
+                      latitude={listing.latitude}
+                      longitude={listing.longitude}
+                      title={listing.title}
+                    />
+                  </div>
+                )}
 
                 {/* Verification Status */}
                 <div className="p-4 border rounded-lg">
