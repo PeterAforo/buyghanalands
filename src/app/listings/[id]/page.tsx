@@ -71,15 +71,32 @@ async function getListing(id: string) {
     if (!listing) return null;
 
     // Serialize BigInt, Decimal, and Date fields
+    // Explicitly map all fields to ensure proper type inference
     return {
-      ...listing,
+      id: listing.id,
+      title: listing.title,
+      description: listing.description,
+      region: listing.region,
+      district: listing.district,
+      town: listing.town,
+      landType: listing.landType,
+      tenureType: listing.tenureType,
+      leaseDurationYears: listing.leaseDurationYears,
       sizeAcres: listing.sizeAcres.toString(),
+      totalPlots: listing.totalPlots,
       priceGhs: listing.priceGhs.toString(),
+      negotiable: listing.negotiable,
+      verificationLevel: listing.verificationLevel,
       publishedAt: listing.publishedAt?.toISOString() ?? null,
       seller: {
-        ...listing.seller,
+        id: listing.seller.id,
+        fullName: listing.seller.fullName,
+        phone: listing.seller.phone,
+        kycTier: listing.seller.kycTier,
         createdAt: listing.seller.createdAt.toISOString(),
       },
+      media: listing.media,
+      documents: listing.documents,
     };
   } catch (error) {
     console.error("Error fetching listing:", error);
