@@ -3,6 +3,8 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { sendEmail, getVerificationStatusEmailHtml } from "@/lib/email";
+import { sendSMS } from "@/lib/sms";
 
 async function isVerifier(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
@@ -177,7 +179,34 @@ export async function PUT(
       },
     });
 
-    // TODO: Send notification to seller about verification outcome
+    // Send notification to seller about verification outcome
+    if (verificationRequest.listing) {
+      const seller = await prisma.user.findUnique({
+        where: { id: verificationRequest.listing.sellerId },
+        select: { email: true, phone: true, fullName: true },
+      });
+
+      if (seller) {
+        const status = data.action === "approve" ? "approved" : "rejected";
+        
+        // Send email
+        if (seller.email) {
+          await sendEmail({
+            to: seller.email,
+            subject: `Verification ${status === "approved" ? "Approved" : "Update Required"} - BuyGhanaLands`,
+            html: getVerificationStatusEmailHtml(status, verificationRequest.listing.title, data.outcomeNotes),
+          });
+        }
+
+        // Send SMS
+        if (seller.phone) {
+          const smsMessage = status === "approved"
+            ? `BuyGhanaLands: Your listing "${verificationRequest.listing.title}" has been verified! It now displays a verified badge.`
+            : `BuyGhanaLands: Your verification for "${verificationRequest.listing.title}" needs updates. Check your email for details.`;
+          await sendSMS(seller.phone, smsMessage);
+        }
+      }
+    }
 
     return NextResponse.json({
       message: `Verification request ${data.action}ed`,

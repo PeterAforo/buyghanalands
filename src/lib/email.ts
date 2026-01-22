@@ -164,6 +164,211 @@ export function getOfferNotificationEmailHtml(type: "received" | "accepted" | "c
   `;
 }
 
+// New Listing Alert Email
+export function getNewListingAlertEmailHtml(
+  searchName: string,
+  listings: { title: string; region: string; price: string; url: string }[]
+): string {
+  const listingsHtml = listings
+    .map(
+      (l) => `
+      <div style="background: white; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 10px 0;">
+        <h3 style="margin: 0 0 5px 0; color: #111827;">${l.title}</h3>
+        <p style="margin: 0; color: #6b7280; font-size: 14px;">${l.region}</p>
+        <p style="margin: 5px 0 10px 0; font-size: 18px; font-weight: bold; color: #059669;">${l.price}</p>
+        <a href="${l.url}" style="color: #059669; text-decoration: none; font-size: 14px;">View Listing →</a>
+      </div>
+    `
+    )
+    .join("");
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #059669; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9fafb; }
+        .button { display: inline-block; background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; }
+        .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>New Listings Match Your Search</h1>
+        </div>
+        <div class="content">
+          <p>Great news! New listings match your saved search "<strong>${searchName}</strong>":</p>
+          ${listingsHtml}
+          <p style="margin-top: 20px;"><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/saved-searches" class="button">View All Matches</a></p>
+        </div>
+        <div class="footer">
+          <p>You're receiving this because you enabled alerts for this search.</p>
+          <p>© ${new Date().getFullYear()} BuyGhanaLands. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+// Payment Confirmation Email
+export function getPaymentConfirmationEmailHtml(
+  type: "success" | "failed",
+  amount: number,
+  listingTitle: string,
+  transactionRef: string
+): string {
+  const isSuccess = type === "success";
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: ${isSuccess ? "#059669" : "#dc2626"}; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9fafb; }
+        .highlight { background: white; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 15px 0; }
+        .amount { font-size: 28px; font-weight: bold; color: ${isSuccess ? "#059669" : "#dc2626"}; text-align: center; }
+        .button { display: inline-block; background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; }
+        .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>${isSuccess ? "Payment Successful!" : "Payment Failed"}</h1>
+        </div>
+        <div class="content">
+          <p>${isSuccess ? "Your payment has been processed successfully." : "Unfortunately, your payment could not be processed."}</p>
+          <div class="highlight">
+            <p class="amount">GH₵${amount.toLocaleString()}</p>
+            <div style="margin-top: 15px;">
+              <p><strong>Listing:</strong> ${listingTitle}</p>
+              <p><strong>Reference:</strong> ${transactionRef}</p>
+              <p><strong>Status:</strong> ${isSuccess ? "Completed" : "Failed"}</p>
+            </div>
+          </div>
+          ${isSuccess 
+            ? `<p>Your funds are now held securely in escrow. The seller has been notified.</p>
+               <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/transactions" class="button">View Transaction</a></p>`
+            : `<p>Please try again or contact support if the issue persists.</p>
+               <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/support" class="button">Contact Support</a></p>`
+          }
+        </div>
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} BuyGhanaLands. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+// Document Verification Email
+export function getVerificationStatusEmailHtml(
+  status: "submitted" | "approved" | "rejected",
+  listingTitle: string,
+  notes?: string
+): string {
+  const config = {
+    submitted: {
+      title: "Verification Request Received",
+      message: `We've received your verification request for "${listingTitle}". Our team will review your documents within 2-3 business days.`,
+      color: "#2563eb",
+    },
+    approved: {
+      title: "Verification Approved!",
+      message: `Great news! Your listing "${listingTitle}" has been verified. Your listing now displays a verified badge.`,
+      color: "#059669",
+    },
+    rejected: {
+      title: "Verification Update Required",
+      message: `We were unable to verify "${listingTitle}" with the provided documents.`,
+      color: "#dc2626",
+    },
+  };
+
+  const { title, message, color } = config[status];
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: ${color}; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9fafb; }
+        .notes { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .button { display: inline-block; background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; }
+        .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>${title}</h1>
+        </div>
+        <div class="content">
+          <p>${message}</p>
+          ${notes ? `<div class="notes"><strong>Notes from reviewer:</strong><br/>${notes}</div>` : ""}
+          <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/listings" class="button">View Listing</a></p>
+        </div>
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} BuyGhanaLands. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+// Password Reset Email
+export function getPasswordResetEmailHtml(name: string, resetUrl: string): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #059669; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9fafb; }
+        .button { display: inline-block; background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+        .warning { color: #b45309; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Reset Your Password</h1>
+        </div>
+        <div class="content">
+          <p>Hi ${name},</p>
+          <p>We received a request to reset your password. Click the button below to create a new password:</p>
+          <p style="text-align: center;">
+            <a href="${resetUrl}" class="button">Reset Password</a>
+          </p>
+          <p class="warning">This link will expire in 1 hour.</p>
+          <p>If you didn't request a password reset, you can safely ignore this email.</p>
+        </div>
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} BuyGhanaLands. All rights reserved.</p>
+          <p style="word-break: break-all; font-size: 11px;">If the button doesn't work: ${resetUrl}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 export async function sendVerificationEmail(email: string, name: string, verificationUrl: string): Promise<{ success: boolean; error?: string }> {
   const html = `
     <!DOCTYPE html>

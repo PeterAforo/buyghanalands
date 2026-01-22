@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LocationSelector, LocationData } from "@/components/ui/location-selector";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Image as ImageIcon } from "lucide-react";
+import { ImageUploader } from "@/components/upload/image-uploader";
 
 const editListingSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
@@ -54,6 +55,7 @@ export default function EditListingPage({
     latitude: "",
     longitude: "",
   });
+  const [images, setImages] = useState<{ id?: string; url: string; publicId?: string }[]>([]);
 
   const {
     register,
@@ -115,6 +117,14 @@ export default function EditListingPage({
           latitude: data.latitude || "",
           longitude: data.longitude || "",
         });
+
+        // Set images
+        if (data.media && Array.isArray(data.media)) {
+          setImages(data.media.map((m: { id: string; url: string }) => ({
+            id: m.id,
+            url: m.url,
+          })));
+        }
       } catch {
         setError("Failed to load listing");
       } finally {
@@ -313,6 +323,23 @@ export default function EditListingPage({
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Images */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Photos
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Add photos of your land. The first image will be the main photo.
+                </p>
+                <ImageUploader
+                  images={images}
+                  onImagesChange={setImages}
+                  listingId={listingId || undefined}
+                  maxImages={10}
+                />
               </div>
 
               {/* Pricing */}
