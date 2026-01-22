@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const verificationRequest = await prisma.verificationRequest.create({
       data: {
         listingId: data.listingId,
-        requestedById: session.user.id,
+        userId: session.user.id,
         status: "PENDING",
         notes: data.notes,
         documentIds: data.documentIds,
