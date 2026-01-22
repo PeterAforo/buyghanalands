@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
         listing: {
           select: { id: true, title: true },
         },
-        reviewer: {
+        assignedTo: {
           select: { fullName: true },
         },
       },
@@ -140,11 +140,11 @@ export async function GET(request: NextRequest) {
       listingId: r.listingId,
       listingTitle: r.listing.title,
       status: r.status,
-      notes: r.notes,
-      reviewerNotes: r.reviewerNotes,
-      reviewerName: r.reviewer?.fullName,
+      levelRequested: r.levelRequested,
+      outcomeNotes: r.outcomeNotes,
+      reviewerName: r.assignedTo?.fullName,
       createdAt: r.createdAt.toISOString(),
-      reviewedAt: r.reviewedAt?.toISOString(),
+      completedAt: r.completedAt?.toISOString(),
     }));
 
     return NextResponse.json(serialized);
