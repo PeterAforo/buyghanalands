@@ -1,8 +1,34 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { MapPin, Phone, Mail, Facebook, Twitter, Instagram, Shield, Clock } from "lucide-react";
+import { MapPin, Phone, Mail, Facebook, Twitter, Instagram, Shield, Clock, Send, Loader2 } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const [email, setEmail] = useState("");
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "success" | "error">("idle");
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    
+    setIsSubscribing(true);
+    setSubscribeStatus("idle");
+    
+    try {
+      // TODO: Implement actual newsletter subscription API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setSubscribeStatus("success");
+      setEmail("");
+    } catch {
+      setSubscribeStatus("error");
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
 
   const footerLinks = {
     company: [
@@ -28,13 +54,63 @@ export function Footer() {
 
   return (
     <footer className="dark-section" style={{ backgroundColor: 'var(--c-dark-bg)' }}>
+      {/* Newsletter Subscription */}
+      <div className="border-b" style={{ borderColor: 'var(--c-dark-border)' }}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="lg:max-w-xl">
+              <h3 className="text-2xl font-bold" style={{ color: '#ffffff' }}>
+                Stay Updated on New Listings
+              </h3>
+              <p className="mt-2 text-sm" style={{ color: 'var(--c-dark-muted)' }}>
+                Subscribe to receive alerts for new land listings, market updates, and exclusive offers.
+              </p>
+            </div>
+            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3 lg:min-w-[400px]">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="submit"
+                disabled={isSubscribing}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubscribing ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    Subscribe
+                    <Send className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+          {subscribeStatus === "success" && (
+            <p className="mt-4 text-emerald-400 text-sm">
+              ✓ Thank you for subscribing! You&apos;ll receive updates on new listings.
+            </p>
+          )}
+          {subscribeStatus === "error" && (
+            <p className="mt-4 text-red-400 text-sm">
+              Something went wrong. Please try again.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Main Footer Content */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-12">
           {/* Brand & Company Info */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center space-x-2">
-              <MapPin className="h-8 w-8" style={{ color: 'var(--c-brand-accent)' }} />
+              <Logo size={32} />
               <span className="text-xl font-bold" style={{ color: 'var(--c-dark-text)' }}>Buy Ghana Lands</span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed" style={{ color: 'var(--c-dark-muted)' }}>

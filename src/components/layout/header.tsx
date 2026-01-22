@@ -7,16 +7,18 @@ import { Button } from "@/components/ui/button";
 import {
   Menu,
   X,
-  MapPin,
   User,
   LogOut,
   Home,
   Search,
   Plus,
   Briefcase,
-  FileText,
-  Settings,
+  Info,
+  Newspaper,
+  Mail,
+  HelpCircle,
 } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -24,9 +26,11 @@ export function Header() {
 
   const navigation = [
     { name: "Browse Lands", href: "/listings", icon: Search },
-    { name: "List Your Land", href: "/listings/create", icon: Plus },
     { name: "Professionals", href: "/professionals", icon: Briefcase },
-    { name: "Permits", href: "/permits", icon: FileText },
+    { name: "About", href: "/about", icon: Info },
+    { name: "News", href: "/news", icon: Newspaper },
+    { name: "Contact", href: "/contact", icon: Mail },
+    { name: "Support", href: "/support", icon: HelpCircle },
   ];
 
   return (
@@ -36,7 +40,7 @@ export function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <MapPin className="h-8 w-8 text-emerald-600" />
+              <Logo size={32} />
               <span className="text-xl font-bold text-gray-900">
                 Buy Ghana Lands
               </span>

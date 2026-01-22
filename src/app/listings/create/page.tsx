@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
@@ -24,7 +24,8 @@ const listingSchema = z.object({
   town: z.string().optional(),
   latitude: z.string().optional(),
   longitude: z.string().optional(),
-  landType: z.enum(["RESIDENTIAL", "COMMERCIAL", "AGRICULTURAL", "MIXED"]),
+  landType: z.enum(["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "MIXED"]),
+  categoryId: z.string().optional(),
   tenureType: z.enum(["FREEHOLD", "LEASEHOLD", "CUSTOMARY"]),
   leaseDurationYears: z.string().optional(),
   sizeAcres: z.string().min(1, "Size is required"),
@@ -55,6 +56,12 @@ export default function CreateListingPage() {
     latitude: "",
     longitude: "",
   });
+  const [categories, setCategories] = useState<Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    landType: string;
+  }>>([]);
 
   const {
     register,
@@ -72,7 +79,19 @@ export default function CreateListingPage() {
     },
   });
 
+  const landType = watch("landType");
   const tenureType = watch("tenureType");
+
+  useEffect(() => {
+    fetch("/api/admin/land-categories")
+      .then((res) => res.json())
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]));
+  }, []);
+
+  const filteredCategories = categories.filter(
+    (cat) => cat.landType === landType
+  );
 
   const handleLocationChange = (data: LocationData) => {
     setLocationData(data);
@@ -299,6 +318,7 @@ export default function CreateListingPage() {
                       >
                         <option value="RESIDENTIAL">Residential</option>
                         <option value="COMMERCIAL">Commercial</option>
+                        <option value="INDUSTRIAL">Industrial</option>
                         <option value="AGRICULTURAL">Agricultural</option>
                         <option value="MIXED">Mixed Use</option>
                       </Select>
@@ -317,6 +337,27 @@ export default function CreateListingPage() {
                       </Select>
                     </div>
                   </div>
+                  {/* Category Selection */}
+                  {filteredCategories.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Category (Optional)
+                      </label>
+                      <Select {...register("categoryId")}>
+                        <option value="">Select a category...</option>
+                        {filteredCategories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </Select>
+                      {filteredCategories.find((c) => c.id === watch("categoryId"))?.description && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {filteredCategories.find((c) => c.id === watch("categoryId"))?.description}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {tenureType === "LEASEHOLD" && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">

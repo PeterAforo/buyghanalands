@@ -52,11 +52,21 @@ async function getListings() {
 
 async function getFilterOptions() {
   try {
-    const [regions, landTypes] = await Promise.all([
+    const [regions, constituencies, districts, landTypes] = await Promise.all([
       prisma.listing.findMany({
         where: { status: "PUBLISHED" },
         select: { region: true },
         distinct: ["region"],
+      }),
+      prisma.listing.findMany({
+        where: { status: "PUBLISHED" },
+        select: { constituency: true },
+        distinct: ["constituency"],
+      }),
+      prisma.listing.findMany({
+        where: { status: "PUBLISHED" },
+        select: { district: true },
+        distinct: ["district"],
       }),
       prisma.listing.findMany({
         where: { status: "PUBLISHED" },
@@ -67,11 +77,13 @@ async function getFilterOptions() {
 
     return {
       regions: regions.map((r) => r.region),
+      constituencies: constituencies.map((c) => c.constituency),
+      districts: districts.map((d) => d.district),
       landTypes: landTypes.map((l) => l.landType),
     };
   } catch (error) {
     console.error("Error fetching filter options:", error);
-    return { regions: [], landTypes: [] };
+    return { regions: [], constituencies: [], districts: [], landTypes: [] };
   }
 }
 
@@ -104,6 +116,8 @@ export default async function ListingsPage() {
     <ListingsClient
       initialListings={serializedListings}
       regions={filterOptions.regions}
+      constituencies={filterOptions.constituencies}
+      districts={filterOptions.districts}
       landTypes={filterOptions.landTypes}
     />
   );

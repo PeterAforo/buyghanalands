@@ -1,55 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Button } from "@/components/ui/button";
 import {
   Shield,
   CheckCircle,
-  Users,
-  FileCheck,
   ArrowRight,
   Star,
   Globe,
   Scale,
   BadgeCheck,
-  Lock,
   MapPin,
 } from "lucide-react";
+import { FeaturedListings } from "@/components/home/featured-listings";
 
 // Register GSAP plugins
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
-
-const features = [
-  {
-    icon: BadgeCheck,
-    title: "Verified Listings",
-    benefit: "Every listing is reviewed and validated before publication.",
-    microProof: "Lands Commission & document checks applied.",
-  },
-  {
-    icon: Lock,
-    title: "Protected Payments",
-    benefit: "Escrow-backed transactions reduce fraud risk and increase buyer confidence.",
-    microProof: "Funds released only upon agreed milestones.",
-  },
-  {
-    icon: FileCheck,
-    title: "Document Vault",
-    benefit: "Store and share land documents securely with controlled access.",
-    microProof: "Encrypted storage and audit-friendly access.",
-  },
-  {
-    icon: Users,
-    title: "Professional Network",
-    benefit: "Connect with vetted lawyers, surveyors, architects, and agents.",
-    microProof: "Verified profiles with service categories.",
-  },
-];
 
 const stats = [
   { value: 1000, label: "Verified land listings across Ghana", suffix: "+" },
@@ -108,6 +80,13 @@ const trustBarItems = [
   { icon: Shield, label: "Escrow-Protected Payments" },
   { icon: Globe, label: "Diaspora-Friendly" },
   { icon: Scale, label: "Legal & Professional Network" },
+];
+
+const heroBackgroundImages = [
+  "/images/african-nature-scenery-with-road-trees.jpg",
+  "/images/nature-moldova-vale-with-flowing-river-slopes-with-sparse-vegetation.jpg",
+  "/images/african-american-woman-looking-map.jpg",
+  "/images/medium-shot-smiley-man-posing.jpg",
 ];
 
 // Stats Counter Component
@@ -184,6 +163,15 @@ function StatCounter({
 export default function Home() {
   const mainRef = useRef<HTMLDivElement>(null);
   const heroVisualRef = useRef<HTMLDivElement>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Hero background image carousel
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % heroBackgroundImages.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -350,8 +338,26 @@ export default function Home() {
   return (
     <div ref={mainRef} className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative dark-section overflow-hidden" style={{ backgroundColor: 'var(--c-dark-bg)' }}>
-        <div className="absolute inset-0 hero-texture" />
+      <section className="relative dark-section overflow-hidden min-h-[600px] lg:min-h-[700px]" style={{ backgroundColor: 'var(--c-dark-bg)' }}>
+        {/* Background Image Carousel */}
+        {heroBackgroundImages.map((image, index) => (
+          <div
+            key={image}
+            className={`absolute inset-0 transition-opacity duration-1000 ${
+              index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <Image
+              src={image}
+              alt="Ghana landscape"
+              fill
+              className="object-cover"
+              priority={index === 0}
+            />
+          </div>
+        ))}
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
         
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
@@ -395,13 +401,14 @@ export default function Home() {
                     List Land for Sale
                   </Button>
                 </Link>
-                <Link 
-                  href="/professionals" 
-                  className="hidden sm:inline-flex items-center text-sm font-medium transition-colors px-4"
-                  style={{ color: 'var(--c-brand-accent)' }}
-                >
-                  Talk to a Land Expert
-                  <ArrowRight className="ml-1 h-4 w-4" />
+                <Link href="/professionals">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 font-medium px-8 h-12"
+                  >
+                    Talk to a Land Expert
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
                 </Link>
               </div>
               
@@ -471,8 +478,10 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 lg:py-20" style={{ backgroundColor: 'var(--c-neutral-surface-alt)' }}>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="py-16 lg:py-20 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #CE1126 0%, #CE1126 25%, #FCD116 25%, #FCD116 50%, #FCD116 50%, #FCD116 75%, #006B3F 75%, #006B3F 100%)' }}>
+        {/* Overlay for better card visibility */}
+        <div className="absolute inset-0 bg-black/40" />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {stats.map((stat) => (
               <StatCounter
@@ -488,42 +497,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="bg-white py-20 lg:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto" data-reveal>
-            <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-              Why Choose Buy Ghana Lands?
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Built for trust, designed for security, made for Ghanaians everywhere.
-            </p>
-          </div>
-          
-          <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature, index) => (
-              <div
-                key={feature.title}
-                data-reveal-group="features"
-                className="bg-gray-50 rounded-xl p-6 hover:bg-gray-100 transition-colors border border-gray-100"
-              >
-                <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                  <feature.icon className="h-6 w-6 text-emerald-600" />
-                </div>
-                <h3 className="mt-5 text-lg font-semibold text-gray-900">
-                  {feature.title}
-                </h3>
-                <p className="mt-2 text-sm text-gray-600 leading-relaxed">
-                  {feature.benefit}
-                </p>
-                <p className="mt-3 text-xs text-emerald-700 font-medium">
-                  {feature.microProof}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Featured Listings by Land Type */}
+      <FeaturedListings />
 
       {/* How It Works */}
       <section className="py-20 lg:py-24" style={{ backgroundColor: 'var(--c-neutral-surface-alt)' }}>
@@ -592,54 +567,52 @@ export default function Home() {
       </section>
 
       {/* Testimonials */}
-      <section className="dark-section py-20 lg:py-24" style={{ backgroundColor: 'var(--c-dark-bg)' }}>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="relative py-20 lg:py-24 overflow-hidden">
+        {/* Parallax Background */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-fixed"
+          style={{ backgroundImage: 'url(/images/african-nature-scenery-with-road-trees.jpg)' }}
+        />
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-black/60" />
+        
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center" data-reveal>
-            <h2 className="text-3xl font-bold sm:text-4xl" style={{ color: 'var(--c-dark-text)' }}>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold drop-shadow-lg" style={{ color: '#ffffff' }}>
               What Buyers Say
             </h2>
-            <p className="mt-4 text-lg" style={{ color: 'var(--c-dark-muted)' }}>
+            <p className="mt-6 text-xl md:text-2xl font-medium drop-shadow-md" style={{ color: '#ffffff' }}>
               Trusted by Ghanaians at home and abroad
             </p>
           </div>
           
-          <div className="mt-16 grid gap-6 md:grid-cols-3">
-            {testimonials.map((testimonial) => (
+          <div className="mt-16 grid gap-8 md:grid-cols-3">
+            {testimonials.map((testimonial, index) => (
               <div
                 key={testimonial.name}
-                data-reveal-group="testimonials"
-                data-card-hover
-                className="bg-white rounded-2xl p-6 shadow-lg"
-                style={{ borderRadius: 'var(--radius-card)' }}
+                className="bg-white rounded-2xl p-6 lg:p-8 shadow-2xl"
               >
-                <div className="flex gap-1">
+                <div className="flex gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star
                       key={i}
-                      className="h-4 w-4 fill-yellow-400 text-yellow-400"
+                      className="h-5 w-5 fill-yellow-400 text-yellow-400"
                     />
                   ))}
                 </div>
-                <p className="mt-4 leading-relaxed" style={{ color: 'var(--c-neutral-ink-soft)' }}>
-                  &ldquo;{testimonial.quote.split(testimonial.highlight)[0]}
-                  <strong style={{ color: 'var(--c-brand-primary)' }}>{testimonial.highlight}</strong>
-                  {testimonial.quote.split(testimonial.highlight)[1]}&rdquo;
+                <p className="text-gray-700 leading-relaxed text-base">
+                  &quot;{testimonial.quote}&quot;
                 </p>
-                <div className="mt-6 flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold" style={{ color: 'var(--c-neutral-ink)' }}>{testimonial.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span 
-                        className="text-xs px-2 py-0.5 rounded-full font-medium"
-                        style={{ backgroundColor: 'var(--c-brand-primary-soft)', color: 'var(--c-brand-primary)' }}
-                      >
-                        {testimonial.role}
-                      </span>
-                      <span className="text-xs flex items-center gap-1" style={{ color: 'var(--c-neutral-ink-soft)' }}>
-                        <Globe className="h-3 w-3" />
-                        {testimonial.country}
-                      </span>
-                    </div>
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <p className="font-bold text-gray-900 text-lg">{testimonial.name}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-sm px-3 py-1 rounded-full font-medium bg-emerald-100 text-emerald-700">
+                      {testimonial.role}
+                    </span>
+                    <span className="text-sm flex items-center gap-1 text-gray-600">
+                      <Globe className="h-4 w-4" />
+                      {testimonial.country}
+                    </span>
                   </div>
                 </div>
               </div>
