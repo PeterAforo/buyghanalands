@@ -138,7 +138,7 @@ export async function DELETE(request: NextRequest) {
       },
     });
 
-    if (!doc || doc.listing.sellerId !== session.user.id) {
+    if (!doc || !doc.listing || doc.listing.sellerId !== session.user.id) {
       return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 });
     }
 
