@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify documents exist and belong to listing
-    const documents = await prisma.listingDocument.findMany({
+    const documents = await prisma.document.findMany({
       where: {
         id: { in: data.documentIds },
         listingId: data.listingId,
