@@ -71,9 +71,10 @@ export async function POST(request: NextRequest) {
       data: {
         listingId: data.listingId,
         userId: session.user.id,
+        levelRequested: "LEVEL_2_PLATFORM_REVIEWED",
         status: "PENDING",
-        notes: data.notes,
-        documentIds: data.documentIds,
+        outcomeNotes: data.notes,
+        checklist: { documentIds: data.documentIds },
       },
     });
 
