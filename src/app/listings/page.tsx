@@ -77,7 +77,7 @@ async function getFilterOptions() {
 
     return {
       regions: regions.map((r) => r.region),
-      constituencies: constituencies.map((c) => c.constituency),
+      constituencies: constituencies.map((c) => c.constituency).filter((c): c is string => c !== null),
       districts: districts.map((d) => d.district),
       landTypes: landTypes.map((l) => l.landType),
     };
