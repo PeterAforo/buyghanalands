@@ -11,6 +11,9 @@ import {
   AlertTriangle,
   Settings,
   Shield,
+  CreditCard,
+  BarChart3,
+  MessageSquare,
 } from "lucide-react";
 
 async function checkAdminAccess(userId: string) {
@@ -23,11 +26,14 @@ async function checkAdminAccess(userId: string) {
 
 const adminNavItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/listings", label: "Listings", icon: MapPin },
+  { href: "/admin/transactions", label: "Transactions", icon: CreditCard },
   { href: "/admin/land-categories", label: "Land Categories", icon: FolderTree },
   { href: "/admin/verifications", label: "Verifications", icon: FileCheck },
   { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
+  { href: "/admin/messages", label: "Messages", icon: MessageSquare },
   { href: "/admin/fraud", label: "Fraud Cases", icon: Shield },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

@@ -1,25 +1,35 @@
+// SMS Provider Configuration
 const MNOTIFY_API_KEY = process.env.MNOTIFY_API_KEY;
 const MNOTIFY_SENDER_ID = process.env.MNOTIFY_SENDER_ID || "BuyGhLands";
+const HUBTEL_CLIENT_ID = process.env.HUBTEL_CLIENT_ID;
+const HUBTEL_CLIENT_SECRET = process.env.HUBTEL_CLIENT_SECRET;
+const HUBTEL_SENDER_ID = process.env.HUBTEL_SENDER_ID || "BuyGhLands";
+const SMS_PROVIDER = process.env.SMS_PROVIDER || "mnotify"; // "mnotify" or "hubtel"
 
 interface SendSMSResponse {
   success: boolean;
   message: string;
   messageId?: string;
+  provider?: string;
 }
 
-export async function sendSMS(phone: string, message: string): Promise<SendSMSResponse> {
+// Format phone number for Ghana
+function formatGhanaPhone(phone: string): string {
+  let formatted = phone.replace(/\s+/g, "").replace(/^0/, "").replace(/^\+/, "");
+  if (!formatted.startsWith("233")) {
+    formatted = `233${formatted}`;
+  }
+  return formatted;
+}
+
+// mNotify SMS Provider
+async function sendViaMNotify(phone: string, message: string): Promise<SendSMSResponse> {
   if (!MNOTIFY_API_KEY) {
-    console.error("MNOTIFY_API_KEY not configured");
-    return { success: false, message: "SMS service not configured" };
+    return { success: false, message: "mNotify API key not configured", provider: "mnotify" };
   }
 
   try {
-    // Format phone number for Ghana (remove leading 0, add country code)
-    let formattedPhone = phone.replace(/\s+/g, "").replace(/^0/, "");
-    if (!formattedPhone.startsWith("233")) {
-      formattedPhone = `233${formattedPhone}`;
-    }
-
+    const formattedPhone = formatGhanaPhone(phone);
     const response = await fetch("https://apps.mnotify.net/smsapi", {
       method: "POST",
       headers: {
@@ -35,16 +45,75 @@ export async function sendSMS(phone: string, message: string): Promise<SendSMSRe
 
     const result = await response.text();
     
-    // mNotify returns "1000" for success
     if (result.includes("1000")) {
-      return { success: true, message: "SMS sent successfully" };
+      return { success: true, message: "SMS sent successfully", provider: "mnotify" };
     }
 
-    return { success: false, message: `SMS failed: ${result}` };
+    return { success: false, message: `mNotify error: ${result}`, provider: "mnotify" };
   } catch (error) {
-    console.error("SMS send error:", error);
-    return { success: false, message: "Failed to send SMS" };
+    console.error("mNotify SMS error:", error);
+    return { success: false, message: "mNotify request failed", provider: "mnotify" };
   }
+}
+
+// Hubtel SMS Provider
+async function sendViaHubtel(phone: string, message: string): Promise<SendSMSResponse> {
+  if (!HUBTEL_CLIENT_ID || !HUBTEL_CLIENT_SECRET) {
+    return { success: false, message: "Hubtel credentials not configured", provider: "hubtel" };
+  }
+
+  try {
+    const formattedPhone = formatGhanaPhone(phone);
+    const auth = Buffer.from(`${HUBTEL_CLIENT_ID}:${HUBTEL_CLIENT_SECRET}`).toString("base64");
+    
+    const response = await fetch("https://smsc.hubtel.com/v1/messages/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${auth}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        From: HUBTEL_SENDER_ID,
+        To: formattedPhone,
+        Content: message,
+      }),
+    });
+
+    const result = await response.json();
+    
+    if (response.ok && result.MessageId) {
+      return { success: true, message: "SMS sent successfully", messageId: result.MessageId, provider: "hubtel" };
+    }
+
+    return { success: false, message: result.Message || "Hubtel error", provider: "hubtel" };
+  } catch (error) {
+    console.error("Hubtel SMS error:", error);
+    return { success: false, message: "Hubtel request failed", provider: "hubtel" };
+  }
+}
+
+// Main SMS send function with fallback
+export async function sendSMS(phone: string, message: string): Promise<SendSMSResponse> {
+  // Try primary provider
+  let result: SendSMSResponse;
+  
+  if (SMS_PROVIDER === "hubtel") {
+    result = await sendViaHubtel(phone, message);
+    if (!result.success && MNOTIFY_API_KEY) {
+      // Fallback to mNotify
+      console.log("Hubtel failed, falling back to mNotify");
+      result = await sendViaMNotify(phone, message);
+    }
+  } else {
+    result = await sendViaMNotify(phone, message);
+    if (!result.success && HUBTEL_CLIENT_ID) {
+      // Fallback to Hubtel
+      console.log("mNotify failed, falling back to Hubtel");
+      result = await sendViaHubtel(phone, message);
+    }
+  }
+
+  return result;
 }
 
 export function generateOTP(length: number = 6): string {
