@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
           docType = "SEARCH_REPORT";
         }
 
-        const docRecord = await prisma.listingDocument.create({
+        const docRecord = await prisma.document.create({
           data: {
             listingId,
             type: docType as any,
@@ -129,7 +129,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Find and verify ownership
-    const doc = await prisma.listingDocument.findFirst({
+    const doc = await prisma.document.findFirst({
       where: { id: docId },
       include: {
         listing: {
@@ -143,7 +143,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete from database
-    await prisma.listingDocument.delete({ where: { id: docId } });
+    await prisma.document.delete({ where: { id: docId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
