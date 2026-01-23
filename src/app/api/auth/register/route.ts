@@ -10,8 +10,19 @@ const registerSchema = z.object({
   email: z.string().email("Valid email is required"),
   phone: z.string().min(10),
   password: z.string().min(6),
-  role: z.enum(["BUYER", "SELLER", "AGENT"]),
+  accountType: z.enum(["BUYER", "SELLER", "AGENT", "PROFESSIONAL"]),
 });
+
+// Map account type to user role
+const ACCOUNT_TYPE_TO_ROLE: Record<string, string> = {
+  BUYER: "BUYER",
+  SELLER: "SELLER",
+  AGENT: "AGENT",
+  PROFESSIONAL: "PROFESSIONAL",
+};
+
+// Account types that get a free subscription on registration
+const FREE_SUBSCRIPTION_TYPES = ["BUYER", "SELLER"];
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +49,9 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await hash(data.password, 12);
 
+    // Determine role from account type
+    const role = ACCOUNT_TYPE_TO_ROLE[data.accountType] as any;
+
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -45,7 +59,7 @@ export async function POST(request: NextRequest) {
         email: data.email,
         phone: data.phone,
         passwordHash,
-        roles: [data.role],
+        roles: [role],
         emailVerified: false,
       },
       select: {
@@ -56,6 +70,48 @@ export async function POST(request: NextRequest) {
         roles: true,
       },
     });
+
+    // Create free subscription for Buyer/Seller
+    if (FREE_SUBSCRIPTION_TYPES.includes(data.accountType)) {
+      const now = new Date();
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + 100); // Effectively never expires for free tier
+
+      const subscriptionData: any = {
+        userId: user.id,
+        category: data.accountType,
+        billingCycle: "MONTHLY",
+        priceGhs: 0,
+        status: "ACTIVE",
+        startDate: now,
+        endDate: endDate,
+        autoRenew: false,
+      };
+
+      // Set the appropriate plan field based on account type
+      if (data.accountType === "BUYER") {
+        subscriptionData.buyerPlan = "FREE";
+        subscriptionData.features = {
+          browseListings: true,
+          basicAlerts: true,
+          savedSearches: true,
+          messaging: true,
+          escrowProtection: true,
+        };
+      } else if (data.accountType === "SELLER") {
+        subscriptionData.sellerPlan = "FREE";
+        subscriptionData.listingLimit = 1;
+        subscriptionData.transactionFeeRate = 0.05; // 5%
+        subscriptionData.features = {
+          createListings: true,
+          basicVisibility: true,
+          messaging: true,
+          escrowProtection: true,
+        };
+      }
+
+      await prisma.subscription.create({ data: subscriptionData });
+    }
 
     // Generate email verification token
     const token = randomBytes(32).toString("hex");

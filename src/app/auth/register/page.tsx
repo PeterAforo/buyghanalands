@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Phone, Lock, Eye, EyeOff, User, Mail } from "lucide-react";
+import { MapPin, Phone, Lock, Eye, EyeOff, User, Mail, Briefcase, Building2, Users, ShoppingCart } from "lucide-react";
 
 const registerSchema = z
   .object({
@@ -22,7 +22,7 @@ const registerSchema = z
       .regex(/^[0-9+]+$/, "Invalid phone number"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string(),
-    role: z.enum(["BUYER", "SELLER", "AGENT"]),
+    accountType: z.enum(["BUYER", "SELLER", "AGENT", "PROFESSIONAL"]),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -30,6 +30,37 @@ const registerSchema = z
   });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
+
+const ACCOUNT_TYPES = [
+  {
+    value: "BUYER",
+    label: "Buy Land",
+    description: "Browse listings and purchase land with escrow protection",
+    icon: ShoppingCart,
+    requiresSubscription: false,
+  },
+  {
+    value: "SELLER",
+    label: "Sell Land",
+    description: "List your properties and reach verified buyers",
+    icon: Building2,
+    requiresSubscription: false,
+  },
+  {
+    value: "AGENT",
+    label: "Real Estate Agent",
+    description: "Manage clients and listings, earn commissions",
+    icon: Users,
+    requiresSubscription: true,
+  },
+  {
+    value: "PROFESSIONAL",
+    label: "Professional Services",
+    description: "Offer surveying, legal, or other professional services",
+    icon: Briefcase,
+    requiresSubscription: true,
+  },
+] as const;
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -39,13 +70,17 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      role: "BUYER",
+      accountType: "BUYER",
     },
   });
+
+  const selectedAccountType = watch("accountType");
+  const selectedTypeInfo = ACCOUNT_TYPES.find((t) => t.value === selectedAccountType);
 
   const onSubmit = async (data: RegisterFormData) => {
     setError(null);
@@ -64,8 +99,10 @@ export default function RegisterPage() {
         return;
       }
 
-      // Redirect to verification pending page
-      router.push("/auth/verify-email?email=" + encodeURIComponent(data.email));
+      // Redirect based on account type
+      // Agents and Professionals need to complete subscription after email verification
+      const redirectUrl = `/auth/verify-email?email=${encodeURIComponent(data.email)}&accountType=${data.accountType}`;
+      router.push(redirectUrl);
     } catch {
       setError("Something went wrong. Please try again.");
     }
@@ -143,14 +180,56 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="role" className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700">
                 I want to
               </label>
-              <Select {...register("role")} error={errors.role?.message}>
-                <option value="BUYER">Buy Land</option>
-                <option value="SELLER">Sell Land</option>
-                <option value="AGENT">Work as an Agent</option>
-              </Select>
+              <div className="grid grid-cols-2 gap-3">
+                {ACCOUNT_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  const isSelected = selectedAccountType === type.value;
+                  return (
+                    <label
+                      key={type.value}
+                      className={`relative flex flex-col p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        value={type.value}
+                        {...register("accountType")}
+                        className="sr-only"
+                      />
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon className={`h-4 w-4 ${isSelected ? "text-emerald-600" : "text-gray-500"}`} />
+                        <span className={`text-sm font-medium ${isSelected ? "text-emerald-700" : "text-gray-700"}`}>
+                          {type.label}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-500 line-clamp-2">
+                        {type.description}
+                      </span>
+                      {type.requiresSubscription && (
+                        <span className="absolute top-1 right-1 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                          Subscription
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              {errors.accountType && (
+                <p className="text-sm text-red-500">{errors.accountType.message}</p>
+              )}
+              {selectedTypeInfo?.requiresSubscription && (
+                <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                  {selectedTypeInfo.value === "AGENT"
+                    ? "Agents require a subscription starting at GHS 100/month to manage clients and listings."
+                    : "Professionals require a subscription starting at GHS 75/month to offer services."}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

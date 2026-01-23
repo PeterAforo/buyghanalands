@@ -265,6 +265,10 @@ model User {
   kycRequests            KycRequest[]
   kycReviewed            KycRequest[]           @relation("KycReviewer")
   deviceTokens           DeviceToken[]
+  
+  // Service charges
+  serviceChargesPaid     ServiceCharge[]        @relation("ServiceChargePayer")
+  serviceChargesReceived ServiceCharge[]        @relation("ServiceChargePayee")
 
   @@index([createdAt])
   @@index([email])
@@ -527,6 +531,7 @@ model Transaction {
   // Pro features relations
   escrowInsurance    EscrowInsurance?
   agentCommissions   AgentCommission[]
+  serviceCharges     ServiceCharge[]
 
   @@index([buyerId, status])
   @@index([sellerId, status])
@@ -848,8 +853,9 @@ model Booking {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  deliverables Document[]
-  reviews      Review[]
+  deliverables   Document[]
+  reviews        Review[]
+  serviceCharges ServiceCharge[]
 }
 
 model Review {
@@ -1216,6 +1222,7 @@ model DeviceToken {
 
 // Pro Features Models
 
+// Legacy enum - kept for backward compatibility
 enum SubscriptionPlan {
   BASIC
   PREMIUM
@@ -1235,25 +1242,82 @@ enum BillingCycle {
   YEARLY
 }
 
+// New subscription category system
+enum SubscriptionCategory {
+  BUYER
+  SELLER
+  AGENT
+  PROFESSIONAL
+}
+
+enum BuyerPlan {
+  FREE
+  PREMIUM
+  VIP
+}
+
+enum SellerPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum AgentPlan {
+  BASIC
+  PRO
+  ELITE
+}
+
+enum ProfessionalPlan {
+  BASIC
+  PRO
+  ELITE
+}
+
 model Subscription {
-  id           String             @id @default(cuid())
-  userId       String
-  user         User               @relation(fields: [userId], references: [id])
-  plan         SubscriptionPlan
-  billingCycle BillingCycle       @default(MONTHLY)
-  priceGhs     Int
-  status       SubscriptionStatus @default(PENDING)
-  features     Json?
-  startDate    DateTime
-  endDate      DateTime
-  cancelledAt  DateTime?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id                 String               @id @default(cuid())
+  userId             String
+  user               User                 @relation(fields: [userId], references: [id])
+  
+  // New category-based subscription
+  category           SubscriptionCategory
+  buyerPlan          BuyerPlan?
+  sellerPlan         SellerPlan?
+  agentPlan          AgentPlan?
+  professionalPlan   ProfessionalPlan?
+  
+  // Legacy field - kept for backward compatibility
+  plan               SubscriptionPlan?
+  
+  billingCycle       BillingCycle         @default(MONTHLY)
+  priceGhs           Int
+  status             SubscriptionStatus   @default(PENDING)
+  features           Json?
+  
+  // Fee rates based on subscription tier
+  transactionFeeRate Float?               // For sellers: fee rate on land sales
+  serviceCommissionRate Float?            // For professionals: platform commission rate
+  
+  // Limits based on subscription tier
+  listingLimit       Int?                 // Max listings for sellers
+  clientLimit        Int?                 // Max clients for agents
+  leadLimit          Int?                 // Max leads per month for professionals
+  
+  startDate          DateTime
+  endDate            DateTime
+  cancelledAt        DateTime?
+  autoRenew          Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   payments SubscriptionPayment[]
 
+  @@unique([userId, category, status]) // One active subscription per category per user
   @@index([userId, status])
+  @@index([userId, category])
   @@index([endDate])
+  @@index([status, endDate])
 }
 
 model SubscriptionPayment {
@@ -1267,6 +1331,67 @@ model SubscriptionPayment {
   createdAt      DateTime     @default(now())
 
   @@index([subscriptionId, createdAt])
+}
+
+// Service charges collected on transactions and professional services
+enum ServiceChargeType {
+  LAND_SALE_SELLER_FEE      // Fee charged to seller on land sale
+  LAND_SALE_BUYER_FEE       // Fee charged to buyer (if any)
+  PROFESSIONAL_SERVICE_FEE  // Platform commission on professional services
+  AGENT_COMMISSION          // Agent commission on transactions
+  LISTING_FEE               // Fee for listing (if applicable)
+  VERIFICATION_FEE          // Fee for verification services
+}
+
+enum ServiceChargeStatus {
+  PENDING       // Charge calculated but not yet collected
+  COLLECTED     // Successfully collected
+  WAIVED        // Charge waived (e.g., promotion)
+  FAILED        // Collection failed
+  REFUNDED      // Charge was refunded
+}
+
+model ServiceCharge {
+  id              String              @id @default(cuid())
+  
+  // Link to transaction or booking
+  transactionId   String?
+  transaction     Transaction?        @relation(fields: [transactionId], references: [id])
+  bookingId       String?
+  booking         Booking?            @relation(fields: [bookingId], references: [id])
+  
+  // Charge details
+  chargeType      ServiceChargeType
+  status          ServiceChargeStatus @default(PENDING)
+  
+  // Amounts
+  baseAmountGhs   BigInt              // Transaction/service value
+  feeRate         Float               // Applied rate (e.g., 0.05 for 5%)
+  feeAmountGhs    BigInt              // Calculated fee amount
+  
+  // Who pays
+  payerId         String
+  payer           User                @relation("ServiceChargePayer", fields: [payerId], references: [id])
+  
+  // Who receives (for agent commission)
+  payeeId         String?
+  payee           User?               @relation("ServiceChargePayee", fields: [payeeId], references: [id])
+  
+  // Subscription that determined the rate
+  subscriptionId  String?
+  
+  // Collection details
+  collectedAt     DateTime?
+  paymentRef      String?             // Reference to payment record
+  notes           String?
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([transactionId, chargeType])
+  @@index([bookingId, chargeType])
+  @@index([payerId, createdAt])
+  @@index([status, createdAt])
 }
 
 enum FeaturedListingStatus {

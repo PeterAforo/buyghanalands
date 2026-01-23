@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { notifyTransactionDisputed, notifyTransactionReleased } from "@/lib/notifications";
+import { calculateTransactionFees, createTransactionServiceCharges, markChargesCollected } from "@/lib/fees";
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   CREATED: ["ESCROW_REQUESTED"],
@@ -179,9 +180,67 @@ export async function PUT(
         notifyTransactionDisputed(transaction.sellerId, transaction.listing.title).catch(console.error);
       }
 
-      // If released, notify seller
+      // If released, calculate fees and process payout
       if (data.status === "RELEASED") {
-        notifyTransactionReleased(transaction.sellerId, transaction.listing.title, Number(transaction.agreedPriceGhs)).catch(console.error);
+        // Calculate fees based on seller's subscription
+        const fees = await calculateTransactionFees(
+          transaction.sellerId,
+          transaction.agreedPriceGhs
+        );
+
+        // Create service charge records
+        await createTransactionServiceCharges(
+          id,
+          transaction.sellerId,
+          transaction.agreedPriceGhs
+        );
+
+        // Mark charges as collected (in real implementation, this would happen after actual payment processing)
+        await markChargesCollected(id);
+
+        // Create payout record for seller (net amount after fees)
+        await prisma.payment.create({
+          data: {
+            transactionId: id,
+            provider: "FLUTTERWAVE", // Or configured provider
+            type: "PAYOUT",
+            status: "PENDING",
+            amount: fees.sellerNetAmount,
+            fees: fees.sellerFeeAmount,
+            netAmount: fees.sellerNetAmount,
+            payeeUserId: transaction.sellerId,
+          },
+        });
+
+        // Update listing status to SOLD
+        await prisma.listing.update({
+          where: { id: transaction.listingId },
+          data: { status: "SOLD" },
+        });
+
+        // Notify seller with net amount
+        notifyTransactionReleased(
+          transaction.sellerId,
+          transaction.listing.title,
+          Number(fees.sellerNetAmount)
+        ).catch(console.error);
+
+        // Log fee details in audit
+        await prisma.auditLog.create({
+          data: {
+            entityType: "TRANSACTION",
+            entityId: id,
+            actorType: "SYSTEM",
+            action: "FEES_COLLECTED",
+            diff: {
+              transactionAmount: transaction.agreedPriceGhs.toString(),
+              sellerFeeRate: fees.sellerFeeRate,
+              sellerFeeAmount: fees.sellerFeeAmount.toString(),
+              sellerNetAmount: fees.sellerNetAmount.toString(),
+              subscriptionPlan: fees.subscriptionPlan,
+            },
+          },
+        });
       }
 
       return NextResponse.json({
