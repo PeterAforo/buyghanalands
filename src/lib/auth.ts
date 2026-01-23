@@ -20,13 +20,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         let phone = (credentials.phone as string).trim();
         if (phone.startsWith("0") && phone.length === 10) {
           phone = "+233" + phone.substring(1);
-        } else if (!phone.startsWith("+")) {
-          phone = "+" + phone;
         }
 
-        const user = await prisma.user.findUnique({
+        // Try to find user with normalized phone first
+        let user = await prisma.user.findUnique({
           where: { phone },
         });
+
+        // If not found, try with original input (for users with different phone formats)
+        if (!user) {
+          user = await prisma.user.findUnique({
+            where: { phone: (credentials.phone as string).trim() },
+          });
+        }
 
         if (!user || !user.passwordHash) {
           return null;

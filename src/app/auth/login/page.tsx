@@ -51,11 +51,14 @@ function LoginForm() {
       return;
     }
 
+    // Small delay to ensure session is established
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Fetch session to check user roles
     const sessionRes = await fetch("/api/auth/session");
     const session = await sessionRes.json();
     
-    // Redirect admin users to admin dashboard
+    // Redirect based on user role
     if (session?.user?.roles?.includes("ADMIN")) {
       router.push("/admin");
     } else {
