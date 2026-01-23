@@ -51,7 +51,16 @@ function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    // Fetch session to check user roles
+    const sessionRes = await fetch("/api/auth/session");
+    const session = await sessionRes.json();
+    
+    // Redirect admin users to admin dashboard
+    if (session?.user?.roles?.includes("ADMIN")) {
+      router.push("/admin");
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   };
 
