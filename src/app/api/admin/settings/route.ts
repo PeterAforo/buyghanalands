@@ -10,8 +10,9 @@ async function isAdmin(userId: string): Promise<boolean> {
   return user?.roles.includes("ADMIN") || false;
 }
 
-// Default settings
-const defaultSettings = {
+// Default settings - stored in memory for now
+// In production, these would be stored in a database table
+let platformSettings = {
   platformFeePercent: 2.5,
   escrowHoldDays: 7,
   maxListingImages: 10,
@@ -35,28 +36,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Try to get settings from database
-    const settings = await prisma.systemSetting.findMany();
-    
-    if (settings.length === 0) {
-      return NextResponse.json(defaultSettings);
-    }
-
-    // Convert array of settings to object
-    const settingsObj = settings.reduce((acc, setting) => {
-      try {
-        acc[setting.key] = JSON.parse(setting.value);
-      } catch {
-        acc[setting.key] = setting.value;
-      }
-      return acc;
-    }, {} as Record<string, any>);
-
-    return NextResponse.json({ ...defaultSettings, ...settingsObj });
+    return NextResponse.json(platformSettings);
   } catch (error) {
     console.error("Error fetching settings:", error);
-    // Return defaults if there's an error (e.g., table doesn't exist)
-    return NextResponse.json(defaultSettings);
+    return NextResponse.json(platformSettings);
   }
 }
 
@@ -72,23 +55,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-
-    // Upsert each setting
-    const updates = Object.entries(body).map(([key, value]) =>
-      prisma.systemSetting.upsert({
-        where: { key },
-        update: { value: JSON.stringify(value) },
-        create: { key, value: JSON.stringify(value) },
-      })
-    );
-
-    await Promise.all(updates);
+    
+    // Update settings in memory
+    platformSettings = { ...platformSettings, ...body };
 
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        entityType: "SYSTEM_SETTING",
-        entityId: "platform",
+        entityType: "LISTING",
+        entityId: "platform-settings",
         actorType: "USER",
         actorUserId: session.user.id,
         action: "UPDATE",

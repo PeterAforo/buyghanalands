@@ -21,21 +21,15 @@ interface Conversation {
   listing: {
     id: string;
     title: string;
-  };
-  buyer: {
+  } | null;
+  participants: {
     id: string;
     fullName: string;
     phone: string;
-  };
-  seller: {
-    id: string;
-    fullName: string;
-    phone: string;
-  };
+  }[];
+  lastMessage: string;
   lastMessageAt: string;
-  _count: {
-    messages: number;
-  };
+  messageCount: number;
 }
 
 function formatDate(date: string) {
@@ -133,29 +127,23 @@ export default function AdminMessagesPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <MessageSquare className="h-4 w-4 text-emerald-600" />
-                        <span className="font-medium">{conv.listing.title}</span>
-                        <Badge variant="secondary">{conv._count.messages} messages</Badge>
+                        <span className="font-medium">{conv.listing?.title || "Direct Message"}</span>
+                        <Badge variant="secondary">{conv.messageCount} messages</Badge>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          Buyer: {conv.buyer.fullName}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          Seller: {conv.seller.fullName}
-                        </span>
+                        {conv.participants.map((p, i) => (
+                          <span key={p.id} className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {p.fullName}
+                          </span>
+                        ))}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
                         <Clock className="h-3 w-3" />
                         Last message: {formatDate(conv.lastMessageAt)}
                       </div>
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-1">{conv.lastMessage}</p>
                     </div>
-                    <Link href={`/admin/messages/${conv.id}`}>
-                      <Button variant="outline" size="sm">
-                        View
-                      </Button>
-                    </Link>
                   </div>
                 ))}
               </div>

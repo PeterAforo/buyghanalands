@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft,
   Settings,
@@ -213,11 +212,13 @@ export default function AdminSettingsPage() {
                   <p className="font-medium">Email Notifications</p>
                   <p className="text-sm text-gray-500">Send notifications via email</p>
                 </div>
-                <Switch
+                <input
+                  type="checkbox"
                   checked={settings.enableEmailNotifications}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, enableEmailNotifications: checked })
+                  onChange={(e) =>
+                    setSettings({ ...settings, enableEmailNotifications: e.target.checked })
                   }
+                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -225,11 +226,13 @@ export default function AdminSettingsPage() {
                   <p className="font-medium">SMS Notifications</p>
                   <p className="text-sm text-gray-500">Send notifications via SMS</p>
                 </div>
-                <Switch
+                <input
+                  type="checkbox"
                   checked={settings.enableSmsNotifications}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, enableSmsNotifications: checked })
+                  onChange={(e) =>
+                    setSettings({ ...settings, enableSmsNotifications: e.target.checked })
                   }
+                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </div>
             </CardContent>
@@ -250,11 +253,13 @@ export default function AdminSettingsPage() {
                   <p className="font-medium">Require Phone Verification</p>
                   <p className="text-sm text-gray-500">Users must verify phone to list</p>
                 </div>
-                <Switch
+                <input
+                  type="checkbox"
                   checked={settings.requirePhoneVerification}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, requirePhoneVerification: checked })
+                  onChange={(e) =>
+                    setSettings({ ...settings, requirePhoneVerification: e.target.checked })
                   }
+                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -262,11 +267,13 @@ export default function AdminSettingsPage() {
                   <p className="font-medium">Require Email Verification</p>
                   <p className="text-sm text-gray-500">Users must verify email to list</p>
                 </div>
-                <Switch
+                <input
+                  type="checkbox"
                   checked={settings.requireEmailVerification}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, requireEmailVerification: checked })
+                  onChange={(e) =>
+                    setSettings({ ...settings, requireEmailVerification: e.target.checked })
                   }
+                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -274,11 +281,13 @@ export default function AdminSettingsPage() {
                   <p className="font-medium">Auto-approve Verified Sellers</p>
                   <p className="text-sm text-gray-500">Skip moderation for KYC verified sellers</p>
                 </div>
-                <Switch
+                <input
+                  type="checkbox"
                   checked={settings.autoApproveVerifiedSellers}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, autoApproveVerifiedSellers: checked })
+                  onChange={(e) =>
+                    setSettings({ ...settings, autoApproveVerifiedSellers: e.target.checked })
                   }
+                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </div>
               <div className="flex items-center justify-between border-t pt-4">
@@ -286,11 +295,13 @@ export default function AdminSettingsPage() {
                   <p className="font-medium text-red-600">Maintenance Mode</p>
                   <p className="text-sm text-gray-500">Disable public access to the platform</p>
                 </div>
-                <Switch
+                <input
+                  type="checkbox"
                   checked={settings.maintenanceMode}
-                  onCheckedChange={(checked) =>
-                    setSettings({ ...settings, maintenanceMode: checked })
+                  onChange={(e) =>
+                    setSettings({ ...settings, maintenanceMode: e.target.checked })
                   }
+                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 />
               </div>
             </CardContent>

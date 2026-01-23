@@ -24,39 +24,61 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
 
-    let where: any = {};
-
-    if (search) {
-      where.OR = [
-        { listing: { title: { contains: search, mode: "insensitive" } } },
-        { buyer: { fullName: { contains: search, mode: "insensitive" } } },
-        { seller: { fullName: { contains: search, mode: "insensitive" } } },
-      ];
-    }
-
-    const conversations = await prisma.conversation.findMany({
-      where,
+    // Get recent messages grouped by sender-receiver-listing combination
+    const messages = await prisma.message.findMany({
+      where: search ? {
+        OR: [
+          { listing: { title: { contains: search, mode: "insensitive" } } },
+          { sender: { fullName: { contains: search, mode: "insensitive" } } },
+          { receiver: { fullName: { contains: search, mode: "insensitive" } } },
+        ],
+      } : {},
       include: {
         listing: {
           select: { id: true, title: true },
         },
-        buyer: {
+        sender: {
           select: { id: true, fullName: true, phone: true },
         },
-        seller: {
+        receiver: {
           select: { id: true, fullName: true, phone: true },
-        },
-        _count: {
-          select: { messages: true },
         },
       },
-      orderBy: { lastMessageAt: "desc" },
+      orderBy: { createdAt: "desc" },
       take: 100,
     });
 
-    return NextResponse.json(conversations);
+    // Group messages into conversations
+    const conversationMap = new Map<string, {
+      id: string;
+      listing: { id: string; title: string } | null;
+      participants: { id: string; fullName: string; phone: string }[];
+      lastMessage: string;
+      lastMessageAt: string;
+      messageCount: number;
+    }>();
+
+    messages.forEach((msg) => {
+      const key = [msg.senderId, msg.receiverId, msg.listingId || "no-listing"].sort().join("-");
+      
+      if (!conversationMap.has(key)) {
+        conversationMap.set(key, {
+          id: key,
+          listing: msg.listing,
+          participants: [msg.sender, msg.receiver],
+          lastMessage: msg.body.substring(0, 100),
+          lastMessageAt: msg.createdAt.toISOString(),
+          messageCount: 1,
+        });
+      } else {
+        const conv = conversationMap.get(key)!;
+        conv.messageCount++;
+      }
+    });
+
+    return NextResponse.json(Array.from(conversationMap.values()));
   } catch (error) {
-    console.error("Error fetching conversations:", error);
-    return NextResponse.json({ error: "Failed to fetch conversations" }, { status: 500 });
+    console.error("Error fetching messages:", error);
+    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
   }
 }
