@@ -116,13 +116,12 @@ export default async function AdminDashboard() {
   const { recentListings, recentTransactions, recentDisputes } = await getRecentActivity();
 
   return (
-    <div className="bg-gray-100 min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="mt-1 text-gray-600">Platform overview and management</p>
-        </div>
+    <div>
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p className="mt-1 text-gray-600">Platform overview and management</p>
+      </div>
 
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
@@ -341,7 +340,6 @@ export default async function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
