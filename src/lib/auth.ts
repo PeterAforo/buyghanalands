@@ -16,8 +16,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
+        // Normalize phone number - convert 0XXXXXXXXX to +233XXXXXXXXX
+        let phone = (credentials.phone as string).trim();
+        if (phone.startsWith("0") && phone.length === 10) {
+          phone = "+233" + phone.substring(1);
+        } else if (!phone.startsWith("+")) {
+          phone = "+" + phone;
+        }
+
         const user = await prisma.user.findUnique({
-          where: { phone: credentials.phone as string },
+          where: { phone },
         });
 
         if (!user || !user.passwordHash) {
