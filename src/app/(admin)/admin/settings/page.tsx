@@ -3,50 +3,50 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
-  ArrowLeft,
-  Settings,
-  Bell,
-  Shield,
-  DollarSign,
+  ChevronRight,
   Mail,
+  CreditCard,
+  MessageSquare,
+  HardDrive,
+  Map,
+  Bell,
+  Settings,
   Save,
   Loader2,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 
-interface PlatformSettings {
-  platformFeePercent: number;
-  escrowHoldDays: number;
-  maxListingImages: number;
-  maxDocumentSize: number;
-  enableEmailNotifications: boolean;
-  enableSmsNotifications: boolean;
-  requirePhoneVerification: boolean;
-  requireEmailVerification: boolean;
-  autoApproveVerifiedSellers: boolean;
-  maintenanceMode: boolean;
-}
+type SettingValue = {
+  value: string;
+  description: string;
+  isEncrypted: boolean;
+};
+
+type SettingsData = Record<string, Record<string, SettingValue>>;
+
+const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  smtp: { label: "Email (SMTP)", icon: Mail, color: "text-blue-600 bg-blue-50" },
+  payment: { label: "Payment (Paystack)", icon: CreditCard, color: "text-emerald-600 bg-emerald-50" },
+  sms: { label: "SMS (mNotify)", icon: MessageSquare, color: "text-purple-600 bg-purple-50" },
+  storage: { label: "Storage (S3/R2)", icon: HardDrive, color: "text-orange-600 bg-orange-50" },
+  maps: { label: "Maps (Mapbox)", icon: Map, color: "text-cyan-600 bg-cyan-50" },
+  notifications: { label: "Push Notifications", icon: Bell, color: "text-yellow-600 bg-yellow-50" },
+  platform: { label: "Platform Settings", icon: Settings, color: "text-gray-600 bg-gray-100" },
+};
 
 export default function AdminSettingsPage() {
   const { data: session, status: authStatus } = useSession();
-  const [settings, setSettings] = useState<PlatformSettings>({
-    platformFeePercent: 2.5,
-    escrowHoldDays: 7,
-    maxListingImages: 10,
-    maxDocumentSize: 10,
-    enableEmailNotifications: true,
-    enableSmsNotifications: true,
-    requirePhoneVerification: true,
-    requireEmailVerification: false,
-    autoApproveVerifiedSellers: false,
-    maintenanceMode: false,
-  });
+  const [settings, setSettings] = useState<SettingsData>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("smtp");
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     async function fetchSettings() {
@@ -56,8 +56,9 @@ export default function AdminSettingsPage() {
           const data = await response.json();
           setSettings(data);
         }
-      } catch (error) {
-        console.error("Failed to fetch settings:", error);
+      } catch (err) {
+        console.error("Failed to fetch settings:", err);
+        setError("Failed to load settings");
       } finally {
         setLoading(false);
       }
@@ -68,244 +69,186 @@ export default function AdminSettingsPage() {
     }
   }, [session]);
 
-  const handleSave = async () => {
-    setSaving(true);
+  const handleSave = async (category: string) => {
+    setSaving(category);
+    setError(null);
     try {
+      const categorySettings: Record<string, string> = {};
+      for (const [key, val] of Object.entries(settings[category] || {})) {
+        categorySettings[key] = val.value;
+      }
+
       const response = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ category, settings: categorySettings }),
       });
 
       if (response.ok) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        setSaved(category);
+        setTimeout(() => setSaved(null), 3000);
+      } else {
+        setError("Failed to save settings");
       }
-    } catch (error) {
-      console.error("Failed to save settings:", error);
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+      setError("Failed to save settings");
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
+  };
+
+  const updateSetting = (category: string, key: string, value: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [key]: { ...prev[category][key], value },
+      },
+    }));
+  };
+
+  const togglePassword = (key: string) => {
+    setShowPasswords((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   if (authStatus === "loading" || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1a3a2f]" />
       </div>
     );
   }
 
+  const currentCategory = settings[activeTab] || {};
+  const config = CATEGORY_CONFIG[activeTab];
+
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Link href="/admin">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Admin
-              </Button>
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Platform Settings</h1>
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+            <Link href="/admin" className="hover:text-[#1a3a2f]">Dashboard</Link>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-[#1a3a2f]">Settings</span>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            {saved ? "Saved!" : "Save Changes"}
-          </Button>
+          <h1 className="text-lg font-semibold text-[#1a3a2f]">API Configuration</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Configure all external service integrations</p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4" />
+          {error}
+        </div>
+      )}
+
+      <div className="flex gap-4">
+        {/* Sidebar Tabs */}
+        <div className="w-56 flex-shrink-0">
+          <div className="bg-white rounded-xl border border-gray-100 p-2">
+            {Object.entries(CATEGORY_CONFIG).map(([key, { label, icon: Icon, color }]) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                  activeTab === key
+                    ? "bg-[#1a3a2f] text-white"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <div className={`p-1.5 rounded-lg ${activeTab === key ? "bg-white/20" : color}`}>
+                  <Icon className={`h-3.5 w-3.5 ${activeTab === key ? "text-white" : ""}`} />
+                </div>
+                <span className="text-xs font-medium">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-6">
-          {/* Payment Settings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-emerald-600" />
-                <CardTitle>Payment Settings</CardTitle>
-              </div>
-              <CardDescription>Configure payment and escrow settings</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Platform Fee (%)</label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={settings.platformFeePercent}
-                    onChange={(e) =>
-                      setSettings({ ...settings, platformFeePercent: parseFloat(e.target.value) })
-                    }
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Fee charged on each transaction</p>
+        {/* Settings Form */}
+        <div className="flex-1">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${config.color}`}>
+                  <config.icon className="h-4 w-4" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Escrow Hold Days</label>
-                  <Input
-                    type="number"
-                    value={settings.escrowHoldDays}
-                    onChange={(e) =>
-                      setSettings({ ...settings, escrowHoldDays: parseInt(e.target.value) })
-                    }
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Days to hold funds in escrow</p>
+                  <h2 className="text-sm font-semibold text-[#1a3a2f]">{config.label}</h2>
+                  <p className="text-[10px] text-gray-400">Configure {config.label.toLowerCase()} settings</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <button
+                onClick={() => handleSave(activeTab)}
+                disabled={saving === activeTab}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  saved === activeTab
+                    ? "bg-emerald-50 text-emerald-600"
+                    : "bg-[#1a3a2f] text-white hover:bg-[#2a4a3f]"
+                } disabled:opacity-50`}
+              >
+                {saving === activeTab ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : saved === activeTab ? (
+                  <CheckCircle className="h-3.5 w-3.5" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                {saved === activeTab ? "Saved!" : "Save"}
+              </button>
+            </div>
 
-          {/* Listing Settings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-blue-600" />
-                <CardTitle>Listing Settings</CardTitle>
-              </div>
-              <CardDescription>Configure listing upload limits</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Max Listing Images</label>
-                  <Input
-                    type="number"
-                    value={settings.maxListingImages}
-                    onChange={(e) =>
-                      setSettings({ ...settings, maxListingImages: parseInt(e.target.value) })
-                    }
-                    className="mt-1"
-                  />
+            <div className="p-5 space-y-4">
+              {Object.entries(currentCategory).map(([key, setting]) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    {key.replace(/_/g, " ")}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={setting.isEncrypted && !showPasswords[key] ? "password" : "text"}
+                      value={setting.value}
+                      onChange={(e) => updateSetting(activeTab, key, e.target.value)}
+                      placeholder={setting.description}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent pr-10"
+                    />
+                    {setting.isEncrypted && (
+                      <button
+                        type="button"
+                        onClick={() => togglePassword(key)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPasswords[key] ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">{setting.description}</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Max Document Size (MB)</label>
-                  <Input
-                    type="number"
-                    value={settings.maxDocumentSize}
-                    onChange={(e) =>
-                      setSettings({ ...settings, maxDocumentSize: parseInt(e.target.value) })
-                    }
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              ))}
 
-          {/* Notification Settings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Bell className="h-5 w-5 text-yellow-600" />
-                <CardTitle>Notification Settings</CardTitle>
-              </div>
-              <CardDescription>Configure notification channels</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Email Notifications</p>
-                  <p className="text-sm text-gray-500">Send notifications via email</p>
+              {Object.keys(currentCategory).length === 0 && (
+                <div className="text-center py-8 text-gray-400">
+                  <Settings className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No settings available</p>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={settings.enableEmailNotifications}
-                  onChange={(e) =>
-                    setSettings({ ...settings, enableEmailNotifications: e.target.checked })
-                  }
-                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">SMS Notifications</p>
-                  <p className="text-sm text-gray-500">Send notifications via SMS</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.enableSmsNotifications}
-                  onChange={(e) =>
-                    setSettings({ ...settings, enableSmsNotifications: e.target.checked })
-                  }
-                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-              </div>
-            </CardContent>
-          </Card>
+              )}
+            </div>
+          </div>
 
-          {/* Security Settings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-red-600" />
-                <CardTitle>Security Settings</CardTitle>
-              </div>
-              <CardDescription>Configure verification and security options</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Require Phone Verification</p>
-                  <p className="text-sm text-gray-500">Users must verify phone to list</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.requirePhoneVerification}
-                  onChange={(e) =>
-                    setSettings({ ...settings, requirePhoneVerification: e.target.checked })
-                  }
-                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Require Email Verification</p>
-                  <p className="text-sm text-gray-500">Users must verify email to list</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.requireEmailVerification}
-                  onChange={(e) =>
-                    setSettings({ ...settings, requireEmailVerification: e.target.checked })
-                  }
-                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Auto-approve Verified Sellers</p>
-                  <p className="text-sm text-gray-500">Skip moderation for KYC verified sellers</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.autoApproveVerifiedSellers}
-                  onChange={(e) =>
-                    setSettings({ ...settings, autoApproveVerifiedSellers: e.target.checked })
-                  }
-                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="flex items-center justify-between border-t pt-4">
-                <div>
-                  <p className="font-medium text-red-600">Maintenance Mode</p>
-                  <p className="text-sm text-gray-500">Disable public access to the platform</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.maintenanceMode}
-                  onChange={(e) =>
-                    setSettings({ ...settings, maintenanceMode: e.target.checked })
-                  }
-                  className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Help Text */}
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <p className="text-xs text-amber-800">
+              <strong>Note:</strong> Sensitive values (passwords, API keys) are encrypted before storage. 
+              After saving, they will be displayed as "••••••••". To update, enter a new value.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1707,3 +1707,19 @@ model SavedSearch {
   @@index([userId, createdAt])
   @@index([alertEnabled])
 }
+
+// System Settings for Admin Configuration
+model SystemSetting {
+  id          String   @id @default(cuid())
+  category    String   // e.g., "smtp", "payment", "sms", "storage", "general"
+  key         String   // e.g., "SMTP_HOST", "PAYSTACK_SECRET_KEY"
+  value       String   @db.Text // encrypted for sensitive values
+  isEncrypted Boolean  @default(false)
+  description String?
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([category, key])
+  @@index([category])
+}
