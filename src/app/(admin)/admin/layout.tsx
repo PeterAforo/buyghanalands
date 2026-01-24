@@ -19,31 +19,36 @@ import {
   Search,
   ChevronDown,
   Home,
+  Package,
+  Lock,
 } from "lucide-react";
 
 async function checkAdminAccess(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { roles: true, fullName: true },
+    select: { roles: true, fullName: true, email: true },
   });
   return {
     isAdmin: user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false,
     name: user?.fullName || "Admin",
+    email: user?.email || "admin@buyghanalands.com",
   };
 }
 
-const adminNavItems = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/listings", label: "Listings", icon: MapPin },
+const menuItems = [
+  { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Statistics", icon: BarChart3 },
+  { href: "/admin/users", label: "Customers", icon: Users },
+  { href: "/admin/listings", label: "Listings", icon: Package, badge: null },
+  { href: "/admin/messages", label: "Messages", icon: MessageSquare, badge: "13" },
   { href: "/admin/transactions", label: "Transactions", icon: CreditCard },
-  { href: "/admin/land-categories", label: "Land Categories", icon: FolderTree },
+];
+
+const generalItems = [
+  { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/verifications", label: "Verifications", icon: FileCheck },
   { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
-  { href: "/admin/messages", label: "Messages", icon: MessageSquare },
   { href: "/admin/fraud", label: "Fraud Cases", icon: Shield },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export default async function AdminLayout({
@@ -57,113 +62,137 @@ export default async function AdminLayout({
     redirect("/auth/login");
   }
 
-  const { isAdmin, name } = await checkAdminAccess(session.user.id);
+  const { isAdmin, name, email } = await checkAdminAccess(session.user.id);
   if (!isAdmin) {
     redirect("/dashboard");
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Admin Header */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-50">
-        <div className="flex items-center justify-between h-full px-4">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">BGL</span>
-            </div>
-            <div>
-              <h1 className="font-semibold text-gray-900">Admin Panel</h1>
-              <p className="text-xs text-gray-500">Buy Ghana Lands</p>
-            </div>
+    <div className="min-h-screen bg-[#f8f7f4] flex">
+      {/* Sidebar */}
+      <aside className="w-[240px] bg-[#1a3a2f] min-h-screen fixed left-0 top-0 flex flex-col rounded-r-3xl">
+        {/* Logo */}
+        <div className="p-6 flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#c5e063] rounded-lg flex items-center justify-center">
+            <span className="text-[#1a3a2f] font-bold text-sm">✦</span>
           </div>
-
-          {/* Search */}
-          <div className="flex-1 max-w-xl mx-8">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search users, listings, transactions..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-
-          {/* Right side */}
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Home className="h-4 w-4" />
-              <span>View Site</span>
-            </Link>
-            
-            <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
-
-            <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
-              <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                <span className="text-emerald-700 font-medium text-sm">
-                  {name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="hidden md:block">
-                <p className="text-sm font-medium text-gray-900">{name}</p>
-                <p className="text-xs text-gray-500">Administrator</p>
-              </div>
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/auth/login" });
-                }}
-              >
-                <button
-                  type="submit"
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Sign out"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </form>
-            </div>
-          </div>
+          <span className="text-white font-semibold text-lg">BuyGhanaLands</span>
         </div>
-      </header>
 
-      <div className="flex pt-16">
-        {/* Sidebar */}
-        <aside className="w-64 bg-gray-900 min-h-[calc(100vh-4rem)] fixed left-0 top-16">
-          <nav className="p-4 space-y-1">
-            {adminNavItems.map((item) => {
+        {/* Menu Section */}
+        <div className="px-4 mt-4">
+          <p className="text-[#6b8f7a] text-xs font-medium uppercase tracking-wider mb-3 px-3">Menu</p>
+          <nav className="space-y-1">
+            {menuItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-3 px-3 py-2.5 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white rounded-xl transition-all group"
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="text-sm">{item.label}</span>
+                  <span className="text-sm font-medium flex-1">{item.label}</span>
+                  {item.badge && (
+                    <span className="bg-[#c5e063] text-[#1a3a2f] text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
           </nav>
-          
-          {/* Sidebar footer */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
-            <div className="text-xs text-gray-500 text-center">
-              <p>BuyGhanaLands Admin</p>
-              <p>v1.0.0</p>
-            </div>
-          </div>
-        </aside>
+        </div>
 
-        {/* Main Content */}
-        <main className="flex-1 ml-64 p-6 bg-gray-50 min-h-[calc(100vh-4rem)]">
+        {/* General Section */}
+        <div className="px-4 mt-8">
+          <p className="text-[#6b8f7a] text-xs font-medium uppercase tracking-wider mb-3 px-3">General</p>
+          <nav className="space-y-1">
+            {generalItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-3 px-3 py-2.5 text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white rounded-xl transition-all"
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="text-sm font-medium">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* User Profile at Bottom */}
+        <div className="mt-auto p-4 border-t border-[#2a4a3f]">
+          <div className="flex items-center gap-3 px-2 py-2">
+            <div className="w-10 h-10 bg-[#c5e063] rounded-full flex items-center justify-center">
+              <span className="text-[#1a3a2f] font-bold text-sm">
+                {name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-medium truncate">{name}</p>
+              <p className="text-[#6b8f7a] text-xs truncate">{email}</p>
+            </div>
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/auth/login" });
+              }}
+            >
+              <button
+                type="submit"
+                className="p-2 text-[#6b8f7a] hover:text-white hover:bg-[#2a4a3f] rounded-lg transition-colors"
+                title="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 ml-[240px]">
+        {/* Top Header */}
+        <header className="h-16 bg-[#f8f7f4] flex items-center justify-between px-8 sticky top-0 z-40">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-[#1a3a2f]">Admin Panel</h1>
+            <ChevronDown className="h-4 w-4 text-[#1a3a2f]" />
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search anything in Admin..."
+                className="w-[280px] pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
+
+            {/* Notifications */}
+            <button className="relative p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+              <Bell className="h-5 w-5 text-[#1a3a2f]" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+
+            {/* View Site */}
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#1a3a2f] text-white rounded-xl text-sm font-medium hover:bg-[#2a4a3f] transition-colors"
+            >
+              <Home className="h-4 w-4" />
+              View Site
+            </Link>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="p-8">
           {children}
         </main>
       </div>
