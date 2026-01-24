@@ -1,7 +1,18 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// SMTP Configuration - uses environment variables
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'localhost',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+  auth: process.env.SMTP_USER ? {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  } : undefined,
+});
+
 const FROM_EMAIL = process.env.FROM_EMAIL || "noreply@buyghanalands.com";
+const FROM_NAME = process.env.FROM_NAME || "BuyGhanaLands";
 
 interface EmailOptions {
   to: string;
@@ -11,29 +22,20 @@ interface EmailOptions {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<{ success: boolean; error?: string }> {
-  if (!resend) {
-    console.warn("Email service not configured (RESEND_API_KEY missing)");
-    return { success: false, error: "Email service not configured" };
-  }
-
   try {
-    const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
+    const info = await transporter.sendMail({
+      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
     });
 
-    if (error) {
-      console.error("Email send error:", error);
-      return { success: false, error: error.message };
-    }
-
+    console.log("Email sent:", info.messageId);
     return { success: true };
   } catch (error) {
     console.error("Email send error:", error);
-    return { success: false, error: "Failed to send email" };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to send email" };
   }
 }
 
