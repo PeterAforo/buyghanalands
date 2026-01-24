@@ -15,8 +15,27 @@ import {
   Scale,
   BadgeCheck,
   MapPin,
+  Users,
+  ShieldCheck,
+  Banknote,
+  Search,
+  FileCheck,
+  Handshake,
+  Home as HomeIcon,
+  Building2,
+  Factory,
+  Wheat,
+  Layers,
+  Compass,
+  PenTool,
+  HardHat,
+  Calculator,
+  ClipboardList,
+  ChevronRight,
+  Heart,
 } from "lucide-react";
-import { FeaturedListings } from "@/components/home/featured-listings";
+import { HeroSearch } from "@/components/search/hero-search";
+import { Badge } from "@/components/ui/badge";
 
 // Register GSAP plugins
 if (typeof window !== "undefined") {
@@ -24,28 +43,61 @@ if (typeof window !== "undefined") {
 }
 
 const stats = [
-  { value: 1000, label: "Verified land listings across Ghana", suffix: "+" },
-  { value: 50, label: "Transactions secured through escrow", prefix: "GH₵", suffix: "M+" },
-  { value: 500, label: "Successful buyers (local & diaspora)", suffix: "+" },
-  { value: 0, label: "Escrow-related payment losses", suffix: "", isZeroHighlight: true },
+  { value: 1000, label: "Active Listings", suffix: "+", icon: MapPin },
+  { value: 500, label: "Verified Sellers", suffix: "+", icon: ShieldCheck },
+  { value: 50, label: "GHS Transacted", prefix: "₵", suffix: "M+", icon: Banknote },
+  { value: 2500, label: "Happy Users", suffix: "+", icon: Users },
 ];
 
 const steps = [
   {
-    number: "01",
-    title: "Find Verified Land",
-    description: "Browse approved listings with documentation and clear location details.",
+    icon: Search,
+    title: "Browse & Search",
+    description: "Explore verified land listings across all 16 regions of Ghana with detailed information.",
   },
   {
-    number: "02",
-    title: "Make a Secure Offer",
-    description: "Negotiate safely while payments are protected through escrow.",
+    icon: FileCheck,
+    title: "Verify Documents",
+    description: "Review land documents, verification status, and request professional verification.",
   },
   {
-    number: "03",
-    title: "Complete & Transfer Safely",
-    description: "Verify documents and finalize transfer with professional support.",
+    icon: Handshake,
+    title: "Make an Offer",
+    description: "Negotiate directly with sellers through our secure messaging platform.",
   },
+  {
+    icon: ShieldCheck,
+    title: "Secure Escrow",
+    description: "Complete your transaction safely with escrow protection and milestone payments.",
+  },
+];
+
+const landTypes = [
+  { type: "RESIDENTIAL", label: "Residential", icon: HomeIcon, color: "bg-blue-50 text-blue-600 border-blue-100", count: 342 },
+  { type: "COMMERCIAL", label: "Commercial", icon: Building2, color: "bg-purple-50 text-purple-600 border-purple-100", count: 156 },
+  { type: "INDUSTRIAL", label: "Industrial", icon: Factory, color: "bg-orange-50 text-orange-600 border-orange-100", count: 89 },
+  { type: "AGRICULTURAL", label: "Agricultural", icon: Wheat, color: "bg-green-50 text-green-600 border-green-100", count: 234 },
+  { type: "MIXED", label: "Mixed Use", icon: Layers, color: "bg-amber-50 text-amber-600 border-amber-100", count: 78 },
+];
+
+const professionals = [
+  { type: "SURVEYOR", label: "Surveyors", icon: Compass, description: "Land surveys & boundary demarcation" },
+  { type: "LAWYER", label: "Lawyers", icon: Scale, description: "Legal documentation & title search" },
+  { type: "ARCHITECT", label: "Architects", icon: PenTool, description: "Building design & planning" },
+  { type: "ENGINEER", label: "Engineers", icon: HardHat, description: "Structural assessment" },
+  { type: "VALUER", label: "Valuers", icon: Calculator, description: "Property valuation" },
+  { type: "PLANNER", label: "Planners", icon: ClipboardList, description: "Town planning consultation" },
+];
+
+const regions = [
+  { name: "Greater Accra", count: 245 },
+  { name: "Ashanti", count: 189 },
+  { name: "Western", count: 134 },
+  { name: "Central", count: 98 },
+  { name: "Eastern", count: 112 },
+  { name: "Northern", count: 67 },
+  { name: "Volta", count: 78 },
+  { name: "Brong-Ahafo", count: 56 },
 ];
 
 const testimonials = [
@@ -54,7 +106,6 @@ const testimonials = [
     role: "Diaspora Buyer",
     country: "UK",
     quote: "The escrow process gave me peace of mind and reduced my fear of land fraud.",
-    highlight: "peace of mind",
     rating: 5,
   },
   {
@@ -62,7 +113,6 @@ const testimonials = [
     role: "Developer",
     country: "Ghana",
     quote: "Verification and documentation workflow made transactions transparent and faster.",
-    highlight: "transparent and faster",
     rating: 5,
   },
   {
@@ -70,7 +120,6 @@ const testimonials = [
     role: "First-time Buyer",
     country: "USA",
     quote: "As someone buying from abroad, the professional network connected me with trusted lawyers.",
-    highlight: "trusted lawyers",
     rating: 5,
   },
 ];
@@ -82,11 +131,39 @@ const trustBarItems = [
   { icon: Scale, label: "Legal & Professional Network" },
 ];
 
+const featuredListings = [
+  {
+    id: "1",
+    title: "Prime Residential Plot in East Legon",
+    price: 850000,
+    location: "East Legon, Greater Accra",
+    size: 0.5,
+    image: "/images/african-nature-scenery-with-road-trees.jpg",
+    verificationLevel: "LEVEL_2_PLATFORM_REVIEWED",
+  },
+  {
+    id: "2",
+    title: "Commercial Land Near Tema Motorway",
+    price: 1200000,
+    location: "Tema, Greater Accra",
+    size: 1.2,
+    image: "/images/nature-moldova-vale-with-flowing-river-slopes-with-sparse-vegetation.jpg",
+    verificationLevel: "LEVEL_2_PLATFORM_REVIEWED",
+  },
+  {
+    id: "3",
+    title: "Agricultural Land in Volta Region",
+    price: 350000,
+    location: "Ho, Volta Region",
+    size: 5.0,
+    image: "/images/african-nature-scenery-with-road-trees.jpg",
+    verificationLevel: "LEVEL_1_DOCS_UPLOADED",
+  },
+];
+
 const heroBackgroundImages = [
   "/images/african-nature-scenery-with-road-trees.jpg",
   "/images/nature-moldova-vale-with-flowing-river-slopes-with-sparse-vegetation.jpg",
-  "/images/african-american-woman-looking-map.jpg",
-  "/images/medium-shot-smiley-man-posing.jpg",
 ];
 
 // Stats Counter Component
@@ -337,280 +414,375 @@ export default function Home() {
 
   return (
     <div ref={mainRef} className="flex flex-col">
-      {/* Hero Section */}
-      <section className="relative dark-section overflow-hidden min-h-[600px] lg:min-h-[700px]" style={{ backgroundColor: 'var(--c-dark-bg)' }}>
-        {/* Background Image Carousel */}
-        {heroBackgroundImages.map((image, index) => (
-          <div
-            key={image}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <Image
-              src={image}
-              alt="Ghana landscape"
-              fill
-              className="object-cover"
-              priority={index === 0}
-            />
-          </div>
-        ))}
-        {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
-        
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left Column - Content */}
-            <div className="max-w-xl">
-              <h1 
-                data-hero-headline
-                className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-[3.5rem] lg:leading-[1.08]"
-                style={{ color: 'var(--c-dark-text)' }}
-              >
-                Buy Verified Land in Ghana —{" "}
-                <span style={{ color: 'var(--c-brand-accent)' }}>With Confidence</span>
-              </h1>
-              <p 
-                data-hero-sub
-                className="mt-6 text-lg leading-relaxed"
-                style={{ color: 'var(--c-dark-muted)' }}
-              >
-                Secure escrow payments, Lands Commission verification, and trusted 
-                professionals — whether you&apos;re in Ghana or abroad.
-              </p>
-              
-              {/* CTAs */}
-              <div data-hero-ctas className="mt-10 flex flex-col sm:flex-row gap-4">
-                <Link href="/listings">
-                  <Button 
-                    size="lg" 
-                    className="w-full sm:w-auto bg-white text-emerald-900 hover:bg-emerald-50 font-semibold px-8 h-12"
-                  >
-                    Browse Verified Lands
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href="/listings/create">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full sm:w-auto border-2 border-white/80 text-white hover:bg-white/10 font-medium px-8 h-12"
-                  >
-                    List Land for Sale
-                  </Button>
-                </Link>
-                <Link href="/professionals">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 font-medium px-8 h-12"
-                  >
-                    Talk to a Land Expert
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-              </div>
-              
-              {/* Micro-reassurance */}
-              <div className="mt-6" data-assurance>
-                <Shield className="h-4 w-4" style={{ color: 'var(--c-brand-accent)' }} />
-                <span style={{ color: 'var(--c-dark-muted)' }}>No payment is released without your approval.</span>
-              </div>
-            </div>
-
-            {/* Right Column - Visual Box */}
-            <div className="hidden lg:flex items-center justify-center" ref={heroVisualRef} data-hero-visual>
-              <div className="relative w-full max-w-md aspect-square hero-visual-box">
-                {/* Scan line overlay */}
-                <div data-scan />
-                
-                {/* Grid pattern is in CSS ::before */}
-                
-                {/* Center pin with pulse */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div 
-                    data-pin 
-                    className="relative flex items-center justify-center"
-                  >
-                    <div 
-                      className="absolute w-32 h-32 rounded-full opacity-20"
-                      style={{ backgroundColor: 'var(--c-brand-accent)' }}
-                    />
-                    <div 
-                      className="absolute w-24 h-24 rounded-full opacity-30"
-                      style={{ backgroundColor: 'var(--c-brand-accent)' }}
-                    />
-                    <MapPin className="w-16 h-16 relative z-10" style={{ color: 'var(--c-brand-accent)' }} />
-                  </div>
-                </div>
-                
-                {/* Corner badges */}
-                <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium" style={{ backgroundColor: 'var(--c-dark-surface)', color: 'var(--c-dark-text)' }}>
-                  <BadgeCheck className="h-3.5 w-3.5" style={{ color: 'var(--c-brand-accent)' }} />
-                  Verified
-                </div>
-                <div className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium" style={{ backgroundColor: 'var(--c-dark-surface)', color: 'var(--c-dark-text)' }}>
-                  <Shield className="h-3.5 w-3.5" style={{ color: 'var(--c-brand-accent)' }} />
-                  Protected
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Trust Bar */}
-          <div className="mt-16 pt-8 border-t" style={{ borderColor: 'var(--c-dark-border)' }}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {trustBarItems.map((item) => (
-                <div 
-                  key={item.label}
-                  data-trust-item
-                  className="flex items-center gap-3"
-                  style={{ color: 'var(--c-dark-muted)' }}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--c-brand-accent)' }} />
-                  <span className="text-sm font-medium">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-16 lg:py-20 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #CE1126 0%, #CE1126 25%, #FCD116 25%, #FCD116 50%, #FCD116 50%, #FCD116 75%, #006B3F 75%, #006B3F 100%)' }}>
-        {/* Overlay for better card visibility */}
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {stats.map((stat) => (
-              <StatCounter
-                key={stat.label}
-                value={stat.value}
-                prefix={stat.prefix}
-                suffix={stat.suffix}
-                label={stat.label}
-                isZeroHighlight={(stat as typeof stats[number] & { isZeroHighlight?: boolean }).isZeroHighlight}
+      {/* Hero Section - Modern Design */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-green-900 via-green-800 to-green-900 min-h-[600px] lg:min-h-[700px]">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0">
+          {heroBackgroundImages.map((image, index) => (
+            <div
+              key={image}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentImageIndex ? 'opacity-30' : 'opacity-0'
+              }`}
+            >
+              <Image
+                src={image}
+                alt="Ghana landscape"
+                fill
+                className="object-cover"
+                priority={index === 0}
               />
+            </div>
+          ))}
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-green-900/50 via-green-900/70 to-green-900/90" />
+        
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 pb-16 lg:pt-32 lg:pb-24">
+          {/* Hero Content */}
+          <div className="text-center max-w-4xl mx-auto">
+            <div data-hero-headline>
+              <Badge className="mb-6 bg-green-500/20 text-green-100 border-green-400/30 px-4 py-1.5">
+                🇬🇭 Ghana&apos;s Trusted Land Marketplace
+              </Badge>
+              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
+                Buy Verified Land in Ghana{" "}
+                <span className="text-amber-400">With Confidence</span>
+              </h1>
+            </div>
+            <p 
+              data-hero-sub
+              className="mt-6 text-lg lg:text-xl text-green-100/80 max-w-2xl mx-auto"
+            >
+              Secure escrow payments, document verification, and trusted professionals — 
+              whether you&apos;re in Ghana or abroad.
+            </p>
+          </div>
+
+          {/* Search Box */}
+          <div className="mt-10 max-w-4xl mx-auto" data-hero-ctas>
+            <HeroSearch />
+          </div>
+
+          {/* Trust Badges */}
+          <div className="mt-12 flex flex-wrap justify-center gap-6">
+            {trustBarItems.map((item) => (
+              <div 
+                key={item.label}
+                data-trust-item
+                className="flex items-center gap-2 text-green-100/70"
+              >
+                <item.icon className="h-5 w-5 text-amber-400" />
+                <span className="text-sm font-medium">{item.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick Stats */}
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            {stats.map((stat) => (
+              <div 
+                key={stat.label}
+                className="text-center p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10"
+              >
+                <stat.icon className="h-6 w-6 text-amber-400 mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">
+                  {stat.prefix}{stat.value.toLocaleString()}{stat.suffix}
+                </p>
+                <p className="text-xs text-green-100/60 mt-1">{stat.label}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Featured Listings by Land Type */}
-      <FeaturedListings />
-
-      {/* How It Works */}
-      <section className="py-20 lg:py-24" style={{ backgroundColor: 'var(--c-neutral-surface-alt)' }}>
+      {/* Land Type Categories */}
+      <section className="py-16 lg:py-20 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto" data-reveal>
-            <h2 className="text-3xl font-bold sm:text-4xl" style={{ color: 'var(--c-neutral-ink)' }}>
-              How It Works
+          <div className="text-center mb-12" data-reveal>
+            <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+              Browse by Land Type
             </h2>
-            <p className="mt-4 text-lg" style={{ color: 'var(--c-neutral-ink-soft)' }}>
-              Three simple steps to secure land ownership
+            <p className="mt-4 text-lg text-gray-600">
+              Find the perfect land for your needs
             </p>
           </div>
           
-          <div className="mt-16 relative">
-            {/* Connection line - desktop only */}
-            <div 
-              data-how-line
-              className="hidden md:block absolute top-10 left-[16%] right-[16%] h-0.5"
-              style={{ backgroundColor: 'var(--c-brand-primary-soft)', transformOrigin: 'left center' }}
-            />
-            
-            <div className="grid gap-8 md:grid-cols-3">
-              {steps.map((step, index) => (
-                <div 
-                  key={step.number} 
-                  data-how-step
-                  className="relative text-center"
-                >
-                  {/* Step node dot */}
-                  <div className="hidden md:block absolute top-10 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full z-20" style={{ backgroundColor: 'var(--c-brand-primary)' }} />
-                  
-                  <div 
-                    className="mx-auto h-20 w-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg relative z-10"
-                    style={{ backgroundColor: 'var(--c-brand-primary)' }}
-                  >
-                    {step.number}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {landTypes.map(({ type, label, icon: Icon, color, count }) => (
+              <Link
+                key={type}
+                href={`/listings?landType=${type}`}
+                className={`group flex flex-col items-center p-6 rounded-2xl border-2 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${color}`}
+                data-reveal-group="land-types"
+              >
+                <div className="p-4 rounded-xl bg-white shadow-sm group-hover:shadow-md transition-shadow">
+                  <Icon className="h-8 w-8" />
+                </div>
+                <h3 className="mt-4 font-semibold text-gray-900">{label}</h3>
+                <p className="text-sm text-gray-500 mt-1">{count} listings</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Listings */}
+      <section className="py-16 lg:py-20 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-10" data-reveal>
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+                Featured Listings
+              </h2>
+              <p className="mt-2 text-lg text-gray-600">
+                Hand-picked verified properties
+              </p>
+            </div>
+            <Link 
+              href="/listings" 
+              className="hidden md:flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
+            >
+              View All <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-6">
+            {featuredListings.map((listing) => (
+              <Link
+                key={listing.id}
+                href={`/listings/${listing.id}`}
+                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300"
+                data-reveal-group="featured"
+              >
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  <Image
+                    src={listing.image}
+                    alt={listing.title}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 bg-amber-500 text-white text-xs font-semibold rounded-full">
+                    <Star className="h-3 w-3 fill-current" />
+                    Featured
                   </div>
-                  <h3 className="mt-6 text-xl font-semibold" style={{ color: 'var(--c-neutral-ink)' }}>
+                  <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 bg-white/90 backdrop-blur-sm text-green-700 text-xs font-medium rounded-full">
+                    <ShieldCheck className="h-3 w-3" />
+                    Verified
+                  </div>
+                  <button className="absolute bottom-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full text-gray-600 hover:text-red-500 transition-colors">
+                    <Heart className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="p-5">
+                  <h3 className="font-semibold text-gray-900 line-clamp-1 group-hover:text-green-600 transition-colors">
+                    {listing.title}
+                  </h3>
+                  <div className="flex items-center gap-1 mt-2 text-sm text-gray-500">
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span>{listing.location}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                    <p className="text-xl font-bold text-green-600">
+                      GHS {listing.price.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-500">{listing.size} acres</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+          
+          <div className="mt-8 text-center md:hidden">
+            <Link 
+              href="/listings" 
+              className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors"
+            >
+              View All Listings <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Browse by Region */}
+      <section className="py-16 lg:py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12" data-reveal>
+            <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+              Browse by Region
+            </h2>
+            <p className="mt-4 text-lg text-gray-600">
+              Explore land across all 16 regions of Ghana
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {regions.map((region) => (
+              <Link
+                key={region.name}
+                href={`/listings?region=${encodeURIComponent(region.name)}`}
+                className="group relative overflow-hidden rounded-2xl aspect-[4/3] bg-gradient-to-br from-green-600 to-green-800"
+                data-reveal-group="regions"
+              >
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
+                <div className="absolute inset-0 p-4 flex flex-col justify-end">
+                  <div className="flex items-center gap-2 text-white/80 text-sm mb-1">
+                    <MapPin className="h-4 w-4" />
+                    <span>{region.count} listings</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition-colors">
+                    {region.name}
+                  </h3>
+                </div>
+                <div className="absolute top-4 right-4 p-2 bg-white/10 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ArrowRight className="h-4 w-4 text-white" />
+                </div>
+              </Link>
+            ))}
+          </div>
+          
+          <div className="mt-8 text-center">
+            <Link 
+              href="/listings" 
+              className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
+            >
+              View All Regions <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-16 lg:py-24 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12" data-reveal>
+            <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+              How It Works
+            </h2>
+            <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+              Buy land in Ghana with confidence using our secure, transparent process
+            </p>
+          </div>
+
+          <div className="relative">
+            {/* Connection Line (Desktop) */}
+            <div className="hidden md:block absolute top-16 left-[12.5%] right-[12.5%] h-0.5 bg-gradient-to-r from-green-200 via-green-400 to-green-200" data-how-line />
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              {steps.map((step, index) => (
+                <div key={index} className="relative text-center" data-how-step>
+                  <div className="relative z-10 inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-green-50 to-green-100 mb-6">
+                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-600 text-white text-sm font-bold flex items-center justify-center">
+                      {index + 1}
+                    </div>
+                    <step.icon className="h-12 w-12 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     {step.title}
                   </h3>
-                  <p className="mt-3 leading-relaxed" style={{ color: 'var(--c-neutral-ink-soft)' }}>
+                  <p className="text-gray-600 text-sm leading-relaxed">
                     {step.description}
                   </p>
-                  {/* Step 3 micro-reassurance */}
-                  {index === 2 && (
-                    <p className="mt-2 text-xs font-medium" style={{ color: 'var(--c-brand-primary)' }}>
-                      Funds released only after verification and buyer confirmation.
-                    </p>
-                  )}
                 </div>
               ))}
             </div>
-            
-            {/* Reassurance line */}
-            <div className="mt-12 text-center" data-reveal>
-              <div 
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium"
-                style={{ backgroundColor: 'var(--c-brand-primary-soft)', color: 'var(--c-brand-primary)' }}
-              >
-                <Shield className="h-4 w-4" />
-                Buyer approval is mandatory before any payment release.
-              </div>
+          </div>
+
+          <div className="text-center mt-12">
+            <Link
+              href="/auth/signup"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors"
+            >
+              Get Started Today
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Professional Services */}
+      <section className="py-16 lg:py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12" data-reveal>
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+                Professional Services
+              </h2>
+              <p className="mt-4 text-lg text-gray-600 max-w-xl">
+                Connect with verified professionals to help with your land transaction
+              </p>
             </div>
+            <Link
+              href="/professionals"
+              className="mt-4 md:mt-0 inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
+            >
+              View All Professionals
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {professionals.map(({ type, label, icon: Icon, description }) => (
+              <Link
+                key={type}
+                href={`/professionals?type=${type}`}
+                className="group bg-gray-50 rounded-xl p-5 border border-gray-100 hover:border-green-200 hover:shadow-lg transition-all duration-300"
+                data-reveal-group="professionals"
+              >
+                <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
+                  <Icon className="h-6 w-6 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">{label}</h3>
+                <p className="text-xs text-gray-500 line-clamp-2">{description}</p>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="relative py-20 lg:py-24 overflow-hidden">
-        {/* Parallax Background */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-fixed"
-          style={{ backgroundImage: 'url(/images/african-nature-scenery-with-road-trees.jpg)' }}
-        />
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-black/60" />
+      <section className="relative py-20 lg:py-24 overflow-hidden bg-gradient-to-br from-green-900 to-green-800">
+        <div className="absolute inset-0 opacity-10">
+          <Image
+            src="/images/african-nature-scenery-with-road-trees.jpg"
+            alt="Background"
+            fill
+            className="object-cover"
+          />
+        </div>
         
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center" data-reveal>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold drop-shadow-lg" style={{ color: '#ffffff' }}>
-              What Buyers Say
+          <div className="text-center mb-12" data-reveal>
+            <h2 className="text-3xl font-bold text-white sm:text-4xl">
+              What Our Users Say
             </h2>
-            <p className="mt-6 text-xl md:text-2xl font-medium drop-shadow-md" style={{ color: '#ffffff' }}>
+            <p className="mt-4 text-lg text-green-100/80">
               Trusted by Ghanaians at home and abroad
             </p>
           </div>
           
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
-            {testimonials.map((testimonial, index) => (
+          <div className="grid gap-6 md:grid-cols-3">
+            {testimonials.map((testimonial) => (
               <div
                 key={testimonial.name}
-                className="bg-white rounded-2xl p-6 lg:p-8 shadow-2xl"
+                className="bg-white rounded-2xl p-6 shadow-xl"
+                data-reveal-group="testimonials"
               >
                 <div className="flex gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="h-5 w-5 fill-yellow-400 text-yellow-400"
-                    />
+                    <Star key={i} className="h-5 w-5 fill-amber-400 text-amber-400" />
                   ))}
                 </div>
-                <p className="text-gray-700 leading-relaxed text-base">
+                <p className="text-gray-700 leading-relaxed">
                   &quot;{testimonial.quote}&quot;
                 </p>
-                <div className="mt-6 pt-4 border-t border-gray-200">
-                  <p className="font-bold text-gray-900 text-lg">{testimonial.name}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-sm px-3 py-1 rounded-full font-medium bg-emerald-100 text-emerald-700">
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <p className="font-semibold text-gray-900">{testimonial.name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary" className="text-xs">
                       {testimonial.role}
-                    </span>
-                    <span className="text-sm flex items-center gap-1 text-gray-600">
-                      <Globe className="h-4 w-4" />
+                    </Badge>
+                    <span className="text-sm flex items-center gap-1 text-gray-500">
+                      <Globe className="h-3.5 w-3.5" />
                       {testimonial.country}
                     </span>
                   </div>
@@ -622,33 +794,35 @@ export default function Home() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="light-section py-20 lg:py-24" style={{ backgroundColor: 'var(--c-neutral-surface)' }}>
+      <section className="py-20 lg:py-24 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto" data-reveal>
-            <h2 className="text-3xl font-bold sm:text-4xl lg:text-5xl" style={{ color: 'var(--c-neutral-ink)' }}>
-              Ready to Secure Your Land the Right Way?
-            </h2>
-            <p className="mt-6 text-lg leading-relaxed" style={{ color: 'var(--c-neutral-ink-soft)' }}>
-              Join buyers who use verified listings and escrow protection for 
-              fraud-free land transactions.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/auth/register">
-                <Button size="lg" className="px-8 h-12 font-semibold">
-                  Get Started
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link href="/how-it-works">
-                <Button size="lg" variant="outline" className="px-8 h-12">
-                  Learn How It Works
-                </Button>
-              </Link>
-            </div>
-            {/* Micro-reassurance */}
-            <div className="mt-6" data-assurance>
-              <CheckCircle className="h-4 w-4" style={{ color: 'var(--c-brand-primary)' }} />
-              <span style={{ color: 'var(--c-neutral-ink-soft)' }}>Escrow protection included on eligible transactions.</span>
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-green-600 to-green-700 p-8 md:p-12 lg:p-16">
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+            <div className="relative z-10 text-center max-w-3xl mx-auto" data-reveal>
+              <h2 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
+                Ready to Secure Your Land?
+              </h2>
+              <p className="mt-6 text-lg text-green-100/90 leading-relaxed">
+                Join thousands of buyers who use verified listings and escrow protection 
+                for fraud-free land transactions in Ghana.
+              </p>
+              <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/auth/signup">
+                  <Button size="lg" className="px-8 h-12 bg-white text-green-700 hover:bg-green-50 font-semibold">
+                    Get Started Free
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+                <Link href="/listings">
+                  <Button size="lg" variant="outline" className="px-8 h-12 border-2 border-white text-white hover:bg-white/10">
+                    Browse Listings
+                  </Button>
+                </Link>
+              </div>
+              <div className="mt-8 flex items-center justify-center gap-2 text-green-100/80">
+                <Shield className="h-5 w-5" />
+                <span className="text-sm">Escrow protection included on all eligible transactions</span>
+              </div>
             </div>
           </div>
         </div>

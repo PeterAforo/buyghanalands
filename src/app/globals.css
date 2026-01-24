@@ -4,12 +4,15 @@
    Design System Tokens
    ============================================ */
 :root {
-  /* Brand Colors */
-  --c-brand-primary: #0B7D5B;
-  --c-brand-primary-hover: #096E50;
-  --c-brand-primary-soft: rgba(11, 125, 91, 0.14);
-  --c-brand-accent: #20E3B2;
-  --c-brand-accent-soft: rgba(32, 227, 178, 0.16);
+  /* Brand Colors - Ghana-inspired earthy greens and golds */
+  --c-brand-primary: #2F855A;
+  --c-brand-primary-hover: #276749;
+  --c-brand-primary-light: #48BB78;
+  --c-brand-primary-soft: rgba(47, 133, 90, 0.14);
+  --c-brand-accent: #D69E2E;
+  --c-brand-accent-hover: #B7791F;
+  --c-brand-accent-light: #F6AD55;
+  --c-brand-accent-soft: rgba(214, 158, 46, 0.16);
 
   /* Neutral Colors */
   --c-neutral-ink: #0B1F17;
