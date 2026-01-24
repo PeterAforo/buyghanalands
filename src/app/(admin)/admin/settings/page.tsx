@@ -18,6 +18,10 @@ import {
   EyeOff,
   CheckCircle,
   AlertCircle,
+  Plus,
+  Trash2,
+  X,
+  Lock,
 } from "lucide-react";
 
 type SettingValue = {
@@ -30,10 +34,10 @@ type SettingsData = Record<string, Record<string, SettingValue>>;
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   smtp: { label: "Email (SMTP)", icon: Mail, color: "text-blue-600 bg-blue-50" },
-  payment: { label: "Payment (Paystack)", icon: CreditCard, color: "text-emerald-600 bg-emerald-50" },
-  sms: { label: "SMS (mNotify)", icon: MessageSquare, color: "text-purple-600 bg-purple-50" },
-  storage: { label: "Storage (S3/R2)", icon: HardDrive, color: "text-orange-600 bg-orange-50" },
-  maps: { label: "Maps (Mapbox)", icon: Map, color: "text-cyan-600 bg-cyan-50" },
+  payment: { label: "Payment", icon: CreditCard, color: "text-emerald-600 bg-emerald-50" },
+  sms: { label: "SMS", icon: MessageSquare, color: "text-purple-600 bg-purple-50" },
+  storage: { label: "Storage", icon: HardDrive, color: "text-orange-600 bg-orange-50" },
+  maps: { label: "Maps", icon: Map, color: "text-cyan-600 bg-cyan-50" },
   notifications: { label: "Push Notifications", icon: Bell, color: "text-yellow-600 bg-yellow-50" },
   platform: { label: "Platform Settings", icon: Settings, color: "text-gray-600 bg-gray-100" },
 };
@@ -47,6 +51,12 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("smtp");
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newKey, setNewKey] = useState("");
+  const [newValue, setNewValue] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newIsEncrypted, setNewIsEncrypted] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -110,6 +120,58 @@ export default function AdminSettingsPage() {
 
   const togglePassword = (key: string) => {
     setShowPasswords((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleAddSetting = async () => {
+    if (!newKey.trim()) return;
+    
+    const formattedKey = newKey.toUpperCase().replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "");
+    
+    // Add to local state
+    setSettings((prev) => ({
+      ...prev,
+      [activeTab]: {
+        ...prev[activeTab],
+        [formattedKey]: {
+          value: newValue,
+          description: newDescription || `Custom ${activeTab} setting`,
+          isEncrypted: newIsEncrypted,
+        },
+      },
+    }));
+
+    // Reset modal
+    setNewKey("");
+    setNewValue("");
+    setNewDescription("");
+    setNewIsEncrypted(false);
+    setShowAddModal(false);
+  };
+
+  const handleDeleteSetting = async (key: string) => {
+    setDeleting(key);
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: activeTab, key }),
+      });
+
+      if (response.ok) {
+        setSettings((prev) => {
+          const newCategorySettings = { ...prev[activeTab] };
+          delete newCategorySettings[key];
+          return { ...prev, [activeTab]: newCategorySettings };
+        });
+      } else {
+        setError("Failed to delete setting");
+      }
+    } catch (err) {
+      console.error("Failed to delete setting:", err);
+      setError("Failed to delete setting");
+    } finally {
+      setDeleting(null);
+    }
   };
 
   if (authStatus === "loading" || loading) {
@@ -181,32 +243,56 @@ export default function AdminSettingsPage() {
                   <p className="text-[10px] text-gray-400">Configure {config.label.toLowerCase()} settings</p>
                 </div>
               </div>
-              <button
-                onClick={() => handleSave(activeTab)}
-                disabled={saving === activeTab}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  saved === activeTab
-                    ? "bg-emerald-50 text-emerald-600"
-                    : "bg-[#1a3a2f] text-white hover:bg-[#2a4a3f]"
-                } disabled:opacity-50`}
-              >
-                {saving === activeTab ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : saved === activeTab ? (
-                  <CheckCircle className="h-3.5 w-3.5" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
-                {saved === activeTab ? "Saved!" : "Save"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
+                </button>
+                <button
+                  onClick={() => handleSave(activeTab)}
+                  disabled={saving === activeTab}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    saved === activeTab
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "bg-[#1a3a2f] text-white hover:bg-[#2a4a3f]"
+                  } disabled:opacity-50`}
+                >
+                  {saving === activeTab ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : saved === activeTab ? (
+                    <CheckCircle className="h-3.5 w-3.5" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}
+                  {saved === activeTab ? "Saved!" : "Save"}
+                </button>
+              </div>
             </div>
 
             <div className="p-5 space-y-4">
               {Object.entries(currentCategory).map(([key, setting]) => (
-                <div key={key}>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    {key.replace(/_/g, " ")}
-                  </label>
+                <div key={key} className="group">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
+                      {key.replace(/_/g, " ")}
+                      {setting.isEncrypted && <Lock className="h-3 w-3 text-gray-400" />}
+                    </label>
+                    <button
+                      onClick={() => handleDeleteSetting(key)}
+                      disabled={deleting === key}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                      title="Delete this setting"
+                    >
+                      {deleting === key ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                    </button>
+                  </div>
                   <div className="relative">
                     <input
                       type={setting.isEncrypted && !showPasswords[key] ? "password" : "text"}
@@ -236,7 +322,8 @@ export default function AdminSettingsPage() {
               {Object.keys(currentCategory).length === 0 && (
                 <div className="text-center py-8 text-gray-400">
                   <Settings className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No settings available</p>
+                  <p className="text-sm">No settings configured</p>
+                  <p className="text-xs mt-1">Click "Add" to add a new API configuration</p>
                 </div>
               )}
             </div>
@@ -251,6 +338,86 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Add Setting Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[#1a3a2f]">Add New Setting</h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Key Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newKey}
+                  onChange={(e) => setNewKey(e.target.value)}
+                  placeholder="e.g., FLUTTERWAVE_SECRET_KEY"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Will be formatted as uppercase with underscores</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Value</label>
+                <input
+                  type={newIsEncrypted ? "password" : "text"}
+                  value={newValue}
+                  onChange={(e) => setNewValue(e.target.value)}
+                  placeholder="Enter the value"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Description</label>
+                <input
+                  type="text"
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="Brief description of this setting"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="isEncrypted"
+                  checked={newIsEncrypted}
+                  onChange={(e) => setNewIsEncrypted(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-[#1a3a2f] focus:ring-[#1a3a2f]"
+                />
+                <label htmlFor="isEncrypted" className="text-xs text-gray-700">
+                  <span className="font-medium">Encrypt this value</span>
+                  <span className="text-gray-400 ml-1">(for passwords, API keys, secrets)</span>
+                </label>
+              </div>
+            </div>
+            <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddSetting}
+                disabled={!newKey.trim()}
+                className="px-4 py-2 text-xs font-medium bg-[#1a3a2f] text-white rounded-lg hover:bg-[#2a4a3f] transition-colors disabled:opacity-50"
+              >
+                Add Setting
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

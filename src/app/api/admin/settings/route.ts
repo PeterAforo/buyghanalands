@@ -106,6 +106,7 @@ export async function GET(request: NextRequest) {
     // Build response with defaults and DB values
     const result: Record<string, Record<string, { value: string; description: string; isEncrypted: boolean }>> = {};
 
+    // First, add all default settings
     for (const [cat, keys] of Object.entries(DEFAULT_SETTINGS)) {
       if (category && cat !== category) continue;
       
@@ -115,12 +116,30 @@ export async function GET(request: NextRequest) {
         if (dbSetting) {
           result[cat][key] = {
             value: dbSetting.isEncrypted ? "••••••••" : dbSetting.value,
-            description: defaultVal.description,
+            description: dbSetting.description || defaultVal.description,
             isEncrypted: dbSetting.isEncrypted,
           };
         } else {
           result[cat][key] = defaultVal;
         }
+      }
+    }
+
+    // Then, add any custom settings from DB that aren't in defaults
+    for (const dbSetting of dbSettings) {
+      if (category && dbSetting.category !== category) continue;
+      
+      if (!result[dbSetting.category]) {
+        result[dbSetting.category] = {};
+      }
+      
+      // Only add if not already present (custom settings)
+      if (!result[dbSetting.category][dbSetting.key]) {
+        result[dbSetting.category][dbSetting.key] = {
+          value: dbSetting.isEncrypted ? "••••••••" : dbSetting.value,
+          description: dbSetting.description || `Custom ${dbSetting.category} setting`,
+          isEncrypted: dbSetting.isEncrypted,
+        };
       }
     }
 
@@ -153,14 +172,18 @@ export async function PUT(request: NextRequest) {
     for (const [key, value] of Object.entries(settings)) {
       if (value === "••••••••") continue; // Skip masked values
       
-      const isEncrypted = SENSITIVE_KEYS.includes(key);
+      // Check if it's a known sensitive key or if it was previously marked as encrypted
+      const existingSetting = await prisma.systemSetting.findUnique({
+        where: { category_key: { category, key } },
+      });
+      
+      const isEncrypted = SENSITIVE_KEYS.includes(key) || existingSetting?.isEncrypted || false;
       const storedValue = isEncrypted ? encrypt(value) : value;
 
       await prisma.systemSetting.upsert({
         where: { category_key: { category, key } },
         update: {
           value: storedValue,
-          isEncrypted,
           updatedBy: session.user.id,
         },
         create: {
@@ -168,7 +191,7 @@ export async function PUT(request: NextRequest) {
           key,
           value: storedValue,
           isEncrypted,
-          description: DEFAULT_SETTINGS[category]?.[key]?.description || "",
+          description: DEFAULT_SETTINGS[category]?.[key]?.description || existingSetting?.description || "",
           updatedBy: session.user.id,
         },
       });
@@ -190,6 +213,48 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("Error updating settings:", error);
     return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { category, key } = body as { category: string; key: string };
+
+    if (!category || !key) {
+      return NextResponse.json({ error: "Category and key required" }, { status: 400 });
+    }
+
+    // Delete the setting
+    await prisma.systemSetting.delete({
+      where: { category_key: { category, key } },
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        entityType: "LISTING",
+        entityId: "system-settings",
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "DELETE",
+        diff: { category, key },
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting setting:", error);
+    return NextResponse.json({ error: "Failed to delete setting" }, { status: 500 });
   }
 }
 
