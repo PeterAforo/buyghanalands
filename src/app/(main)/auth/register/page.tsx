@@ -42,7 +42,65 @@ import {
   AGENT_PLANS,
   PROFESSIONAL_PLANS,
   formatSubscriptionPrice,
+  type BuyerPlanConfig,
+  type SellerPlanConfig,
+  type AgentPlanConfig,
+  type ProfessionalPlanConfig,
 } from "@/lib/subscriptions";
+
+// Feature display configuration for each account type
+const BUYER_FEATURE_LABELS: Record<string, { label: string; description: string }> = {
+  savedSearchLimit: { label: "Saved Searches", description: "Save your search criteria" },
+  alertLimit: { label: "Property Alerts", description: "Get notified of new listings" },
+  instantAlerts: { label: "Instant Alerts", description: "Real-time notifications" },
+  prioritySupport: { label: "Priority Support", description: "Faster response times" },
+  escrowInsuranceDiscount: { label: "Escrow Discount", description: "10% off escrow fees" },
+  earlyAccess: { label: "Early Access", description: "See listings before others" },
+  dedicatedAgent: { label: "Dedicated Agent", description: "Personal property advisor" },
+  freeDocVerification: { label: "Free Doc Verification", description: "1 free verification/month" },
+  vipBadge: { label: "VIP Badge", description: "Stand out to sellers" },
+};
+
+const SELLER_FEATURE_LABELS: Record<string, { label: string; description: string }> = {
+  listingLimit: { label: "Listings", description: "Number of active listings" },
+  transactionFeeRate: { label: "Transaction Fee", description: "Fee on successful sales" },
+  featuredListingsIncluded: { label: "Featured Listings", description: "Boost visibility" },
+  listingExpiryDays: { label: "Listing Duration", description: "How long listings stay active" },
+  analytics: { label: "Analytics", description: "Track listing performance" },
+  advancedAnalytics: { label: "Advanced Analytics", description: "Detailed insights" },
+  featuredPlacement: { label: "Featured Placement", description: "Homepage visibility" },
+  prioritySupport: { label: "Priority Support", description: "Faster response times" },
+  verifiedBadge: { label: "Verified Badge", description: "Build buyer trust" },
+  apiAccess: { label: "API Access", description: "Integrate with your systems" },
+};
+
+const AGENT_FEATURE_LABELS: Record<string, { label: string; description: string }> = {
+  clientLimit: { label: "Clients", description: "Maximum managed clients" },
+  listingLimit: { label: "Listings", description: "Maximum managed listings" },
+  leadGeneration: { label: "Lead Generation", description: "Get matched with buyers" },
+  premiumLeadGeneration: { label: "Premium Leads", description: "High-value buyer matches" },
+  verifiedBadge: { label: "Verified Badge", description: "Build client trust" },
+  eliteBadge: { label: "Elite Badge", description: "Top agent recognition" },
+  prioritySupport: { label: "Priority Support", description: "Faster response times" },
+  dedicatedSupport: { label: "Dedicated Support", description: "Personal account manager" },
+  teamMembers: { label: "Team Members", description: "Add team to your account" },
+  crm: { label: "CRM Tools", description: "Manage client relationships" },
+  apiAccess: { label: "API Access", description: "Integrate with your systems" },
+};
+
+const PROFESSIONAL_FEATURE_LABELS: Record<string, { label: string; description: string }> = {
+  leadLimit: { label: "Monthly Leads", description: "Client inquiries per month" },
+  serviceCommissionRate: { label: "Platform Fee", description: "Commission on services" },
+  profilePriority: { label: "Profile Priority", description: "Search ranking boost" },
+  featuredProfile: { label: "Featured Profile", description: "Homepage visibility" },
+  topPlacement: { label: "Top Placement", description: "Always appear first" },
+  verifiedBadge: { label: "Verified Badge", description: "Build client trust" },
+  eliteBadge: { label: "Elite Badge", description: "Top professional recognition" },
+  prioritySupport: { label: "Priority Support", description: "Faster response times" },
+  dedicatedSupport: { label: "Dedicated Support", description: "Personal account manager" },
+  portfolioShowcase: { label: "Portfolio Showcase", description: "Display your work" },
+  apiAccess: { label: "API Access", description: "Integrate with your systems" },
+};
 
 const registerSchema = z
   .object({
@@ -426,10 +484,106 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="grid gap-4 mb-8">
-                  {plans.map((plan) => {
+                  {plans.map((plan, index) => {
                     const isSelected = selectedPlan === plan.plan;
                     const price = billingCycle === "YEARLY" ? plan.yearlyPrice : plan.monthlyPrice;
                     const monthlyEquivalent = billingCycle === "YEARLY" ? Math.round(plan.yearlyPrice / 12) : plan.monthlyPrice;
+                    
+                    // Get the appropriate feature labels based on account type
+                    const featureLabels = selectedAccountType === "BUYER" 
+                      ? BUYER_FEATURE_LABELS 
+                      : selectedAccountType === "SELLER" 
+                      ? SELLER_FEATURE_LABELS 
+                      : selectedAccountType === "AGENT" 
+                      ? AGENT_FEATURE_LABELS 
+                      : PROFESSIONAL_FEATURE_LABELS;
+
+                    // Get key differentiating features for this plan
+                    const getKeyFeatures = () => {
+                      const features: { label: string; value: string; isHighlight: boolean }[] = [];
+                      
+                      if (selectedAccountType === "BUYER") {
+                        const p = plan as BuyerPlanConfig;
+                        features.push({
+                          label: "Saved Searches",
+                          value: p.savedSearchLimit === -1 ? "Unlimited" : `${p.savedSearchLimit}`,
+                          isHighlight: p.savedSearchLimit === -1 || p.savedSearchLimit > 3,
+                        });
+                        features.push({
+                          label: "Property Alerts",
+                          value: p.alertLimit === -1 ? "Unlimited" : `${p.alertLimit}`,
+                          isHighlight: p.alertLimit === -1 || p.alertLimit > 5,
+                        });
+                        if (p.features.instantAlerts) features.push({ label: "Instant Alerts", value: "✓", isHighlight: true });
+                        if (p.features.prioritySupport) features.push({ label: "Priority Support", value: "✓", isHighlight: true });
+                        if (p.features.earlyAccess) features.push({ label: "Early Access", value: "✓", isHighlight: true });
+                        if (p.features.dedicatedAgent) features.push({ label: "Dedicated Agent", value: "✓", isHighlight: true });
+                        if (p.features.freeDocVerification) features.push({ label: "Free Doc Verification", value: "✓", isHighlight: true });
+                      } else if (selectedAccountType === "SELLER") {
+                        const p = plan as SellerPlanConfig;
+                        features.push({
+                          label: "Active Listings",
+                          value: p.listingLimit === -1 ? "Unlimited" : `${p.listingLimit}`,
+                          isHighlight: p.listingLimit === -1 || p.listingLimit > 1,
+                        });
+                        features.push({
+                          label: "Transaction Fee",
+                          value: `${(p.transactionFeeRate * 100).toFixed(1)}%`,
+                          isHighlight: p.transactionFeeRate < 0.05,
+                        });
+                        features.push({
+                          label: "Listing Duration",
+                          value: p.listingExpiryDays === 0 ? "Never expires" : `${p.listingExpiryDays} days`,
+                          isHighlight: p.listingExpiryDays === 0,
+                        });
+                        if (p.featuredListingsIncluded > 0) features.push({ label: "Featured Listings", value: `${p.featuredListingsIncluded}/mo`, isHighlight: true });
+                        if (p.features.analytics) features.push({ label: "Analytics", value: "✓", isHighlight: true });
+                        if (p.features.verifiedBadge) features.push({ label: "Verified Badge", value: "✓", isHighlight: true });
+                        if (p.features.apiAccess) features.push({ label: "API Access", value: "✓", isHighlight: true });
+                      } else if (selectedAccountType === "AGENT") {
+                        const p = plan as AgentPlanConfig;
+                        features.push({
+                          label: "Max Clients",
+                          value: p.clientLimit === -1 ? "Unlimited" : `${p.clientLimit}`,
+                          isHighlight: p.clientLimit === -1 || p.clientLimit > 10,
+                        });
+                        features.push({
+                          label: "Max Listings",
+                          value: p.listingLimit === -1 ? "Unlimited" : `${p.listingLimit}`,
+                          isHighlight: p.listingLimit === -1 || p.listingLimit > 15,
+                        });
+                        if (p.features.leadGeneration) features.push({ label: "Lead Generation", value: "✓", isHighlight: true });
+                        if (p.features.crm) features.push({ label: "CRM Tools", value: "✓", isHighlight: true });
+                        if (p.features.verifiedBadge) features.push({ label: "Verified Badge", value: "✓", isHighlight: true });
+                        if (p.features.teamMembers) features.push({ label: "Team Members", value: "✓", isHighlight: true });
+                        if (p.features.dedicatedSupport) features.push({ label: "Dedicated Support", value: "✓", isHighlight: true });
+                      } else {
+                        const p = plan as ProfessionalPlanConfig;
+                        features.push({
+                          label: "Monthly Leads",
+                          value: p.leadLimit === -1 ? "Unlimited" : `${p.leadLimit}`,
+                          isHighlight: p.leadLimit === -1 || p.leadLimit > 5,
+                        });
+                        features.push({
+                          label: "Platform Fee",
+                          value: `${(p.serviceCommissionRate * 100).toFixed(0)}%`,
+                          isHighlight: p.serviceCommissionRate < 0.10,
+                        });
+                        features.push({
+                          label: "Profile Priority",
+                          value: p.profilePriority === 1 ? "Standard" : p.profilePriority === 5 ? "High" : "Top",
+                          isHighlight: p.profilePriority > 1,
+                        });
+                        if (p.features.featuredProfile) features.push({ label: "Featured Profile", value: "✓", isHighlight: true });
+                        if (p.features.portfolioShowcase) features.push({ label: "Portfolio Showcase", value: "✓", isHighlight: true });
+                        if (p.features.verifiedBadge) features.push({ label: "Verified Badge", value: "✓", isHighlight: true });
+                        if (p.features.dedicatedSupport) features.push({ label: "Dedicated Support", value: "✓", isHighlight: true });
+                      }
+                      
+                      return features;
+                    };
+
+                    const keyFeatures = getKeyFeatures();
 
                     return (
                       <button
@@ -439,36 +593,26 @@ export default function RegisterPage() {
                         className={`relative p-5 rounded-2xl border-2 text-left transition-all ${
                           isSelected
                             ? "border-emerald-500 bg-emerald-50 shadow-lg"
+                            : plan.popular
+                            ? "border-yellow-300 bg-yellow-50/30 hover:border-yellow-400"
                             : "border-gray-200 bg-white hover:border-gray-300"
                         }`}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-gray-900 text-lg">{plan.name}</h3>
-                              {plan.popular && (
-                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                                  <Star className="h-3 w-3" /> Popular
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600 mb-3">{plan.description}</p>
-                            <div className="flex flex-wrap gap-2">
-                              {Object.entries(plan.features)
-                                .filter(([, value]) => value === true)
-                                .slice(0, 4)
-                                .map(([key]) => (
-                                  <span
-                                    key={key}
-                                    className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full"
-                                  >
-                                    {key.replace(/([A-Z])/g, " $1").trim()}
-                                  </span>
-                                ))}
-                            </div>
+                        {plan.popular && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                            <span className="text-xs bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-3 py-1 rounded-full font-medium flex items-center gap-1 shadow-md">
+                              <Star className="h-3 w-3" /> Most Popular
+                            </span>
                           </div>
-                          <div className="text-right ml-4">
-                            <p className="text-2xl font-bold text-gray-900">
+                        )}
+                        
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-bold text-gray-900 text-xl">{plan.name}</h3>
+                            <p className="text-sm text-gray-600">{plan.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-3xl font-bold text-gray-900">
                               {price === 0 ? "Free" : `GHS ${monthlyEquivalent}`}
                             </p>
                             {price > 0 && (
@@ -478,8 +622,34 @@ export default function RegisterPage() {
                             )}
                           </div>
                         </div>
+
+                        {/* Key Features Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-4 border-t border-gray-100">
+                          {keyFeatures.slice(0, 6).map((feature, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex items-center gap-2 p-2 rounded-lg ${
+                                feature.isHighlight ? "bg-emerald-50" : "bg-gray-50"
+                              }`}
+                            >
+                              {feature.value === "✓" ? (
+                                <CheckCircle className={`h-4 w-4 flex-shrink-0 ${
+                                  feature.isHighlight ? "text-emerald-600" : "text-gray-400"
+                                }`} />
+                              ) : (
+                                <span className={`text-sm font-bold ${
+                                  feature.isHighlight ? "text-emerald-600" : "text-gray-600"
+                                }`}>
+                                  {feature.value}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-700 truncate">{feature.label}</span>
+                            </div>
+                          ))}
+                        </div>
+
                         {isSelected && (
-                          <div className="absolute top-4 right-4 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                          <div className="absolute top-4 right-4 w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center shadow-md">
                             <Check className="h-4 w-4 text-white" />
                           </div>
                         )}
