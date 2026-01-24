@@ -81,7 +81,7 @@ export default async function AdminLayout({
 
         {/* Menu Section */}
         <div className="px-4 mt-4">
-          <p className="text-[#6b8f7a] text-xs font-medium uppercase tracking-wider mb-3 px-3">Menu</p>
+          <p className="text-[#a3c4b5] text-[10px] font-semibold uppercase tracking-wider mb-3 px-3">Menu</p>
           <nav className="space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
@@ -106,7 +106,7 @@ export default async function AdminLayout({
 
         {/* General Section */}
         <div className="px-4 mt-8">
-          <p className="text-[#6b8f7a] text-xs font-medium uppercase tracking-wider mb-3 px-3">General</p>
+          <p className="text-[#a3c4b5] text-[10px] font-semibold uppercase tracking-wider mb-3 px-3">General</p>
           <nav className="space-y-1">
             {generalItems.map((item) => {
               const Icon = item.icon;
@@ -157,35 +157,33 @@ export default async function AdminLayout({
       {/* Main Content Area */}
       <div className="flex-1 ml-[240px]">
         {/* Top Header */}
-        <header className="h-16 bg-[#f8f7f4] flex items-center justify-between px-8 sticky top-0 z-40">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold text-[#1a3a2f]">Admin Panel</h1>
-            <ChevronDown className="h-4 w-4 text-[#1a3a2f]" />
-          </div>
-
-          <div className="flex items-center gap-4">
+        <header className="h-14 bg-[#f8f7f4] flex items-center justify-end px-6 sticky top-0 z-40">
+          <div className="flex items-center gap-3">
             {/* Search */}
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search anything in Admin..."
-                className="w-[280px] pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
+                placeholder="Search..."
+                className="w-[200px] pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
               />
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             </div>
 
             {/* Notifications */}
-            <button className="relative p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-              <Bell className="h-5 w-5 text-[#1a3a2f]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
+            <Link
+              href="/admin/messages"
+              className="relative p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Bell className="h-4 w-4 text-[#1a3a2f]" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+            </Link>
 
             {/* View Site */}
             <Link
               href="/"
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#1a3a2f] text-white rounded-xl text-sm font-medium hover:bg-[#2a4a3f] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#1a3a2f] text-white rounded-lg text-xs font-medium hover:bg-[#2a4a3f] transition-colors"
             >
-              <Home className="h-4 w-4" />
+              <Home className="h-3.5 w-3.5" />
               View Site
             </Link>
           </div>

@@ -134,35 +134,42 @@ export default function AdminUsersPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
             <Link href="/admin" className="hover:text-[#1a3a2f]">Dashboard</Link>
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3 w-3" />
             <span className="text-[#1a3a2f]">Customers</span>
           </div>
-          <h1 className="text-2xl font-bold text-[#1a3a2f]">Customer Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage all platform users and their accounts</p>
+          <h1 className="text-lg font-semibold text-[#1a3a2f]">Customer Management</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Manage all platform users and their accounts</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-            <Download className="h-4 w-4" />
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => {
+              const csvContent = users.map(u => `${u.fullName},${u.phone},${u.email || ''},${u.roles.join(';')},${u.accountStatus}`).join('\n');
+              const blob = new Blob([`Name,Phone,Email,Roles,Status\n${csvContent}`], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'users-export.csv';
+              a.click();
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
             Export
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-[#1a3a2f] text-white rounded-xl text-sm font-medium hover:bg-[#2a4a3f] transition-colors">
-            <Plus className="h-4 w-4" />
-            Add User
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-center justify-between">
-          <div className="flex gap-2">
+      <div className="bg-white rounded-xl border border-gray-100 p-3 mb-4">
+        <div className="flex flex-wrap gap-3 items-center justify-between">
+          <div className="flex gap-1.5">
             <button
               onClick={() => setFilter("all")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 filter === "all" 
                   ? "bg-[#1a3a2f] text-white" 
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -172,7 +179,7 @@ export default function AdminUsersPage() {
             </button>
             <button
               onClick={() => setFilter("active")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 filter === "active" 
                   ? "bg-[#1a3a2f] text-white" 
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -182,7 +189,7 @@ export default function AdminUsersPage() {
             </button>
             <button
               onClick={() => setFilter("suspended")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 filter === "suspended" 
                   ? "bg-[#1a3a2f] text-white" 
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -192,7 +199,7 @@ export default function AdminUsersPage() {
             </button>
             <button
               onClick={() => setFilter("sellers")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 filter === "sellers" 
                   ? "bg-[#1a3a2f] text-white" 
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -201,47 +208,44 @@ export default function AdminUsersPage() {
               Sellers
             </button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, phone, or email..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-[280px] pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
+                className="w-[180px] pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
               />
             </div>
-            <button className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
-              <Filter className="h-4 w-4 text-gray-600" />
-            </button>
           </div>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
         {users.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="h-8 w-8 text-gray-400" />
+          <div className="text-center py-12">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <User className="h-6 w-6 text-gray-400" />
             </div>
-            <p className="text-gray-500 font-medium">No users found</p>
-            <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filter</p>
+            <p className="text-gray-500 text-sm font-medium">No users found</p>
+            <p className="text-xs text-gray-400 mt-0.5">Try adjusting your search or filter</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left py-4 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="text-left py-4 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th className="text-left py-4 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Roles</th>
-                  <th className="text-left py-4 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">KYC</th>
-                  <th className="text-left py-4 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="text-left py-4 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Activity</th>
-                  <th className="text-left py-4 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Joined</th>
-                  <th className="text-left py-4 px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Roles</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">KYC</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Activity</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Joined</th>
+                  <th className="text-left py-3 px-4 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -251,42 +255,42 @@ export default function AdminUsersPage() {
 
                   return (
                     <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-xl bg-[#c5e063] flex items-center justify-center">
-                            <span className="text-[#1a3a2f] font-semibold text-sm">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-lg bg-[#c5e063] flex items-center justify-center flex-shrink-0">
+                            <span className="text-[#1a3a2f] font-semibold text-xs">
                               {user.fullName.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                          <div>
-                            <p className="font-medium text-[#1a3a2f]">{user.fullName}</p>
-                            <p className="text-xs text-gray-400">ID: {user.id.slice(0, 8)}...</p>
+                          <div className="min-w-0">
+                            <p className="font-medium text-[#1a3a2f] text-sm truncate">{user.fullName}</p>
+                            <p className="text-[10px] text-gray-400">ID: {user.id.slice(0, 8)}...</p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-1.5 text-sm text-[#1a3a2f]">
-                          <Phone className="h-3.5 w-3.5 text-gray-400" />
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1 text-xs text-[#1a3a2f]">
+                          <Phone className="h-3 w-3 text-gray-400" />
                           {user.phone}
                         </div>
                         {user.email && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">
-                            <Mail className="h-3 w-3" />
-                            {user.email}
+                          <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
+                            <Mail className="h-2.5 w-2.5" />
+                            <span className="truncate max-w-[120px]">{user.email}</span>
                           </div>
                         )}
                       </td>
-                      <td className="py-4 px-5">
+                      <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
                           {user.roles.map((role) => (
-                            <span key={role} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg">
+                            <span key={role} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-medium rounded">
                               {role}
                             </span>
                           ))}
                         </div>
                       </td>
-                      <td className="py-4 px-5">
-                        <span className={`px-2.5 py-1 text-xs font-medium rounded-lg ${
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-0.5 text-[10px] font-medium rounded ${
                           kycBadge.variant === "success" 
                             ? "bg-emerald-100 text-emerald-700" 
                             : kycBadge.variant === "warning"
@@ -296,8 +300,8 @@ export default function AdminUsersPage() {
                           {kycBadge.label}
                         </span>
                       </td>
-                      <td className="py-4 px-5">
-                        <span className={`px-2.5 py-1 text-xs font-medium rounded-lg ${
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-0.5 text-[10px] font-medium rounded ${
                           statusBadge.variant === "success" 
                             ? "bg-emerald-100 text-emerald-700" 
                             : statusBadge.variant === "destructive"
@@ -307,23 +311,23 @@ export default function AdminUsersPage() {
                           {statusBadge.label}
                         </span>
                       </td>
-                      <td className="py-4 px-5">
-                        <p className="text-sm text-[#1a3a2f]">{user._count.listings} listings</p>
-                        <p className="text-xs text-gray-400">
+                      <td className="py-3 px-4">
+                        <p className="text-xs text-[#1a3a2f]">{user._count.listings} listings</p>
+                        <p className="text-[10px] text-gray-400">
                           {user._count.transactionsAsBuyer + user._count.transactionsAsSeller} transactions
                         </p>
                       </td>
-                      <td className="py-4 px-5 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-2">
+                      <td className="py-3 px-4 text-xs text-gray-500">{formatDate(user.createdAt)}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1">
                           {user.accountStatus === "ACTIVE" ? (
                             <button
                               onClick={() => handleUserAction(user.id, "suspend")}
                               disabled={actionLoading === user.id}
-                              className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-50"
+                              className="px-2 py-1 text-[10px] font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 rounded transition-colors disabled:opacity-50"
                             >
                               {actionLoading === user.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
                                 "Suspend"
                               )}
@@ -332,18 +336,21 @@ export default function AdminUsersPage() {
                             <button
                               onClick={() => handleUserAction(user.id, "activate")}
                               disabled={actionLoading === user.id}
-                              className="px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors disabled:opacity-50"
+                              className="px-2 py-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded transition-colors disabled:opacity-50"
                             >
                               {actionLoading === user.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
                                 "Activate"
                               )}
                             </button>
                           )}
-                          <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
+                          <Link 
+                            href={`/admin/users/${user.id}`}
+                            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Link>
                         </div>
                       </td>
                     </tr>
