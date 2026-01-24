@@ -1,0 +1,834 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// WORKFLOW SYSTEM SCHEMA EXTENSION
+// Complete Land Acquisition to Building Completion Workflow
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// ENUMS FOR WORKFLOW SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────────
+
+enum WorkflowType {
+  LAND_ACQUISITION
+  PRE_CONSTRUCTION
+  BUILDING_PERMIT
+  CONSTRUCTION
+  COMPLETION
+}
+
+enum WorkflowStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum StageStatus {
+  LOCKED
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  BLOCKED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum LandOwnershipType {
+  GOVERNMENT
+  VESTED
+  CUSTOMARY_STOOL
+  FAMILY_PRIVATE
+}
+
+enum VerificationFindingStatus {
+  PENDING
+  CONFIRMED
+  ISSUES_FOUND
+  DISPUTED
+}
+
+enum NegotiationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  AGREED
+  FAILED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CASH
+  ESCROW
+}
+
+enum RegistrationStatus {
+  NOT_SUBMITTED
+  PREPARING
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PossessionStatus {
+  NOT_TAKEN
+  MARKING_TERRITORY
+  MONITORING
+  SECURED
+  DISPUTED
+}
+
+enum BuildingType {
+  RESIDENTIAL
+  COMMERCIAL
+  INDUSTRIAL
+  MIXED_USE
+  INSTITUTIONAL
+}
+
+enum DesignPhase {
+  BRIEFING
+  CONCEPTUAL
+  DETAILED
+  FINAL_REVIEW
+  APPROVED
+}
+
+enum DrawingType {
+  FLOOR_PLAN
+  ELEVATION
+  SECTION
+  DETAIL
+  ROOF_PLAN
+  SITE_LAYOUT
+  FOUNDATION
+  STRUCTURAL_FRAMING
+  PLUMBING
+  ELECTRICAL
+  HVAC
+  FIRE_PROTECTION
+}
+
+enum PermitApplicationStatus {
+  DRAFT
+  DOCUMENTS_GATHERING
+  READY_TO_SUBMIT
+  SUBMITTED
+  PRELIMINARY_REVIEW
+  SITE_INSPECTION_SCHEDULED
+  SITE_INSPECTION_COMPLETE
+  TECHNICAL_REVIEW
+  COMMITTEE_REVIEW
+  APPROVED
+  APPROVED_WITH_CONDITIONS
+  DEFERRED
+  REJECTED
+  APPEAL_IN_PROGRESS
+  PERMIT_ISSUED
+}
+
+enum InspectionOutcome {
+  PASSED
+  PASSED_WITH_CONDITIONS
+  FAILED
+  RESCHEDULED
+}
+
+enum ConstructionPhase {
+  PRE_CONSTRUCTION
+  FOUNDATION
+  SUBSTRUCTURE
+  SUPERSTRUCTURE
+  ROOFING
+  FINISHING
+  EXTERNAL_WORKS
+  FINAL_INSPECTION
+  COMPLETION
+}
+
+enum InspectionType {
+  SITE_CLEARANCE
+  FOUNDATION
+  GROUND_FLOOR_SLAB
+  FIRST_FLOOR_SLAB
+  ROOF_LEVEL
+  FINAL_COMPLETION
+  FIRE_SAFETY
+  ELECTRICAL
+  PLUMBING
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// CORE WORKFLOW MODELS
+// ─────────────────────────────────────────────────────────────────────────────────
+
+// Master Workflow - Links all modules together for a property
+model PropertyWorkflow {
+  id                String         @id @default(cuid())
+  userId            String
+  user              User           @relation(fields: [userId], references: [id])
+  listingId         String?        // Optional link to existing listing
+  listing           Listing?       @relation(fields: [listingId], references: [id])
+  
+  // Property Details (if not linked to listing)
+  propertyTitle     String?
+  propertyAddress   String?
+  region            String?
+  district          String?
+  town              String?
+  plotNumber        String?
+  landSizeAcres     Decimal?       @db.Decimal(10, 4)
+  
+  // Overall Status
+  currentModule     WorkflowType   @default(LAND_ACQUISITION)
+  overallStatus     WorkflowStatus @default(NOT_STARTED)
+  overallProgress   Int            @default(0) // 0-100%
+  
+  // Timestamps
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  // Relations
+  landAcquisition   LandAcquisitionWorkflow?
+  preConstruction   PreConstructionWorkflow?
+  buildingPermit    BuildingPermitWorkflow?
+  construction      ConstructionWorkflow?
+  workflowDocuments WorkflowDocument[]
+  workflowNotes     WorkflowNote[]
+  workflowAlerts    WorkflowAlert[]
+  costTracker       WorkflowCostTracker?
+  
+  @@index([userId])
+  @@index([listingId])
+  @@index([currentModule, overallStatus])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// MODULE 1: LAND ACQUISITION WORKFLOW
+// ─────────────────────────────────────────────────────────────────────────────────
+
+model LandAcquisitionWorkflow {
+  id                    String         @id @default(cuid())
+  propertyWorkflowId    String         @unique
+  propertyWorkflow      PropertyWorkflow @relation(fields: [propertyWorkflowId], references: [id], onDelete: Cascade)
+  
+  // Current Stage (1-6)
+  currentStage          Int            @default(1)
+  status                WorkflowStatus @default(NOT_STARTED)
+  progress              Int            @default(0)
+  
+  // Stage 1: Pre-Purchase Due Diligence
+  stage1Status          StageStatus    @default(NOT_STARTED)
+  stage1Progress        Int            @default(0)
+  lawyerEngaged         Boolean        @default(false)
+  lawyerProfessionalId  String?
+  surveyorEngaged       Boolean        @default(false)
+  surveyorProfessionalId String?
+  propertyInspections   Json?          // Array of inspection records
+  ownershipVerified     Boolean        @default(false)
+  ownershipVerificationStatus VerificationFindingStatus @default(PENDING)
+  landOwnershipType     LandOwnershipType?
+  isForeignBuyer        Boolean        @default(false)
+  
+  // Stage 2: Independent Verification
+  stage2Status          StageStatus    @default(LOCKED)
+  stage2Progress        Int            @default(0)
+  independentSurveyCommissioned Boolean @default(false)
+  independentSurveyStatus String?      // Requested, In Progress, Report Received
+  surveyReportReceived  Boolean        @default(false)
+  verifiedSitePlanObtained Boolean     @default(false)
+  landsCommissionSearchDone Boolean    @default(false)
+  searchFindings        Json?          // Ownership, disputes, encumbrances
+  neighborConsultationDone Boolean     @default(false)
+  neighborConsultationLog Json?        // Array of consultations
+  
+  // Stage 3: Negotiation & Agreement
+  stage3Status          StageStatus    @default(LOCKED)
+  stage3Progress        Int            @default(0)
+  negotiationStatus     NegotiationStatus @default(NOT_STARTED)
+  initialOfferGhs       Decimal?       @db.Decimal(15, 2)
+  agreedPriceGhs        Decimal?       @db.Decimal(15, 2)
+  paymentTerms          String?
+  purchaseAgreementDrafted Boolean     @default(false)
+  agreementCopiesCount  Int            @default(0)
+  witnessesArranged     Boolean        @default(false)
+  witnesses             Json?          // Array of witness details
+  documentsSignedEndorsed Boolean      @default(false)
+  
+  // Stage 4: Payment & Documentation
+  stage4Status          StageStatus    @default(LOCKED)
+  stage4Progress        Int            @default(0)
+  paymentMethod         PaymentMethod?
+  totalPaidGhs          Decimal?       @db.Decimal(15, 2)
+  payments              Json?          // Array of payment records
+  stampDutyPaid         Boolean        @default(false)
+  stampDutyAmountGhs    Decimal?       @db.Decimal(15, 2)
+  vatPaid               Boolean        @default(false)
+  vatAmountGhs          Decimal?       @db.Decimal(15, 2)
+  registrationFeePaid   Boolean        @default(false)
+  registrationFeeGhs    Decimal?       @db.Decimal(15, 2)
+  allDocumentsGathered  Boolean        @default(false)
+  
+  // Stage 5: Land Registration
+  stage5Status          StageStatus    @default(LOCKED)
+  stage5Progress        Int            @default(0)
+  submittedToLandsCommission Boolean   @default(false)
+  landsCommissionSubmissionDate DateTime?
+  landsCommissionRefNumber String?
+  registrationStatus    RegistrationStatus @default(NOT_SUBMITTED)
+  valuationBoardStatus  String?        // Pending, Stamping, Certified
+  irsTaxClearanceStatus String?        // Documents Sent, Under Review, Certificate Issued
+  deedsRegistryStatus   String?        // Pending, Processing, Registered
+  landTitleReceived     Boolean        @default(false)
+  landTitleNumber       String?
+  cadastralPlanReceived Boolean        @default(false)
+  
+  // Stage 6: Secure Physical Possession
+  stage6Status          StageStatus    @default(LOCKED)
+  stage6Progress        Int            @default(0)
+  possessionStatus      PossessionStatus @default(NOT_TAKEN)
+  territoryMarked       Boolean        @default(false)
+  markingActions        Json?          // Fence, wall, sand, sign with dates/photos
+  monitoringSchedule    String?        // Daily, Weekly, Monthly
+  securityHired         Boolean        @default(false)
+  securityCompanyDetails String?
+  lastSiteVisit         DateTime?
+  nextScheduledVisit    DateTime?
+  incidents             Json?          // Array of incident reports
+  
+  // Timestamps
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([propertyWorkflowId])
+  @@index([currentStage, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// MODULE 2: PRE-CONSTRUCTION PLANNING WORKFLOW
+// ─────────────────────────────────────────────────────────────────────────────────
+
+model PreConstructionWorkflow {
+  id                    String         @id @default(cuid())
+  propertyWorkflowId    String         @unique
+  propertyWorkflow      PropertyWorkflow @relation(fields: [propertyWorkflowId], references: [id], onDelete: Cascade)
+  
+  // Current Stage (7-8)
+  currentStage          Int            @default(7)
+  status                WorkflowStatus @default(NOT_STARTED)
+  progress              Int            @default(0)
+  
+  // Building Specifications
+  buildingAreaSqm       Decimal?       @db.Decimal(10, 2)
+  numberOfStoreys       Int?
+  buildingType          BuildingType?
+  estimatedBudgetGhs    Decimal?       @db.Decimal(15, 2)
+  
+  // Stage 7: Assemble Professional Team
+  stage7Status          StageStatus    @default(NOT_STARTED)
+  stage7Progress        Int            @default(0)
+  
+  // Required professionals (auto-determined based on specs)
+  architectRequired     Boolean        @default(false)
+  architectEngaged      Boolean        @default(false)
+  architectProfessionalId String?
+  
+  structuralEngineerRequired Boolean   @default(false)
+  structuralEngineerEngaged Boolean    @default(false)
+  structuralEngineerProfessionalId String?
+  
+  meEngineerRequired    Boolean        @default(false)
+  meEngineerEngaged     Boolean        @default(false)
+  meEngineerProfessionalId String?
+  
+  quantitySurveyorEngaged Boolean      @default(false)
+  quantitySurveyorProfessionalId String?
+  
+  landSurveyorEngaged   Boolean        @default(false)
+  landSurveyorProfessionalId String?
+  
+  professionalFeesEstimate Decimal?    @db.Decimal(15, 2)
+  
+  // Stage 8: Design Development
+  stage8Status          StageStatus    @default(LOCKED)
+  stage8Progress        Int            @default(0)
+  designPhase           DesignPhase    @default(BRIEFING)
+  
+  // Conceptual Design
+  projectBriefSubmitted Boolean        @default(false)
+  projectBrief          Json?          // Purpose, rooms, requirements, budget, style
+  siteAnalysisComplete  Boolean        @default(false)
+  siteAnalysis          Json?          // Soil type, topography, utilities, zoning
+  preliminaryDesignApproved Boolean    @default(false)
+  designRevisionCount   Int            @default(0)
+  
+  // Detailed Drawings
+  architecturalDrawingsComplete Boolean @default(false)
+  architecturalDrawings Json?          // Array of drawing records
+  structuralDrawingsComplete Boolean   @default(false)
+  structuralDrawings    Json?
+  meDrawingsComplete    Boolean        @default(false)
+  meDrawings            Json?
+  
+  // Special Assessments
+  soilTestRequired      Boolean        @default(false)
+  soilTestComplete      Boolean        @default(false)
+  soilTestResults       Json?
+  
+  fireSafetyReportRequired Boolean     @default(false)
+  fireSafetyReportComplete Boolean     @default(false)
+  
+  environmentalPermitRequired Boolean  @default(false)
+  environmentalPermitObtained Boolean  @default(false)
+  
+  structuralAnalysisRequired Boolean   @default(false)
+  structuralAnalysisComplete Boolean   @default(false)
+  
+  seismicDesignCompliant Boolean       @default(false)
+  
+  // Cost Estimation
+  qsEstimateReceived    Boolean        @default(false)
+  estimatedConstructionCostGhs Decimal? @db.Decimal(15, 2)
+  costBreakdown         Json?          // Foundation, superstructure, finishes, etc.
+  
+  // Final Approval
+  allDrawingsComplete   Boolean        @default(false)
+  professionalSignaturesVerified Boolean @default(false)
+  clientFinalApproval   Boolean        @default(false)
+  
+  // Timestamps
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([propertyWorkflowId])
+  @@index([currentStage, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// MODULE 3: BUILDING PERMIT APPLICATION WORKFLOW
+// ─────────────────────────────────────────────────────────────────────────────────
+
+model BuildingPermitWorkflow {
+  id                    String         @id @default(cuid())
+  propertyWorkflowId    String         @unique
+  propertyWorkflow      PropertyWorkflow @relation(fields: [propertyWorkflowId], references: [id], onDelete: Cascade)
+  
+  // Current Stage (9-12)
+  currentStage          Int            @default(9)
+  status                WorkflowStatus @default(NOT_STARTED)
+  progress              Int            @default(0)
+  
+  // Stage 9: Prepare Permit Application
+  stage9Status          StageStatus    @default(NOT_STARTED)
+  stage9Progress        Int            @default(0)
+  
+  // District Assembly Selection
+  districtAssemblyId    String?
+  districtAssembly      DistrictAssembly? @relation(fields: [districtAssemblyId], references: [id])
+  
+  // Application Form
+  applicationFormType   String?        // Permanent or Temporary
+  applicationFormComplete Boolean      @default(false)
+  applicationFormData   Json?          // All form fields
+  
+  // Document Checklist
+  landOwnershipDocsUploaded Boolean    @default(false)
+  architecturalDrawingsUploaded Boolean @default(false)
+  structuralDrawingsUploaded Boolean   @default(false)
+  proofOfIdentityUploaded Boolean      @default(false)
+  surveyorCertificateUploaded Boolean  @default(false)
+  
+  // Conditional Documents
+  firePermitRequired    Boolean        @default(false)
+  firePermitUploaded    Boolean        @default(false)
+  soilTestReportRequired Boolean       @default(false)
+  soilTestReportUploaded Boolean       @default(false)
+  fireSafetyReportRequired Boolean     @default(false)
+  fireSafetyReportUploaded Boolean     @default(false)
+  environmentalPermitRequired Boolean  @default(false)
+  environmentalPermitUploaded Boolean  @default(false)
+  structuralAnalysisRequired Boolean   @default(false)
+  structuralAnalysisUploaded Boolean   @default(false)
+  eiaRequired           Boolean        @default(false)
+  eiaUploaded           Boolean        @default(false)
+  
+  documentCompletenessScore Int        @default(0)
+  
+  // Stage 10: Submit Application
+  stage10Status         StageStatus    @default(LOCKED)
+  stage10Progress       Int            @default(0)
+  
+  preSubmissionValidationPassed Boolean @default(false)
+  submissionMethod      String?        // Digital, In-Person, Courier
+  submissionDate        DateTime?
+  applicationRefNumber  String?
+  submissionReceiptUploaded Boolean    @default(false)
+  
+  // Processing Fee
+  processingFeeCalculated Boolean      @default(false)
+  processingFeeGhs      Decimal?       @db.Decimal(15, 2)
+  processingFeePaid     Boolean        @default(false)
+  processingFeePaymentDate DateTime?
+  processingFeeReceiptUploaded Boolean @default(false)
+  
+  // Stage 11: Review & Inspection Process
+  stage11Status         StageStatus    @default(LOCKED)
+  stage11Progress       Int            @default(0)
+  applicationStatus     PermitApplicationStatus @default(DRAFT)
+  
+  // Phase 1: Preliminary Review
+  preliminaryReviewStatus String?      // Not Started, In Progress, Complete
+  reviewerAssigned      String?
+  completenessCheckPassed Boolean?
+  technicalCompliancePassed Boolean?
+  zoningCompliancePassed Boolean?
+  queriesRaised         Json?          // Array of queries
+  
+  // Phase 2: Site Inspection
+  siteInspectionScheduled Boolean      @default(false)
+  siteInspectionDate    DateTime?
+  siteInspectionComplete Boolean       @default(false)
+  siteInspectionOutcome InspectionOutcome?
+  siteInspectionFindings Json?         // Boundaries, zoning, setbacks, etc.
+  siteInspectionConditions Json?       // Array of conditions
+  
+  // Phase 3: Technical Review
+  technicalReviewStatus String?        // Departmental Review, Reports Submitted
+  departmentReviews     Json?          // Status for each department
+  technicalCommitteeRecommendation String? // Approve, Defer, Reject
+  
+  // Phase 4: Planning Committee Decision
+  committeeReviewScheduled Boolean     @default(false)
+  committeeMeetingDate  DateTime?
+  committeeDecision     String?        // Approved, Deferred, Rejected
+  decisionDate          DateTime?
+  decisionCommunicatedDate DateTime?
+  
+  // If Deferred/Rejected
+  deferralReasons       Json?
+  rejectionReasons      Json?
+  appealSubmitted       Boolean        @default(false)
+  appealStatus          String?
+  
+  // Stage 12: Permit Issuance
+  stage12Status         StageStatus    @default(LOCKED)
+  stage12Progress       Int            @default(0)
+  
+  // Permit Fee Payment
+  permitFeeCalculated   Boolean        @default(false)
+  permitFeeGhs          Decimal?       @db.Decimal(15, 2)
+  permitFeeDeadline     DateTime?
+  permitFeePaid         Boolean        @default(false)
+  permitFeePaymentDate  DateTime?
+  permitFeeReceiptUploaded Boolean     @default(false)
+  
+  // Permit Certificate
+  permitCertificateIssued Boolean      @default(false)
+  permitNumber          String?
+  permitIssueDate       DateTime?
+  permitExpiryDate      DateTime?
+  permitConditions      Json?
+  permitCertificateUploaded Boolean    @default(false)
+  
+  // Timestamps
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([propertyWorkflowId])
+  @@index([districtAssemblyId])
+  @@index([applicationStatus])
+  @@index([currentStage, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// MODULE 4: CONSTRUCTION EXECUTION WORKFLOW
+// ─────────────────────────────────────────────────────────────────────────────────
+
+model ConstructionWorkflow {
+  id                    String         @id @default(cuid())
+  propertyWorkflowId    String         @unique
+  propertyWorkflow      PropertyWorkflow @relation(fields: [propertyWorkflowId], references: [id], onDelete: Cascade)
+  
+  // Current Stage (13+)
+  currentStage          Int            @default(13)
+  status                WorkflowStatus @default(NOT_STARTED)
+  progress              Int            @default(0)
+  currentPhase          ConstructionPhase @default(PRE_CONSTRUCTION)
+  
+  // Stage 13: Pre-Construction Requirements
+  stage13Status         StageStatus    @default(NOT_STARTED)
+  stage13Progress       Int            @default(0)
+  
+  // Temporary Structures Permit
+  siteHoardingPermitRequired Boolean   @default(false)
+  siteHoardingPermitObtained Boolean   @default(false)
+  siteHoardingPermitExpiry DateTime?
+  temporaryFacilitiesPermitObtained Boolean @default(false)
+  
+  // Contractor Notifications
+  districtInspectorNotified Boolean    @default(false)
+  notificationDate      DateTime?
+  inspectorAssigned     String?
+  inspectorContact      String?
+  
+  // Contractor Registration
+  contractorCompanyName String?
+  contractorLicenseNumber String?
+  contractorInsuranceDetails String?
+  contractValue         Decimal?       @db.Decimal(15, 2)
+  contractDurationMonths Int?
+  contractDocumentUploaded Boolean     @default(false)
+  healthSafetyPlanUploaded Boolean     @default(false)
+  
+  // Construction Phases & Inspections
+  inspections           ConstructionInspection[]
+  
+  // Foundation Phase
+  foundationStartDate   DateTime?
+  foundationCompleteDate DateTime?
+  foundationInspectionPassed Boolean?
+  
+  // Superstructure Phase
+  superstructureStartDate DateTime?
+  superstructureCompleteDate DateTime?
+  
+  // Roofing Phase
+  roofingStartDate      DateTime?
+  roofingCompleteDate   DateTime?
+  roofingInspectionPassed Boolean?
+  
+  // Finishing Phase
+  finishingStartDate    DateTime?
+  finishingCompleteDate DateTime?
+  
+  // Final Completion
+  finalInspectionScheduled Boolean     @default(false)
+  finalInspectionDate   DateTime?
+  finalInspectionPassed Boolean?
+  occupancyCertificateIssued Boolean   @default(false)
+  occupancyCertificateNumber String?
+  occupancyCertificateDate DateTime?
+  
+  // Timestamps
+  constructionStartDate DateTime?
+  constructionEndDate   DateTime?
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([propertyWorkflowId])
+  @@index([currentPhase, status])
+}
+
+// Construction Inspection Records
+model ConstructionInspection {
+  id                    String         @id @default(cuid())
+  constructionWorkflowId String
+  constructionWorkflow  ConstructionWorkflow @relation(fields: [constructionWorkflowId], references: [id], onDelete: Cascade)
+  
+  inspectionType        InspectionType
+  scheduledDate         DateTime?
+  actualDate            DateTime?
+  inspectorName         String?
+  inspectorContact      String?
+  
+  outcome               InspectionOutcome?
+  findings              Json?
+  conditions            Json?
+  photosUploaded        Boolean        @default(false)
+  reportUploaded        Boolean        @default(false)
+  
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([constructionWorkflowId])
+  @@index([inspectionType])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// SUPPORTING MODELS
+// ─────────────────────────────────────────────────────────────────────────────────
+
+// Workflow Documents
+model WorkflowDocument {
+  id                    String         @id @default(cuid())
+  propertyWorkflowId    String
+  propertyWorkflow      PropertyWorkflow @relation(fields: [propertyWorkflowId], references: [id], onDelete: Cascade)
+  
+  category              String         // Legal, Survey, Payment, Tax, Registration, Design, Permit, Construction
+  subcategory           String?
+  documentType          String
+  title                 String
+  description           String?
+  
+  fileUrl               String
+  fileName              String
+  fileSize              Int
+  mimeType              String
+  
+  uploadedBy            String
+  version               Int            @default(1)
+  previousVersionId     String?
+  
+  isVerified            Boolean        @default(false)
+  verifiedBy            String?
+  verifiedAt            DateTime?
+  
+  expiryDate            DateTime?
+  
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([propertyWorkflowId])
+  @@index([category])
+  @@index([documentType])
+}
+
+// Workflow Notes
+model WorkflowNote {
+  id                    String         @id @default(cuid())
+  propertyWorkflowId    String
+  propertyWorkflow      PropertyWorkflow @relation(fields: [propertyWorkflowId], references: [id], onDelete: Cascade)
+  
+  module                WorkflowType
+  stage                 Int
+  taskId                String?
+  
+  content               String         @db.Text
+  createdBy             String
+  
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([propertyWorkflowId])
+  @@index([module, stage])
+}
+
+// Workflow Alerts & Reminders
+model WorkflowAlert {
+  id                    String         @id @default(cuid())
+  propertyWorkflowId    String
+  propertyWorkflow      PropertyWorkflow @relation(fields: [propertyWorkflowId], references: [id], onDelete: Cascade)
+  
+  alertType             String         // Warning, Reminder, Deadline, Info
+  title                 String
+  message               String         @db.Text
+  
+  module                WorkflowType?
+  stage                 Int?
+  taskId                String?
+  
+  triggerDate           DateTime?
+  dueDate               DateTime?
+  
+  isRead                Boolean        @default(false)
+  isDismissed           Boolean        @default(false)
+  
+  notificationSent      Boolean        @default(false)
+  notificationSentAt    DateTime?
+  
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([propertyWorkflowId])
+  @@index([alertType, isRead])
+  @@index([triggerDate])
+}
+
+// Cost Tracker
+model WorkflowCostTracker {
+  id                    String         @id @default(cuid())
+  propertyWorkflowId    String         @unique
+  propertyWorkflow      PropertyWorkflow @relation(fields: [propertyWorkflowId], references: [id], onDelete: Cascade)
+  
+  // Land Acquisition Costs
+  landPurchasePrice     Decimal?       @db.Decimal(15, 2)
+  legalFees             Decimal?       @db.Decimal(15, 2)
+  surveyorFees          Decimal?       @db.Decimal(15, 2)
+  stampDuty             Decimal?       @db.Decimal(15, 2)
+  vat                   Decimal?       @db.Decimal(15, 2)
+  registrationFees      Decimal?       @db.Decimal(15, 2)
+  
+  // Pre-Construction Costs
+  architectFees         Decimal?       @db.Decimal(15, 2)
+  engineerFees          Decimal?       @db.Decimal(15, 2)
+  quantitySurveyorFees  Decimal?       @db.Decimal(15, 2)
+  soilTestFees          Decimal?       @db.Decimal(15, 2)
+  otherProfessionalFees Decimal?       @db.Decimal(15, 2)
+  
+  // Permit Costs
+  processingFees        Decimal?       @db.Decimal(15, 2)
+  permitFees            Decimal?       @db.Decimal(15, 2)
+  firePermitFees        Decimal?       @db.Decimal(15, 2)
+  environmentalPermitFees Decimal?     @db.Decimal(15, 2)
+  
+  // Construction Costs
+  constructionBudget    Decimal?       @db.Decimal(15, 2)
+  constructionActual    Decimal?       @db.Decimal(15, 2)
+  
+  // Totals
+  totalBudget           Decimal?       @db.Decimal(15, 2)
+  totalActual           Decimal?       @db.Decimal(15, 2)
+  
+  // Cost Items (detailed breakdown)
+  costItems             Json?          // Array of individual cost items
+  
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@index([propertyWorkflowId])
+}
+
+// Workflow Task Templates (for system configuration)
+model WorkflowTaskTemplate {
+  id                    String         @id @default(cuid())
+  
+  module                WorkflowType
+  stage                 Int
+  taskOrder             Int
+  
+  taskKey               String         // Unique identifier for the task
+  title                 String
+  description           String?        @db.Text
+  helpText              String?        @db.Text
+  
+  isMandatory           Boolean        @default(false)
+  isConditional         Boolean        @default(false)
+  conditionLogic        Json?          // Conditions for when task is required
+  
+  estimatedDurationDays Int?
+  warningMessage        String?
+  
+  documentTypes         Json?          // Required document types
+  linkedProfessionalType String?       // If task requires a professional
+  
+  isActive              Boolean        @default(true)
+  
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  
+  @@unique([module, stage, taskKey])
+  @@index([module, stage])
+}
