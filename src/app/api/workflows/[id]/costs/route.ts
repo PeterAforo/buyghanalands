@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { z } from "zod";
 
 const updateCostTrackerSchema = z.object({
