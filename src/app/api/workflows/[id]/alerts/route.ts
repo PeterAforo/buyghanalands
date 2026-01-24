@@ -127,7 +127,7 @@ export async function POST(
     console.error("Error creating alert:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid data", details: error.errors },
+        { error: "Invalid data", details: error.issues },
         { status: 400 }
       );
     }
@@ -202,7 +202,7 @@ export async function PATCH(
     console.error("Error updating alert:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid data", details: error.errors },
+        { error: "Invalid data", details: error.issues },
         { status: 400 }
       );
     }

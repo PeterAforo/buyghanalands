@@ -168,7 +168,7 @@ export async function PATCH(
     console.error("Error updating workflow:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid data", details: error.errors },
+        { error: "Invalid data", details: error.issues },
         { status: 400 }
       );
     }
