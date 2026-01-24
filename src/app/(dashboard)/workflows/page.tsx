@@ -73,6 +73,10 @@ async function getWorkflows(userId: string) {
         }
       : null,
     landSizeAcres: w.landSizeAcres?.toString() || null,
+    startedAt: w.startedAt?.toISOString() || null,
+    completedAt: w.completedAt?.toISOString() || null,
+    createdAt: w.createdAt.toISOString(),
+    updatedAt: w.updatedAt.toISOString(),
   }));
 }
 
