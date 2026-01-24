@@ -266,35 +266,51 @@ export default function Home() {
 
     const ctx = gsap.context(() => {
       // Hero entrance animations
-      gsap.fromTo(
-        "[data-hero-headline]",
-        { y: 16, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.9, ease: "expo.out" }
-      );
+      const heroHeadline = document.querySelector("[data-hero-headline]");
+      if (heroHeadline) {
+        gsap.fromTo(
+          heroHeadline,
+          { y: 16, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.9, ease: "expo.out" }
+        );
+      }
 
-      gsap.fromTo(
-        "[data-hero-sub]",
-        { y: 12, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.7, ease: "power2.out", delay: 0.12 }
-      );
+      const heroSub = document.querySelector("[data-hero-sub]");
+      if (heroSub) {
+        gsap.fromTo(
+          heroSub,
+          { y: 12, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.7, ease: "power2.out", delay: 0.12 }
+        );
+      }
 
-      gsap.fromTo(
-        "[data-hero-ctas] > *",
-        { y: 10, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", stagger: 0.09, delay: 0.22 }
-      );
+      const heroCtas = document.querySelectorAll("[data-hero-ctas] > *");
+      if (heroCtas.length > 0) {
+        gsap.fromTo(
+          heroCtas,
+          { y: 10, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", stagger: 0.09, delay: 0.22 }
+        );
+      }
 
-      gsap.fromTo(
-        "[data-trust-item]",
-        { y: 10, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", stagger: 0.08, delay: 0.34 }
-      );
+      const trustItems = document.querySelectorAll("[data-trust-item]");
+      if (trustItems.length > 0) {
+        gsap.fromTo(
+          trustItems,
+          { y: 10, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", stagger: 0.08, delay: 0.34 }
+        );
+      }
 
-      gsap.fromTo(
-        "[data-assurance]",
-        { y: 8, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", delay: 0.44 }
-      );
+      // Only animate if element exists
+      const assuranceEl = document.querySelector("[data-assurance]");
+      if (assuranceEl) {
+        gsap.fromTo(
+          assuranceEl,
+          { y: 8, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", delay: 0.44 }
+        );
+      }
 
       // Hero visual pulse animation
       if (heroVisualRef.current) {
@@ -342,38 +358,44 @@ export default function Home() {
       });
 
       // How It Works line draw
-      gsap.fromTo(
-        "[data-how-line]",
-        { scaleX: 0 },
-        {
-          scaleX: 1,
-          duration: 0.9,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: "[data-how-line]",
-            start: "top 80%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
+      const howLine = document.querySelector("[data-how-line]");
+      if (howLine) {
+        gsap.fromTo(
+          howLine,
+          { scaleX: 0 },
+          {
+            scaleX: 1,
+            duration: 0.9,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: howLine,
+              start: "top 80%",
+              toggleActions: "play none none none",
+            },
+          }
+        );
+      }
 
       // How It Works steps
-      gsap.fromTo(
-        "[data-how-step]",
-        { y: 12, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.65,
-          ease: "power2.out",
-          stagger: 0.14,
-          scrollTrigger: {
-            trigger: "[data-how-step]",
-            start: "top 82%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
+      const howSteps = document.querySelectorAll("[data-how-step]");
+      if (howSteps.length > 0) {
+        gsap.fromTo(
+          howSteps,
+          { y: 12, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.65,
+            ease: "power2.out",
+            stagger: 0.14,
+            scrollTrigger: {
+              trigger: howSteps[0],
+              start: "top 82%",
+              toggleActions: "play none none none",
+            },
+          }
+        );
+      }
 
       // Grouped elements with stagger
       const groups = mainRef.current?.querySelectorAll("[data-reveal-group]");
