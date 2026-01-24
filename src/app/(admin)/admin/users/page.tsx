@@ -128,9 +128,9 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4 mb-6">
+    <div>
+      <div className="mb-6">
+        <div className="flex items-center gap-4">
           <Link href="/admin">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -139,10 +139,11 @@ export default function AdminUsersPage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
         </div>
+      </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex gap-2">
                 <Button
@@ -186,12 +187,12 @@ export default function AdminUsersPage() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
 
-        {/* Users Table */}
-        <Card>
-          <CardContent className="p-0">
+      {/* Users Table */}
+      <Card>
+        <CardContent className="p-0">
             {users.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -310,9 +311,8 @@ export default function AdminUsersPage() {
                 </table>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
