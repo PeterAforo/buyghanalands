@@ -641,15 +641,15 @@ export default function DashboardListingDetailPage({
         </div>
 
         {/* Photos */}
-        {listing.media && listing.media.filter(m => m.type === "IMAGE").length > 0 && (
+        {listing.media && listing.media.filter(m => m.type === "PHOTO" || m.type === "IMAGE").length > 0 && (
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Photos ({listing.media.filter(m => m.type === "IMAGE").length})</CardTitle>
+              <CardTitle>Photos ({listing.media.filter(m => m.type === "PHOTO" || m.type === "IMAGE").length})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {listing.media
-                  .filter(m => m.type === "IMAGE")
+                  .filter(m => m.type === "PHOTO" || m.type === "IMAGE")
                   .map((media) => (
                     <div key={media.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                       <img
