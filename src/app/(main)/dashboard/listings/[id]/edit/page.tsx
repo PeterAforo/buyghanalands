@@ -154,6 +154,7 @@ export default function EditListingPage({
       const response = await fetch(`/api/listings/${listingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           ...data,
           latitude: data.latitude ? parseFloat(data.latitude) : null,
@@ -169,7 +170,12 @@ export default function EditListingPage({
 
       if (!response.ok) {
         const result = await response.json();
-        setError(result.error || "Failed to update listing");
+        if (response.status === 401) {
+          setError("Your session has expired. Please log in again.");
+          router.push("/auth/login?callbackUrl=/dashboard/listings/" + listingId + "/edit");
+          return;
+        }
+        setError(result.message || result.error || "Failed to update listing");
         return;
       }
 

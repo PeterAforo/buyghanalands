@@ -88,6 +88,7 @@ export function ImageUploader({
         const response = await fetch("/api/upload/images", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             images: base64Images,
             listingId,
@@ -146,7 +147,10 @@ export function ImageUploader({
     // If image has an ID, delete from server
     if (image.id) {
       try {
-        await fetch(`/api/upload/images?id=${image.id}`, { method: "DELETE" });
+        await fetch(`/api/upload/images?id=${image.id}`, { 
+          method: "DELETE",
+          credentials: "include",
+        });
       } catch (err) {
         console.error("Failed to delete image:", err);
       }

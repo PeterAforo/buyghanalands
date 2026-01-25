@@ -1,291 +1,385 @@
-# Buy Ghana Lands - System Architecture
-
-## High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              FRONTEND                                    │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │   Public    │  │    User     │  │   Admin     │  │   Shared    │    │
-│  │   Pages     │  │  Dashboard  │  │  Dashboard  │  │ Components  │    │
-│  │  (main)     │  │ (dashboard) │  │  (admin)    │  │    (ui)     │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                            API LAYER                                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │    Auth     │  │  Listings   │  │Transactions │  │   Admin     │    │
-│  │   Routes    │  │   Routes    │  │   Routes    │  │   Routes    │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          SERVICE LAYER                                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │    Auth     │  │  Payments   │  │   Email     │  │    SMS      │    │
-│  │  (NextAuth) │  │ (Paystack)  │  │  (Resend)   │  │  (Hubtel)   │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                     │
-│  │   Storage   │  │Subscriptions│  │Permissions  │                     │
-│  │(Cloudinary) │  │   & Fees    │  │   (RBAC)    │                     │
-│  └─────────────┘  └─────────────┘  └─────────────┘                     │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          DATA LAYER                                      │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                    PostgreSQL + Prisma ORM                       │   │
-│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │   │
-│  │  │  Users  │ │Listings │ │  Trans  │ │Payments │ │Messages │   │   │
-│  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘   │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+# Architecture — Ghana Lands Project
+Version: 1.0.0  
+Owner: Product Engineering  
+Status: Active  
+Applies to: Monorepo (`apps/web`, `apps/api`, `apps/workers`, `packages/shared`, `prisma`, `infra`)
 
 ---
 
-## Core Flows
+## Purpose
+This document defines the reference architecture for the Ghana Lands Project to optimize for:
+- **Speed to ship** (Phase 1–2)
+- **Maximum long-term scalability** (Phase 3+)
+- Strong **trust** guarantees (verification, escrow, auditability)
+- Clean **multi-tenant** separation
+- Extraction-ready seams for microservices
 
-### 1. User Registration Flow
-
-```
-User → Register Page → Select Account Type → Select Plan (if required)
-    → Enter Details → Submit → API: /api/auth/register
-    → Create User in DB → Send Verification Email
-    → Redirect to Verify Email Page → User Clicks Link
-    → API: /api/auth/verify-email → Update User → Redirect to Login
-```
-
-### 2. Listing Creation Flow
-
-```
-Seller → Dashboard → Create Listing → Fill Form (details, location, media)
-    → Submit → API: POST /api/listings → Create in DB (status: DRAFT)
-    → Upload Media → API: /api/upload → Cloudinary
-    → Submit for Review → Update status: SUBMITTED
-    → Admin Reviews → Approve/Reject → Update status: PUBLISHED/REJECTED
-```
-
-### 3. Transaction (Escrow) Flow
-
-```
-Buyer → View Listing → Make Offer → API: POST /api/offers
-    → Seller Accepts → Create Transaction (status: CREATED)
-    → Buyer Funds Escrow → API: POST /api/transactions/[id]/fund
-    → Payment via Paystack → Webhook confirms → status: FUNDED
-    → Verification Period (7 days) → status: VERIFICATION_PERIOD
-    → Buyer Confirms → status: READY_TO_RELEASE
-    → Admin/System Releases → status: RELEASED → Seller receives funds
-```
-
-### 4. Admin Moderation Flow
-
-```
-Admin → Admin Dashboard → View Pending Items
-    → Select Item → Review Details
-    → Take Action (Approve/Reject/Suspend)
-    → API: PUT /api/admin/[resource]/[id]
-    → Update DB → Create Audit Log → Send Notification to User
-```
+This architecture is binding. Deviations require an ADR entry.
 
 ---
 
-## Authentication System
-
-### NextAuth.js Configuration
-
-```typescript
-// src/lib/auth.ts
-- Provider: Credentials (phone + password)
-- Session Strategy: JWT
-- Callbacks: jwt, session (attach user data)
-```
-
-### Session Data
-```typescript
-interface Session {
-  user: {
-    id: string;
-    fullName: string;
-    phone: string;
-    email?: string;
-    roles: string[];
-    kycTier: string;
-    accountStatus: string;
-  }
-}
-```
-
-### Protected Routes
-- `(dashboard)/*` - Requires authenticated user
-- `(admin)/*` - Requires ADMIN, SUPPORT, or MODERATOR role
+## Executive Summary
+- **Frontend:** Next.js (App Router) + TypeScript
+- **Backend:** NestJS (REST + OpenAPI)
+- **Data:** PostgreSQL + PostGIS (source of truth)
+- **Queues/Cache:** Redis + BullMQ
+- **Search:** Meilisearch (indexed from Postgres via workers)
+- **Storage:** S3-compatible object store (MinIO locally)
+- **Observability:** Sentry + requestId correlation
+- **Style of scale:** Modular monolith now; microservices by extraction later
 
 ---
 
-## Database Schema Overview
+## Core Architecture Principle
+> **Modular Monolith First, Service-Ready Always**
 
-### Core Entities
-
-```
-User (1) ──────< Listing (many)
-  │                  │
-  │                  ▼
-  │            Transaction
-  │           /          \
-  └──< Buyer              Seller >──┘
-           │
-           ▼
-        Payment
-           │
-           ▼
-        Dispute
-```
-
-### Key Relationships
-
-| Parent | Child | Relationship |
-|--------|-------|--------------|
-| User | Listing | One-to-Many (seller) |
-| User | Transaction | One-to-Many (buyer/seller) |
-| Listing | Transaction | One-to-Many |
-| Transaction | Payment | One-to-Many |
-| Transaction | Dispute | One-to-Many |
-| User | Message | One-to-Many (sender/receiver) |
-| User | ProfessionalProfile | One-to-One |
-| User | Subscription | One-to-Many |
+- Single deployable API in early phases
+- Strict domain boundaries through NestJS modules
+- Side effects (payments, notifications, exports, indexing) are **queue-backed**
+- Later, high-load modules are extracted without rewriting the core domain model
 
 ---
 
-## Subscription System
+## System Context (High-Level)
 
-### Account Types & Plans
+### Primary Actors
+- Guest
+- Buyer
+- Seller
+- Agent/Facilitator
+- Professional (architect/surveyor/legal)
+- Admin (Ops)
+- Verifier (internal or Lands Commission workflow)
+- Finance (escrow oversight)
 
-| Account Type | Plans | Requires Subscription |
-|--------------|-------|----------------------|
-| BUYER | Free, Plus, Premium | No |
-| SELLER | Free, Basic, Pro, Enterprise | No |
-| AGENT | Basic, Pro, Elite | Yes |
-| PROFESSIONAL | Basic, Pro, Elite | Yes |
-
-### Fee Structure
-
-```typescript
-// Transaction fees based on seller plan
-SELLER_FREE: 5% of transaction
-SELLER_BASIC: 4% of transaction
-SELLER_PRO: 3% of transaction
-SELLER_ENTERPRISE: 2% of transaction
-
-// Professional service fees
-PROFESSIONAL_BASIC: 12% commission
-PROFESSIONAL_PRO: 8% commission
-PROFESSIONAL_ELITE: 5% commission
-```
+### External Integrations
+- Hubtel (MoMo/cards, subscriptions, escrow-related payments)
+- mNotify (SMS)
+- Email provider (Postmark/Mailgun; optional Mailcow)
+- Lands Commission / verification workflows (internal process + future API integration)
+- Mapping provider (Mapbox; fallback Leaflet)
 
 ---
 
-## External Integrations
+## Logical Components
 
-### Payment Gateways
+### Applications
+1. **Web App** (`apps/web`)
+   - Client UI, dashboards, workflows
+   - Uses API client + TanStack Query
+   - Enforces route gating based on RBAC (server remains authoritative)
 
-| Provider | Usage | Webhook |
-|----------|-------|---------|
-| Paystack | Primary payments | `/api/webhooks/paystack` |
-| Flutterwave | Alternative | `/api/webhooks/flutterwave` |
+2. **API** (`apps/api`)
+   - REST endpoints with consistent envelope
+   - Auth, RBAC, ABAC-lite enforcement
+   - Emits domain events and enqueues jobs for side effects
 
-### Communication
+3. **Workers** (`apps/workers`)
+   - BullMQ consumers
+   - Sends SMS/email, generates exports, indexes search, processes documents, runs verification checks
+   - Must be idempotent and retry-safe
 
-| Provider | Usage | API |
-|----------|-------|-----|
-| Resend | Transactional emails | `src/lib/email.ts` |
-| Hubtel | SMS notifications | `src/lib/sms.ts` |
+### Shared
+- `packages/shared` — types, enums, Zod schemas, utilities
+- `prisma` — schema + migrations + seed
 
-### Storage
-
-| Provider | Usage | API |
-|----------|-------|-----|
-| Cloudinary | Images, documents | `src/lib/cloudinary.ts` |
+### Infrastructure
+- Postgres + PostGIS
+- Redis
+- Meilisearch
+- S3-compatible storage (MinIO locally)
+- Nginx reverse proxy (prod template)
+- Docker Compose (local/staging/prod parity in Phase 1)
 
 ---
 
-## Security Measures
+## Reference Data Flow (Canonical)
+
+### 1) Listing Create → Search Index
+1. User creates listing in Web
+2. Web calls API `POST /api/v1/listings`
+3. API writes to Postgres, emits `listing.created`
+4. API enqueues BullMQ job: `search.index_listing`
+5. Worker reads listing from Postgres and upserts into Meilisearch
+6. Web listing search reads from Meilisearch; details read from API
+
+Rule: Postgres is the source of truth; Meilisearch is derived.
+
+---
+
+### 2) Verification Request → Verified Seal
+1. Seller/Agent submits verification request
+2. API records `verification_request` and sets `verification_status = pending`
+3. API enqueues `verification.run_checks`
+4. Worker performs checks (document completeness, geometry validity, duplication signals)
+5. Verifier (role-based) approves/rejects
+6. API updates status and writes audit log
+7. UI displays verified seal + timeline
+
+Rule: Verified seal is strictly controlled by RBAC + audit logging.
+
+---
+
+### 3) Payment (Escrow/Installment) → Receipt + Notifications
+1. Buyer initiates payment
+2. API creates `payment` record with status `initiated` and returns Hubtel payment session reference
+3. Hubtel callback hits API webhook endpoint
+4. API validates signature + idempotency key
+5. API updates `payment_status` and app ledger/escrow record (if required)
+6. API enqueues notifications (`send_sms`, `send_email`) and receipt generation (`exports.generate_pdf`)
+7. Worker sends notifications and generates receipt, stores it in S3, updates metadata
+8. UI shows timeline + receipt download
+
+Rule: Idempotency is mandatory for all payment-related actions.
+
+---
+
+## Domain Modules (Backend)
+All business logic lives in modules under `apps/api/src/modules/*`.
+
+### Core modules (Phase 1)
+- `auth` (JWT + refresh + optional 2FA)
+- `users`
+- `tenants`
+- `rbac`
+- `listings` (core land postings)
+- `geo` (PostGIS helpers, polygon validation; may be within listings initially)
+- `documents`
+- `verification`
+- `payments`
+- `escrow` (if separated from payments)
+- `notifications` (queue producers)
+- `search` (index orchestration producers)
+- `audit` (append-only)
+
+### Phase 2–3 modules
+- `permits`
+- `marketplace`
+- `public-api`
+- `ussd` (separate service later)
+- `ai-insights` (separate service later)
+
+Rules:
+- Controllers are thin; services own logic.
+- Cross-module calls only via service interfaces (no DB table coupling).
+- Side effects always queue-backed.
+
+---
+
+## Multi-Tenancy Model
+### Tenant boundaries
+- Every tenant-scoped record includes `tenantId` (and optionally `orgId`).
+- Tenant context is derived from auth token, not from client-provided params.
+
+### Tenant data isolation
+- Queries always include `tenantId` predicate.
+- For cross-tenant leakage prevention:
+  - return `404` where existence should not be revealed
+- Admin “super access” requires explicit permissions and audit logging.
+
+---
+
+## Authorization Model (RBAC + ABAC-lite)
+### RBAC
+- Roles, permissions, role-permissions, user-roles stored in DB
+- Permission guard checks `permission` strings (stable identifiers)
+
+### ABAC-lite
+Ownership checks:
+- tenant ownership (`tenantId`)
+- org ownership (`orgId`)
+- entity ownership (`createdByUserId` where applicable)
+
+Rule: UI hides actions, but server enforcement is always authoritative.
+
+---
+
+## Data Architecture (Postgres + PostGIS)
+
+### Source of truth
+Postgres holds:
+- listings
+- verification requests
+- payments/escrow ledger
+- permits
+- users/roles
+- audit logs
+- document metadata
+
+### Geospatial
+- Parcels stored as `geometry(MultiPolygon, 4326)`
+- Derived bounding box for quick filtering
+- Spatial indexes required
+
+Rule: Geometry is validated server-side.
+
+---
+
+## Search Architecture (Meilisearch)
+- Used for high-performance listing discovery
+- Indexed fields:
+  - category, landType, leasePeriod, region/district
+  - price and currency
+  - verificationStatus
+  - geo-derived fields (bbox-based filtering where feasible)
+
+Sync strategy:
+- Write to Postgres first
+- Queue index jobs
+- Worker syncs to Meilisearch
+- Reindex tooling exists in `scripts/`
+
+---
+
+## Storage Architecture (S3-compatible)
+- Objects stored in S3/Spaces/Wasabi (MinIO locally)
+- API provides signed URLs for uploads/downloads
+- File metadata stored in Postgres:
+  - `documentId`, `ownerEntityType`, `ownerEntityId`, `mimeType`, `size`, `storageKey`, `createdAt`
+
+Rule: No large binaries stored in Postgres.
+
+---
+
+## Queue Architecture (Redis + BullMQ)
+### Why queues
+Queues protect the API from:
+- spikes
+- slow external services
+- long-running tasks (PDF, indexing)
+
+### Queues and jobs (canonical)
+Queues:
+- `notifications`
+- `documents`
+- `exports`
+- `search`
+- `verification`
+
+Jobs:
+- `notifications.send_sms`
+- `notifications.send_email`
+- `documents.process`
+- `exports.generate_pdf`
+- `exports.generate_excel`
+- `search.index_listing`
+- `verification.run_checks`
+
+Reliability rules:
+- retries + exponential backoff
+- dead-letter strategy for failed jobs
+- idempotency keys where side effects occur
+
+---
+
+## Observability & Reliability
+### Request correlation
+- Every API response includes `meta.requestId`
+- Logs are structured JSON and include:
+  - requestId, tenantId, userId, route, statusCode, durationMs
+
+### Error reporting
+- Sentry for:
+  - frontend errors
+  - API errors
+  - worker errors
+
+---
+
+## Security Architecture
+### Transport
+- HTTPS everywhere in production
+- Strict CORS policy
 
 ### Authentication
-- Password hashing: bcrypt (12 rounds)
-- JWT tokens for session
-- Email verification required
+- Access + refresh token rotation
+- Optional 2FA for sensitive roles
 
-### Authorization
-- Role-based access control (RBAC)
-- API route protection via middleware
-- Admin actions require admin roles
+### Payments security
+- Verify Hubtel webhook signatures
+- Idempotency key on payment endpoints
+- Audit logging for every financial state transition
 
-### Data Protection
-- Input validation with Zod
-- SQL injection prevention via Prisma
-- XSS prevention via React
-
-### Audit Trail
-- All admin actions logged to `AuditLog` table
-- Includes: actor, action, entity, timestamp, diff
+### Data protection
+- Signed URLs for documents
+- RBAC gating for downloads
+- Avoid leaking cross-tenant identifiers
 
 ---
 
-## Error Handling
+## Deployment Architecture (Phase 1)
+### Local/staging/prod parity
+- Docker Compose includes:
+  - web
+  - api
+  - workers
+  - postgres/postgis
+  - redis
+  - meilisearch
+  - minio
+  - nginx (prod template)
 
-### API Response Format
-
-```typescript
-// Success
-{ data: {...}, message?: string }
-
-// Error
-{ error: "Error message" }
-```
-
-### HTTP Status Codes
-
-| Code | Usage |
-|------|-------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request (validation) |
-| 401 | Unauthorized |
-| 403 | Forbidden |
-| 404 | Not Found |
-| 500 | Server Error |
+Rule: No “works only in prod” configurations.
 
 ---
 
-## Caching Strategy
+## Evolution Path (Scalability Plan)
 
-- **Static pages**: ISR with revalidation
-- **API responses**: No caching (real-time data)
-- **Images**: Cloudinary CDN caching
+### Phase 1–2 (Ship fast)
+- Modular monolith API
+- Queue-backed side effects
+- Meilisearch indexing
+- Standardized design system and UX flows
+
+### Phase 3+ (Scale by extraction)
+Extract services by pressure:
+1. **Notifications Service**
+2. **Search Service**
+3. **Payments Service** (if volume requires isolation)
+4. **USSD Service**
+5. **AI Insights Service**
+
+Extraction rule:
+- Keep Postgres as canonical data source
+- Use event + job contracts to decouple
+- Maintain API gateway routing if needed
 
 ---
 
-## Deployment
+## Non-Functional Requirements (NFRs)
+- Availability target: define per phase (Phase 1 “best effort”; Phase 3 “SLA-bound”)
+- Performance:
+  - listing search should be sub-second
+  - map interactions must not block UI
+- Auditability:
+  - all verification and financial actions are logged
+- Compliance readiness:
+  - data minimization and access controls
 
-### Requirements
-- Node.js 18+
-- PostgreSQL 14+
-- Environment variables configured
+---
 
-### Build Commands
-```bash
-npm install          # Install dependencies
-npx prisma generate  # Generate Prisma client
-npx prisma db push   # Sync database schema
-npm run build        # Build Next.js app
-npm start            # Start production server
-```
+## ADR (Architecture Decisions)
 
-### Recommended Hosting
-- **App**: Vercel, Railway, or similar
-- **Database**: Supabase, Neon, or managed PostgreSQL
-- **Media**: Cloudinary (already integrated)
+### ADR-001 — Modular Monolith First
+- Problem: microservices-first slows delivery and complicates ops.
+- Decision: modular monolith with strict boundaries and queue seams.
+- Alternatives: microservices-first; multi-repo.
+- Consequences: faster delivery; later extraction remains straightforward.
+- Date: 2026-01-25
+- Owner: Product Engineering
+
+### ADR-002 — Postgres + PostGIS as Source of Truth
+- Problem: land workflows require spatial accuracy and authoritative data.
+- Decision: Postgres/PostGIS is canonical; search and caches are derived.
+- Alternatives: Mongo + geo; Elastic as source.
+- Consequences: strong spatial queries; consistent integrity.
+- Date: 2026-01-25
+- Owner: Product Engineering
+
+### ADR-003 — Queue-backed Side Effects
+- Problem: external integrations and heavy tasks degrade API latency.
+- Decision: BullMQ for notifications, exports, search indexing, verification checks.
+- Alternatives: synchronous processing; cron-only.
+- Consequences: reliability and scalability; added worker ops.
+- Date: 2026-01-25
+- Owner: Product Engineering

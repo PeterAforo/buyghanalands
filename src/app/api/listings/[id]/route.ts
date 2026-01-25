@@ -55,8 +55,13 @@ export async function PUT(
 ) {
   try {
     const session = await auth();
+    console.log("PUT /api/listings/[id] - Session:", session?.user?.id ? "Found" : "Not found");
+    
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ 
+        error: "Unauthorized",
+        message: "Please log in again to continue"
+      }, { status: 401 });
     }
 
     const { id } = await params;
