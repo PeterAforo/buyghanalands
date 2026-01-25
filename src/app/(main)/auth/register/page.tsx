@@ -113,13 +113,26 @@ const registerSchema = z
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string(),
     accountType: z.enum(["BUYER", "SELLER", "AGENT", "PROFESSIONAL"]),
+    professionalType: z.enum(["SURVEYOR", "LAWYER", "ARCHITECT", "ENGINEER", "OTHER"]).optional(),
     selectedPlan: z.string().optional(),
     billingCycle: z.enum(["MONTHLY", "YEARLY"]).optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
-  });
+  })
+  .refine(
+    (data) => {
+      if (data.accountType === "PROFESSIONAL") {
+        return !!data.professionalType;
+      }
+      return true;
+    },
+    {
+      message: "Please select your professional service type",
+      path: ["professionalType"],
+    }
+  );
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
@@ -163,10 +176,11 @@ const ACCOUNT_TYPES = [
 ] as const;
 
 const PROFESSIONAL_TYPES = [
-  { value: "SURVEYOR", label: "Surveyor", icon: Compass },
-  { value: "LAWYER", label: "Lawyer", icon: Scale },
-  { value: "ARCHITECT", label: "Architect", icon: PenTool },
-  { value: "ENGINEER", label: "Engineer", icon: HardHat },
+  { value: "SURVEYOR" as const, label: "Land Surveyor", icon: Compass, description: "Survey land boundaries, create site plans, and provide mapping services" },
+  { value: "LAWYER" as const, label: "Property Lawyer", icon: Scale, description: "Handle land documentation, title verification, and legal transfers" },
+  { value: "ARCHITECT" as const, label: "Architect", icon: PenTool, description: "Design buildings, create blueprints, and oversee construction plans" },
+  { value: "ENGINEER" as const, label: "Civil Engineer", icon: HardHat, description: "Structural analysis, site development, and construction supervision" },
+  { value: "OTHER" as const, label: "Other Professional", icon: Briefcase, description: "Valuation, environmental assessment, or other property services" },
 ];
 
 export default function RegisterPage() {
@@ -193,7 +207,9 @@ export default function RegisterPage() {
 
   const selectedAccountType = watch("accountType");
   const selectedPlan = watch("selectedPlan");
+  const selectedProfessionalType = watch("professionalType");
   const selectedTypeInfo = ACCOUNT_TYPES.find((t) => t.value === selectedAccountType);
+  const selectedProfessionalInfo = PROFESSIONAL_TYPES.find((t) => t.value === selectedProfessionalType);
 
   const getPlansForType = () => {
     switch (selectedAccountType) {
@@ -239,14 +255,36 @@ export default function RegisterPage() {
     }
   };
 
+  // Determine total steps based on account type
+  const totalSteps = selectedAccountType === "PROFESSIONAL" ? 4 : 3;
+
   const nextStep = () => {
-    if (step === 1 && selectedTypeInfo?.requiresSubscription && !selectedPlan) {
+    // For professionals, step 2 is professional type selection
+    if (step === 2 && selectedAccountType === "PROFESSIONAL" && !selectedProfessionalType) {
       return;
     }
-    setStep((s) => Math.min(s + 1, 3));
+    setStep((s) => Math.min(s + 1, totalSteps));
   };
 
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
+
+  // Get the actual step content based on account type
+  const getStepContent = () => {
+    if (selectedAccountType === "PROFESSIONAL") {
+      // For professionals: 1=Account Type, 2=Professional Type, 3=Plan, 4=Details
+      return {
+        planStep: 3,
+        detailsStep: 4,
+      };
+    }
+    // For others: 1=Account Type, 2=Plan, 3=Details
+    return {
+      planStep: 2,
+      detailsStep: 3,
+    };
+  };
+
+  const stepConfig = getStepContent();
 
   const handleAccountTypeSelect = (type: typeof selectedAccountType) => {
     setValue("accountType", type);
@@ -306,11 +344,19 @@ export default function RegisterPage() {
 
             {/* Progress Steps */}
             <div className="space-y-4">
-              {[
-                { num: 1, label: "Choose Your Path", desc: "Select account type & plan" },
-                { num: 2, label: "Pick a Plan", desc: "Choose features that fit your needs" },
-                { num: 3, label: "Create Account", desc: "Enter your details" },
-              ].map((s) => (
+              {(selectedAccountType === "PROFESSIONAL"
+                ? [
+                    { num: 1, label: "Choose Your Path", desc: "Select account type" },
+                    { num: 2, label: "Service Type", desc: "What service do you offer?" },
+                    { num: 3, label: "Pick a Plan", desc: "Choose features that fit" },
+                    { num: 4, label: "Create Account", desc: "Enter your details" },
+                  ]
+                : [
+                    { num: 1, label: "Choose Your Path", desc: "Select account type" },
+                    { num: 2, label: "Pick a Plan", desc: "Choose features that fit" },
+                    { num: 3, label: "Create Account", desc: "Enter your details" },
+                  ]
+              ).map((s) => (
                 <div
                   key={s.num}
                   className={`flex items-center gap-4 p-4 rounded-xl transition-all ${
@@ -358,7 +404,7 @@ export default function RegisterPage() {
 
           {/* Mobile Progress */}
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            {[1, 2, 3].map((s) => (
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
               <div
                 key={s}
                 className={`h-2 rounded-full transition-all ${
@@ -439,10 +485,87 @@ export default function RegisterPage() {
               </motion.div>
             )}
 
-            {/* Step 2: Choose Plan */}
-            {step === 2 && (
+            {/* Step 2 for Professionals: Choose Professional Type */}
+            {step === 2 && selectedAccountType === "PROFESSIONAL" && (
               <motion.div
-                key="step2"
+                key="step2-professional"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900">What service do you offer?</h2>
+                  <p className="text-gray-600 mt-2">Select your professional service type</p>
+                </div>
+
+                <div className="grid gap-4 mb-8">
+                  {PROFESSIONAL_TYPES.map((type) => {
+                    const Icon = type.icon;
+                    const isSelected = selectedProfessionalType === type.value;
+                    return (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => setValue("professionalType", type.value)}
+                        className={`relative p-5 rounded-2xl border-2 text-left transition-all ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50 shadow-lg"
+                            : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                              isSelected
+                                ? "bg-emerald-600"
+                                : "bg-gradient-to-br from-orange-500 to-amber-600"
+                            }`}
+                          >
+                            <Icon className="h-6 w-6 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 text-lg">{type.label}</h3>
+                            <p className="text-sm text-gray-600 mt-1">{type.description}</p>
+                          </div>
+                          {isSelected && (
+                            <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                              <Check className="h-4 w-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={prevStep}
+                    className="rounded-xl"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!selectedProfessionalType}
+                    className="bg-emerald-600 hover:bg-emerald-700 rounded-xl px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Continue
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 2 (non-professional) or Step 3 (professional): Choose Plan */}
+            {step === stepConfig.planStep && (
+              <motion.div
+                key="step-plan"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -680,10 +803,10 @@ export default function RegisterPage() {
               </motion.div>
             )}
 
-            {/* Step 3: Account Details */}
-            {step === 3 && (
+            {/* Final Step: Account Details */}
+            {step === stepConfig.detailsStep && (
               <motion.div
-                key="step3"
+                key="step-details"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -705,7 +828,11 @@ export default function RegisterPage() {
                           </div>
                         )}
                         <div>
-                          <p className="font-medium text-gray-900">{selectedTypeInfo?.label}</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedAccountType === "PROFESSIONAL" && selectedProfessionalInfo
+                              ? selectedProfessionalInfo.label
+                              : selectedTypeInfo?.label}
+                          </p>
                           <p className="text-sm text-gray-600">
                             {plans.find((p) => p.plan === selectedPlan)?.name} Plan
                           </p>
