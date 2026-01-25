@@ -12,8 +12,8 @@ async function isAdmin(userId: string): Promise<boolean> {
 }
 
 const bulkActionSchema = z.object({
-  action: z.enum(["approve", "reject", "suspend", "delete"]),
-  listingIds: z.array(z.string()).min(1, "At least one listing ID required"),
+  action: z.enum(["release", "refund", "close"]),
+  transactionIds: z.array(z.string()).min(1, "At least one transaction ID required"),
 });
 
 export async function GET(request: NextRequest) {
@@ -28,23 +28,23 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const filter = searchParams.get("filter") || "pending";
+    const filter = searchParams.get("filter") || "all";
     const search = searchParams.get("search") || "";
 
     let where: any = {};
 
     switch (filter) {
+      case "funded":
+        where.status = "FUNDED";
+        break;
+      case "released":
+        where.status = "RELEASED";
+        break;
+      case "disputed":
+        where.status = "DISPUTED";
+        break;
       case "pending":
-        where.status = { in: ["SUBMITTED", "UNDER_REVIEW"] };
-        break;
-      case "published":
-        where.status = "PUBLISHED";
-        break;
-      case "suspended":
-        where.status = "SUSPENDED";
-        break;
-      case "rejected":
-        where.status = "REJECTED";
+        where.status = { in: ["CREATED", "ESCROW_REQUESTED", "VERIFICATION_PERIOD"] };
         break;
       case "all":
         break;
@@ -52,39 +52,45 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { region: { contains: search, mode: "insensitive" } },
-        { district: { contains: search, mode: "insensitive" } },
+        { listing: { title: { contains: search, mode: "insensitive" } } },
+        { buyer: { fullName: { contains: search, mode: "insensitive" } } },
         { seller: { fullName: { contains: search, mode: "insensitive" } } },
+        { id: { contains: search, mode: "insensitive" } },
       ];
     }
 
-    const listings = await prisma.listing.findMany({
+    const transactions = await prisma.transaction.findMany({
       where,
       include: {
-        seller: {
-          select: { id: true, fullName: true, phone: true, kycTier: true },
-        },
-        media: { take: 1 },
+        listing: { select: { id: true, title: true, region: true, district: true } },
+        buyer: { select: { id: true, fullName: true, phone: true } },
+        seller: { select: { id: true, fullName: true, phone: true } },
+        payments: { select: { id: true, amount: true, status: true, type: true } },
+        disputes: { select: { id: true, status: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
 
     return NextResponse.json(
-      listings.map((l) => ({
-        ...l,
-        priceGhs: l.priceGhs.toString(),
-        sizeAcres: l.sizeAcres.toString(),
+      transactions.map((tx) => ({
+        ...tx,
+        agreedPriceGhs: tx.agreedPriceGhs.toString(),
+        platformFeeGhs: tx.platformFeeGhs.toString(),
+        sellerNetGhs: tx.sellerNetGhs.toString(),
+        payments: tx.payments.map((p) => ({
+          ...p,
+          amount: p.amount.toString(),
+        })),
       }))
     );
   } catch (error) {
-    console.error("Error fetching admin listings:", error);
-    return NextResponse.json({ error: "Failed to fetch listings" }, { status: 500 });
+    console.error("Error fetching admin transactions:", error);
+    return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
   }
 }
 
-// Bulk actions for listings
+// Bulk actions for transactions
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
@@ -97,32 +103,31 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { action, listingIds } = bulkActionSchema.parse(body);
+    const { action, transactionIds } = bulkActionSchema.parse(body);
 
     const statusMap: Record<string, string> = {
-      approve: "PUBLISHED",
-      reject: "REJECTED",
-      suspend: "SUSPENDED",
-      delete: "SUSPENDED", // Soft delete = suspend
+      release: "RELEASED",
+      refund: "REFUNDED",
+      close: "CLOSED",
     };
 
-    const result = await prisma.listing.updateMany({
-      where: { id: { in: listingIds } },
+    const result = await prisma.transaction.updateMany({
+      where: { id: { in: transactionIds } },
       data: { 
         status: statusMap[action] as any,
-        publishedAt: action === "approve" ? new Date() : undefined,
+        completedAt: action === "release" || action === "close" ? new Date() : undefined,
       },
     });
 
     // Create audit logs
-    for (const listingId of listingIds) {
+    for (const txId of transactionIds) {
       await prisma.auditLog.create({
         data: {
-          entityType: "LISTING",
-          entityId: listingId,
+          entityType: "TRANSACTION",
+          entityId: txId,
           actorType: "USER",
           actorUserId: session.user.id,
-          action: `LISTING_BULK_${action.toUpperCase()}`,
+          action: `TRANSACTION_BULK_${action.toUpperCase()}`,
           diff: { newStatus: statusMap[action] },
         },
       });
