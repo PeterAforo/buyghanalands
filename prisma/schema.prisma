@@ -272,6 +272,11 @@ model User {
   
   // Workflow relations
   propertyWorkflows      PropertyWorkflow[]
+  
+  // Mobile app relations
+  refreshTokens          RefreshToken[]
+  pushNotifications      PushNotification[]
+  notificationPreferences NotificationPreferences?
 
   @@index([createdAt])
   @@index([email])
@@ -1215,16 +1220,66 @@ enum DevicePlatform {
 model DeviceToken {
   id         String         @id @default(cuid())
   userId     String
-  user       User           @relation(fields: [userId], references: [id])
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   token      String         @unique
   platform   DevicePlatform
   deviceName String?
+  appVersion String?
   isActive   Boolean        @default(true)
   lastUsedAt DateTime?
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 
   @@index([userId, isActive])
+  @@index([token])
+}
+
+// Mobile App Authentication - Refresh Tokens
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Push Notification History
+model PushNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// User Notification Preferences
+model NotificationPreferences {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newOffers         Boolean  @default(true)
+  offerUpdates      Boolean  @default(true)
+  messages          Boolean  @default(true)
+  transactionAlerts Boolean  @default(true)
+  listingUpdates    Boolean  @default(true)
+  verificationAlerts Boolean @default(true)
+  savedSearchAlerts Boolean  @default(true)
+  marketingEmails   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // Pro Features Models
