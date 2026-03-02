@@ -49,6 +49,7 @@ const generalItems = [
   { href: "/admin/verifications", label: "Verifications", icon: FileCheck },
   { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
   { href: "/admin/fraud", label: "Fraud Cases", icon: Shield },
+  { href: "/admin/system", label: "System Health", icon: Lock },
 ];
 
 export default async function AdminLayout({
