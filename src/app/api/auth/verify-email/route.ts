@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,12 +48,23 @@ export async function GET(request: NextRequest) {
       where: { id: verificationToken.id },
     });
 
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        entityType: "USER",
+        entityId: verificationToken.userId,
+        actorType: "USER",
+        actorUserId: verificationToken.userId,
+        action: "EMAIL_VERIFIED",
+        diff: { email: verificationToken.email },
+      },
+    });
+
     // Redirect to login with success message
     return NextResponse.redirect(
       new URL("/auth/login?verified=true", request.url)
     );
   } catch (error) {
-    console.error("Email verification error:", error);
     return NextResponse.json(
       { error: "Failed to verify email" },
       { status: 500 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { randomBytes } from "crypto";
 import { sendVerificationEmail } from "@/lib/email";
+import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
 const resendSchema = z.object({
   email: z.string().email(),
@@ -10,6 +11,16 @@ const resendSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP
+    const ip = getClientIP(request);
+    const ipRateLimit = checkRateLimit(ip, { limit: 3, windowSeconds: 300, identifier: "resend-verification" });
+    if (!ipRateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: createRateLimitHeaders(ipRateLimit) }
+      );
+    }
+
     const body = await request.json();
     const { email } = resendSchema.parse(body);
 
@@ -65,7 +76,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error("Resend verification error:", error);
     return NextResponse.json(
       { error: "Failed to send verification email" },
       { status: 500 }

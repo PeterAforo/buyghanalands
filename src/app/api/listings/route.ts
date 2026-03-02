@@ -147,13 +147,100 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createListingSchema.parse(body);
 
-    // Check if user has seller role
+    // Check if user has seller role and subscription
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { roles: true },
+      select: { 
+        roles: true,
+        subscriptions: {
+          where: {
+            status: "ACTIVE",
+            OR: [
+              { sellerPlan: { not: null } },
+              { agentPlan: { not: null } },
+            ],
+          },
+          select: {
+            id: true,
+            sellerPlan: true,
+            agentPlan: true,
+            listingLimit: true,
+          },
+        },
+        _count: {
+          select: {
+            listings: {
+              where: {
+                status: { in: ["DRAFT", "PENDING_REVIEW", "PUBLISHED"] },
+              },
+            },
+          },
+        },
+      },
     });
 
-    if (!user?.roles.some((role) => ["SELLER", "AGENT", "ADMIN"].includes(role))) {
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check subscription limits
+    const activeSubscription = user.subscriptions[0];
+    const currentListingCount = user._count.listings;
+
+    if (activeSubscription) {
+      const listingLimit = activeSubscription.listingLimit || 1;
+      
+      if (currentListingCount >= listingLimit) {
+        return NextResponse.json(
+          { 
+            error: "Listing limit reached",
+            message: `Your ${activeSubscription.sellerPlan || activeSubscription.agentPlan} plan allows ${listingLimit} listing(s). Please upgrade to create more.`,
+            currentCount: currentListingCount,
+            limit: listingLimit,
+          },
+          { status: 403 }
+        );
+      }
+    } else {
+      // No active subscription - check if they have a free tier
+      const hasSellerRole = user.roles.some((role) => ["SELLER", "AGENT", "ADMIN"].includes(role));
+      
+      if (!hasSellerRole) {
+        // Create free subscription for new sellers
+        await prisma.subscription.create({
+          data: {
+            userId: session.user.id,
+            category: "SELLER",
+            sellerPlan: "FREE",
+            billingCycle: "MONTHLY",
+            priceGhs: 0,
+            status: "ACTIVE",
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000), // 100 years
+            autoRenew: false,
+            listingLimit: 1,
+            transactionFeeRate: 0.05,
+            features: {
+              createListings: true,
+              basicVisibility: true,
+              messaging: true,
+              escrowProtection: true,
+            },
+          },
+        });
+      } else if (currentListingCount >= 1) {
+        // Has seller role but no subscription and already has a listing
+        return NextResponse.json(
+          { 
+            error: "Subscription required",
+            message: "Please subscribe to a seller plan to create more listings.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (!user.roles.some((role) => ["SELLER", "AGENT", "ADMIN"].includes(role))) {
       // Add SELLER role if not present
       await prisma.user.update({
         where: { id: session.user.id },
@@ -215,7 +302,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error("Error creating listing:", error);
     return NextResponse.json(
       { error: "Failed to create listing" },
       { status: 500 }
