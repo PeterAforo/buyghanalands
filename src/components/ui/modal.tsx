@@ -53,15 +53,18 @@ function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={closeOnOverlayClick ? onClose : undefined}
       />
       <div
         className={cn(
-          "relative w-full bg-white rounded-2xl shadow-2xl",
+          "relative w-full bg-white shadow-2xl",
           "animate-in fade-in-0 zoom-in-95 duration-200",
+          "max-sm:rounded-none max-sm:h-full max-sm:max-w-none max-sm:m-0 max-sm:overflow-auto",
+          "sm:rounded-2xl",
+          "safe-area-bottom",
           sizeClasses[size],
           className
         )}
@@ -87,7 +90,7 @@ function ModalHeader({
       {onClose && (
         <button
           onClick={onClose}
-          className="p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           <X className="h-5 w-5" />
         </button>

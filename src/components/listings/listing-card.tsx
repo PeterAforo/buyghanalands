@@ -108,8 +108,8 @@ function ListingCard({
                   setCurrentImage(idx);
                 }}
                 className={cn(
-                  "w-1.5 h-1.5 rounded-full transition-all",
-                  currentImage === idx ? "bg-white w-4" : "bg-white/60 hover:bg-white/80"
+                  "w-2.5 h-2.5 rounded-full transition-all min-w-[10px] min-h-[10px]",
+                  currentImage === idx ? "bg-white w-5" : "bg-white/60 hover:bg-white/80"
                 )}
               />
             ))}
@@ -141,7 +141,7 @@ function ListingCard({
             onFavoriteToggle?.(id);
           }}
           className={cn(
-            "absolute bottom-3 right-3 p-2 rounded-full transition-all",
+            "absolute bottom-3 right-3 p-2.5 rounded-full transition-all min-w-[44px] min-h-[44px] flex items-center justify-center",
             "bg-white/90 backdrop-blur-sm hover:bg-white",
             isFavorite ? "text-red-500" : "text-gray-600 hover:text-red-500"
           )}

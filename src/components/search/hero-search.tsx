@@ -72,7 +72,7 @@ function HeroSearch({ className, variant = "hero" }: HeroSearchProps) {
           <input
             type="text"
             placeholder="Search locations..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           />
         </div>

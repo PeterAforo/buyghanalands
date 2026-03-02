@@ -71,12 +71,12 @@ export function MakeOfferModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-4">
+      <Card className="w-full max-w-md sm:rounded-xl max-sm:rounded-none max-sm:h-full max-sm:max-w-none max-sm:m-0 overflow-auto safe-area-bottom">
         <CardHeader className="relative">
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+            className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2 -mt-2"
           >
             <X className="h-5 w-5" />
           </button>
