@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { AdminLayoutClient } from "@/components/admin/admin-layout-client";
 import {
   LayoutDashboard,
   Users,
@@ -70,8 +71,13 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-[#f8f7f4] flex">
-      {/* Sidebar */}
-      <aside className="w-[240px] bg-[#1a3a2f] min-h-screen fixed left-0 top-0 flex flex-col rounded-r-3xl">
+      {/* Mobile Navigation */}
+      <AdminLayoutClient userName={name} userEmail={email}>
+        <div />
+      </AdminLayoutClient>
+
+      {/* Sidebar - Hidden on mobile */}
+      <aside className="hidden md:flex w-[240px] bg-[#1a3a2f] min-h-screen fixed left-0 top-0 flex-col rounded-r-3xl">
         {/* Logo */}
         <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 bg-[#c5e063] rounded-lg flex items-center justify-center">
@@ -156,7 +162,7 @@ export default async function AdminLayout({
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-[240px]">
+      <div className="flex-1 md:ml-[240px]">
         {/* Top Header */}
         <header className="h-14 bg-[#f8f7f4] flex items-center justify-end px-6 sticky top-0 z-40">
           <div className="flex items-center gap-3">

@@ -114,7 +114,7 @@ async function main() {
     sizeAcres: Number(listing.sizeAcres),
     priceGhs: Number(listing.priceGhs),
     status: listing.status,
-    isVerified: listing.verificationRequests?.some((v) => v.status === 'APPROVED') || false,
+    isVerified: listing.verificationRequests?.some((v: any) => v.status === 'APPROVED') || false,
     sellerId: listing.seller.id,
     sellerName: listing.seller.fullName,
     createdAt: new Date(listing.createdAt).getTime(),

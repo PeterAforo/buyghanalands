@@ -168,9 +168,9 @@ async function main() {
         fullName: 'Ghana Land Seller',
         phone: '+233201234567',
         roles: ['SELLER'],
-        emailVerified: new Date(),
+        emailVerified: true,
         accountStatus: 'ACTIVE',
-        kycTier: 'TIER_1',
+        kycTier: 'TIER_1_ID_UPLOAD',
       },
     });
     console.log(`   Created seller: ${seller.email}`);

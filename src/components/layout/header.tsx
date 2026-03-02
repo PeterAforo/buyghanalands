@@ -99,7 +99,7 @@ export function Header() {
           <div className="md:hidden">
             <button
               type="button"
-              className="p-2 text-gray-700"
+              className="p-3 text-gray-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
@@ -119,7 +119,7 @@ export function Header() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="flex items-center space-x-2 px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md"
+                  className="flex items-center space-x-2 px-3 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md min-h-[44px]"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <item.icon className="h-5 w-5" />

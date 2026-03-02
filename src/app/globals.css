@@ -74,11 +74,35 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   background: var(--c-neutral-surface);
   color: var(--c-neutral-ink);
   font-family: var(--font-sans);
   line-height: 1.65;
+}
+
+/* Prevent iOS input zoom */
+input, select, textarea {
+  font-size: 16px;
+}
+
+/* Safe area insets for iOS */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Mobile-friendly min-height */
+.min-h-screen-safe {
+  min-height: 100dvh;
 }
 
 /* ============================================
