@@ -132,7 +132,6 @@ export async function GET(
           select: {
             offers: true,
             transactions: true,
-            views: true,
           },
         },
       },
@@ -205,7 +204,10 @@ export async function PATCH(
         actorType: "USER",
         actorUserId: session.user.id,
         action: "LISTING_UPDATED_BY_ADMIN",
-        diff: { before: existingListing, changes: validatedData },
+        diff: { 
+          before: JSON.parse(JSON.stringify(existingListing, (_, v) => typeof v === 'bigint' ? v.toString() : v)), 
+          changes: validatedData 
+        },
       },
     });
 

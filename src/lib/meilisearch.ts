@@ -26,7 +26,7 @@ export interface SearchableListing {
   description: string;
   region: string;
   district: string;
-  constituency: string;
+  constituency: string | null;
   town: string | null;
   landType: string;
   categoryName: string | null;
@@ -321,28 +321,7 @@ export async function checkMeilisearchHealth(): Promise<boolean> {
 /**
  * Convert Prisma listing to searchable document
  */
-export function listingToSearchDocument(listing: {
-  id: string;
-  title: string;
-  description: string;
-  region: string;
-  district: string;
-  constituency: string;
-  town: string | null;
-  landType: string;
-  tenureType: string;
-  sizeAcres: number;
-  priceGhs: bigint;
-  status: string;
-  latitude: number | null;
-  longitude: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-  seller: { id: string; fullName: string };
-  category?: { name: string } | null;
-  images?: { url: string }[];
-  verifications?: { status: string }[];
-}): SearchableListing {
+export function listingToSearchDocument(listing: any): SearchableListing {
   return {
     id: listing.id,
     title: listing.title,
@@ -354,16 +333,16 @@ export function listingToSearchDocument(listing: {
     landType: listing.landType,
     categoryName: listing.category?.name || null,
     tenureType: listing.tenureType,
-    sizeAcres: listing.sizeAcres,
+    sizeAcres: Number(listing.sizeAcres),
     priceGhs: Number(listing.priceGhs),
     status: listing.status,
-    isVerified: listing.verifications?.some(v => v.status === 'APPROVED') || false,
+    isVerified: listing.verificationRequests?.some((v: { status: string }) => v.status === 'APPROVED') || false,
     sellerId: listing.seller.id,
     sellerName: listing.seller.fullName,
-    createdAt: listing.createdAt.getTime(),
-    updatedAt: listing.updatedAt.getTime(),
-    latitude: listing.latitude,
-    longitude: listing.longitude,
-    imageUrls: listing.images?.map(i => i.url) || [],
+    createdAt: new Date(listing.createdAt).getTime(),
+    updatedAt: new Date(listing.updatedAt).getTime(),
+    latitude: listing.latitude ? Number(listing.latitude) : null,
+    longitude: listing.longitude ? Number(listing.longitude) : null,
+    imageUrls: listing.media?.map((i: { url: string }) => i.url) || [],
   };
 }

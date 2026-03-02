@@ -45,13 +45,12 @@ export async function POST(request: NextRequest) {
         category: {
           select: { name: true },
         },
-        images: {
+        media: {
           select: { url: true },
           take: 5,
         },
-        verifications: {
+        verificationRequests: {
           select: { status: true },
-          where: { status: "APPROVED" },
         },
       },
     });
@@ -70,11 +69,11 @@ export async function POST(request: NextRequest) {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        entityType: "SYSTEM",
-        entityId: "search-index",
+        entityType: "USER",
+        entityId: session.user.id,
         actorType: "USER",
         actorUserId: session.user.id,
-        action: "REINDEX",
+        action: "SEARCH_REINDEX",
         diff: { 
           documentsIndexed: documents.length,
           timestamp: new Date().toISOString(),

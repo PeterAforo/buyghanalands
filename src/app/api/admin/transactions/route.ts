@@ -76,8 +76,7 @@ export async function GET(request: NextRequest) {
       transactions.map((tx) => ({
         ...tx,
         agreedPriceGhs: tx.agreedPriceGhs.toString(),
-        platformFeeGhs: tx.platformFeeGhs.toString(),
-        sellerNetGhs: tx.sellerNetGhs.toString(),
+        platformFeeBps: tx.platformFeeBps,
         payments: tx.payments.map((p) => ({
           ...p,
           amount: p.amount.toString(),
@@ -85,7 +84,6 @@ export async function GET(request: NextRequest) {
       }))
     );
   } catch (error) {
-    console.error("Error fetching admin transactions:", error);
     return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
   }
 }
@@ -113,9 +111,8 @@ export async function PUT(request: NextRequest) {
 
     const result = await prisma.transaction.updateMany({
       where: { id: { in: transactionIds } },
-      data: { 
+      data: {
         status: statusMap[action] as any,
-        completedAt: action === "release" || action === "close" ? new Date() : undefined,
       },
     });
 

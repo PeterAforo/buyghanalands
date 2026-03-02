@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
           select: {
             listings: {
               where: {
-                status: { in: ["DRAFT", "PENDING_REVIEW", "PUBLISHED"] },
+                status: { in: ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "PUBLISHED"] },
               },
             },
           },

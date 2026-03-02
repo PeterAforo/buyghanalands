@@ -87,8 +87,7 @@ export async function GET(
     return NextResponse.json({
       ...transaction,
       agreedPriceGhs: transaction.agreedPriceGhs.toString(),
-      platformFeeGhs: transaction.platformFeeGhs.toString(),
-      sellerNetGhs: transaction.sellerNetGhs.toString(),
+      platformFeeBps: transaction.platformFeeBps,
       listing: transaction.listing
         ? {
             ...transaction.listing,
@@ -161,7 +160,6 @@ export async function PUT(
       where: { id },
       data: {
         status: newStatus,
-        completedAt: ["RELEASED", "REFUNDED", "CLOSED"].includes(newStatus) ? new Date() : undefined,
       },
     });
 
@@ -180,11 +178,9 @@ export async function PUT(
     return NextResponse.json({
       ...updatedTransaction,
       agreedPriceGhs: updatedTransaction.agreedPriceGhs.toString(),
-      platformFeeGhs: updatedTransaction.platformFeeGhs.toString(),
-      sellerNetGhs: updatedTransaction.sellerNetGhs.toString(),
+      platformFeeBps: updatedTransaction.platformFeeBps,
     });
   } catch (error) {
-    console.error("Error updating transaction:", error);
     return NextResponse.json({ error: "Failed to update transaction" }, { status: 500 });
   }
 }
@@ -245,14 +241,12 @@ export async function PATCH(
     return NextResponse.json({
       ...updatedTransaction,
       agreedPriceGhs: updatedTransaction.agreedPriceGhs.toString(),
-      platformFeeGhs: updatedTransaction.platformFeeGhs.toString(),
-      sellerNetGhs: updatedTransaction.sellerNetGhs.toString(),
+      platformFeeBps: updatedTransaction.platformFeeBps,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
     }
-    console.error("Error updating transaction:", error);
     return NextResponse.json({ error: "Failed to update transaction" }, { status: 500 });
   }
 }
