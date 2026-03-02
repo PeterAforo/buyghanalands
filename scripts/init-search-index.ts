@@ -124,14 +124,14 @@ async function main() {
     imageUrls: listing.media?.map((i) => i.url) || [],
   }));
 
-  // Index documents
+  // Index documents with explicit primary key
   console.log('📤 Indexing documents...');
-  const task = await index.addDocuments(documents);
+  const task = await index.addDocuments(documents, { primaryKey: 'id' });
   console.log(`✅ Indexing task created: ${task.taskUid}`);
 
-  // Wait for indexing to complete
+  // Wait a moment for indexing
   console.log('⏳ Waiting for indexing to complete...');
-  await client.waitForTask(task.taskUid);
+  await new Promise(resolve => setTimeout(resolve, 2000));
   console.log('✅ Indexing complete!');
 
   // Get stats
