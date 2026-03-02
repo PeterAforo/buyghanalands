@@ -1,5 +1,36 @@
 import { z } from "zod";
+import { NextResponse } from "next/server";
 
+/**
+ * Validate request body against a Zod schema
+ * Returns parsed data or error response
+ */
+export function validateRequest<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): { success: true; data: T } | { success: false; error: NextResponse } {
+  const result = schema.safeParse(data);
+  
+  if (!result.success) {
+    return {
+      success: false,
+      error: NextResponse.json(
+        { 
+          error: "Validation failed", 
+          details: result.error.issues.map(i => ({
+            field: i.path.join("."),
+            message: i.message,
+          }))
+        },
+        { status: 400 }
+      ),
+    };
+  }
+  
+  return { success: true, data: result.data };
+}
+
+// Common field schemas
 export const phoneSchema = z
   .string()
   .min(10, "Phone number must be at least 10 digits")
@@ -68,4 +99,70 @@ export const reportSchema = z.object({
   targetId: z.string().min(1, "Target ID is required"),
   reason: z.string().min(10, "Reason must be at least 10 characters"),
   details: z.string().optional(),
+});
+
+// Listing schemas
+export const createListingSchema = z.object({
+  title: z.string().min(5, "Title must be at least 5 characters").max(200),
+  description: z.string().min(20, "Description must be at least 20 characters"),
+  region: z.string().min(1, "Region is required"),
+  district: z.string().min(1, "District is required"),
+  constituency: z.string().optional(),
+  town: z.string().optional(),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
+  landType: z.enum(["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "MIXED"]),
+  tenureType: z.enum(["FREEHOLD", "LEASEHOLD", "CUSTOMARY"]),
+  leaseDurationYears: z.number().optional().nullable(),
+  sizeAcres: z.number().positive("Size must be positive"),
+  totalPlots: z.number().int().positive().default(1),
+  availablePlots: z.number().int().positive().default(1),
+  priceGhs: z.number().positive("Price must be positive"),
+  pricePerPlotGhs: z.number().optional().nullable(),
+  negotiable: z.boolean().default(true),
+});
+
+export const updateListingSchema = createListingSchema.partial();
+
+// Payment schemas
+export const initializePaymentSchema = z.object({
+  transactionId: z.string().optional(),
+  listingId: z.string().optional(),
+  amount: z.number().positive("Amount must be positive"),
+  email: z.string().email("Valid email required"),
+  paymentType: z.enum(["LISTING_FEE", "TRANSACTION_FUNDING", "SERVICE_FEE"]).default("TRANSACTION_FUNDING"),
+  callbackUrl: z.string().url().optional(),
+});
+
+// Favorite schema
+export const favoriteSchema = z.object({
+  listingId: z.string().min(1, "Listing ID is required"),
+});
+
+// Saved search schema
+export const savedSearchSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  criteria: z.object({
+    region: z.string().optional(),
+    district: z.string().optional(),
+    landType: z.string().optional(),
+    minPrice: z.number().optional(),
+    maxPrice: z.number().optional(),
+    minSize: z.number().optional(),
+    maxSize: z.number().optional(),
+  }),
+  notifyEmail: z.boolean().default(true),
+  notifySms: z.boolean().default(false),
+});
+
+// Support ticket schema
+export const supportTicketSchema = z.object({
+  subject: z.string().min(5, "Subject must be at least 5 characters").max(200),
+  body: z.string().min(10, "Message must be at least 10 characters"),
+  transactionId: z.string().optional(),
+});
+
+// ID parameter schema
+export const idParamSchema = z.object({
+  id: z.string().min(1, "ID is required"),
 });

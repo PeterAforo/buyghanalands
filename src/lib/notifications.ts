@@ -99,9 +99,23 @@ export async function notifyTransactionReleased(sellerId: string, listingTitle: 
   await sendNotification({
     userId: sellerId,
     type: "both",
-    subject: "Funds Released! - BuyGhanaLands",
+    subject: "Funds Released - BuyGhanaLands",
     emailHtml,
-    smsMessage: `BuyGhanaLands: GH₵${amount.toLocaleString()} has been released to your account for "${listingTitle}". Congratulations!`,
+    smsMessage: `BuyGhanaLands: GH₵${amount.toLocaleString()} has been released to your account for "${listingTitle}". Thank you for using BuyGhanaLands!`,
+  });
+}
+
+export async function notifyDisputeResolved(userId: string, listingTitle: string, outcome: string): Promise<void> {
+  const outcomeText = outcome === "RELEASE" ? "funds released to seller" :
+                      outcome === "REFUND" ? "full refund to buyer" :
+                      outcome === "PARTIAL" ? "partial settlement" : "transaction terminated";
+  
+  await sendNotification({
+    userId,
+    type: "both",
+    subject: "Dispute Resolved - BuyGhanaLands",
+    emailHtml: getTransactionEmailHtml("resolved", listingTitle, 0, `Outcome: ${outcomeText}`),
+    smsMessage: `BuyGhanaLands: Your dispute for "${listingTitle}" has been resolved. ${outcomeText}. Login for details.`,
   });
 }
 
@@ -139,7 +153,7 @@ export async function notifyNewMessage(receiverId: string, senderName: string, m
 }
 
 // Transaction Email Template
-function getTransactionEmailHtml(type: "funded" | "disputed" | "released" | "refunded", listingTitle: string, amount: number): string {
+function getTransactionEmailHtml(type: "funded" | "disputed" | "released" | "refunded" | "resolved", listingTitle: string, amount: number, extraMessage?: string): string {
   const config = {
     funded: {
       title: "Escrow Funded",
@@ -160,6 +174,11 @@ function getTransactionEmailHtml(type: "funded" | "disputed" | "released" | "ref
       title: "Refund Processed",
       message: `GH₵${amount.toLocaleString()} has been refunded to your account for "${listingTitle}".`,
       color: "#6b7280",
+    },
+    resolved: {
+      title: "Dispute Resolved",
+      message: `Your dispute for "${listingTitle}" has been resolved. ${extraMessage || ""}`,
+      color: "#2563eb",
     },
   };
 

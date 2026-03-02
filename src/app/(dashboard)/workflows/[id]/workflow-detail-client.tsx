@@ -347,8 +347,7 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
   }, [workflow.workflowAlerts]);
 
   const handleTaskToggle = async (taskId: string, completed: boolean) => {
-    // This would update the specific task in the workflow
-    console.log("Toggle task:", taskId, completed);
+    // Task toggle would update the specific task in the workflow
   };
 
   const handleTaskAction = async (taskId: string, actionType: string) => {

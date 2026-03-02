@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,6 +8,31 @@ export async function POST(request: NextRequest) {
 
     if (!phone || !code) {
       return NextResponse.json({ error: "Phone and code required" }, { status: 400 });
+    }
+
+    // Rate limit by phone number
+    const phoneRateLimit = checkRateLimit(phone, RATE_LIMITS.OTP_VERIFY);
+    if (!phoneRateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many verification attempts. Please request a new OTP." },
+        { 
+          status: 429, 
+          headers: createRateLimitHeaders(phoneRateLimit) 
+        }
+      );
+    }
+
+    // Rate limit by IP
+    const ip = getClientIP(request);
+    const ipRateLimit = checkRateLimit(ip, { ...RATE_LIMITS.OTP_VERIFY, limit: 20, identifier: "otp-verify-ip" });
+    if (!ipRateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many requests from this IP. Please try again later." },
+        { 
+          status: 429, 
+          headers: createRateLimitHeaders(ipRateLimit) 
+        }
+      );
     }
 
     // Find OTP record

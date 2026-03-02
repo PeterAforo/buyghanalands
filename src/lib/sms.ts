@@ -100,15 +100,13 @@ export async function sendSMS(phone: string, message: string): Promise<SendSMSRe
   if (SMS_PROVIDER === "hubtel") {
     result = await sendViaHubtel(phone, message);
     if (!result.success && MNOTIFY_API_KEY) {
-      // Fallback to mNotify
-      console.log("Hubtel failed, falling back to mNotify");
+      // Hubtel failed, falling back to mNotify
       result = await sendViaMNotify(phone, message);
     }
   } else {
     result = await sendViaMNotify(phone, message);
     if (!result.success && HUBTEL_CLIENT_ID) {
-      // Fallback to Hubtel
-      console.log("mNotify failed, falling back to Hubtel");
+      // mNotify failed, falling back to Hubtel
       result = await sendViaHubtel(phone, message);
     }
   }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { sendVerificationEmail } from "@/lib/email";
+import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   fullName: z.string().min(2),
@@ -26,6 +27,19 @@ const FREE_SUBSCRIPTION_TYPES = ["BUYER", "SELLER"];
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP
+    const ip = getClientIP(request);
+    const ipRateLimit = checkRateLimit(ip, RATE_LIMITS.REGISTER);
+    if (!ipRateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        { 
+          status: 429, 
+          headers: createRateLimitHeaders(ipRateLimit) 
+        }
+      );
+    }
+
     const body = await request.json();
     const data = registerSchema.parse(body);
 

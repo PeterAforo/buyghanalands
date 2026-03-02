@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { sendSMS, generateOTP } from "@/lib/sms";
+import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
 const forgotPasswordSchema = z.object({
   phone: z.string().min(10).max(15),
@@ -9,6 +10,19 @@ const forgotPasswordSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP
+    const ip = getClientIP(request);
+    const ipRateLimit = checkRateLimit(ip, RATE_LIMITS.PASSWORD_RESET);
+    if (!ipRateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many password reset requests. Please try again later." },
+        { 
+          status: 429, 
+          headers: createRateLimitHeaders(ipRateLimit) 
+        }
+      );
+    }
+
     const body = await request.json();
     const data = forgotPasswordSchema.parse(body);
 

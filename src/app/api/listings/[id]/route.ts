@@ -55,7 +55,6 @@ export async function PUT(
 ) {
   try {
     const session = await auth();
-    console.log("PUT /api/listings/[id] - Session:", session?.user?.id ? "Found" : "Not found");
     
     if (!session?.user?.id) {
       return NextResponse.json({ 
