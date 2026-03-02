@@ -1,29 +1,22 @@
 import { z } from "zod";
-import { NextResponse } from "next/server";
 
 /**
  * Validate request body against a Zod schema
- * Returns parsed data or error response
+ * Returns parsed data or validation errors
  */
 export function validateRequest<T>(
   schema: z.ZodSchema<T>,
   data: unknown
-): { success: true; data: T } | { success: false; error: NextResponse } {
+): { success: true; data: T } | { success: false; errors: Array<{ field: string; message: string }> } {
   const result = schema.safeParse(data);
   
   if (!result.success) {
     return {
       success: false,
-      error: NextResponse.json(
-        { 
-          error: "Validation failed", 
-          details: result.error.issues.map(i => ({
-            field: i.path.join("."),
-            message: i.message,
-          }))
-        },
-        { status: 400 }
-      ),
+      errors: result.error.issues.map(i => ({
+        field: i.path.join("."),
+        message: i.message,
+      })),
     };
   }
   

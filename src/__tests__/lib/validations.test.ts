@@ -145,9 +145,13 @@ describe('Validation Schemas', () => {
       }
     });
 
-    it('should return error response with invalid data', () => {
+    it('should return errors with invalid data', () => {
       const result = validateRequest(favoriteSchema, { listingId: '' });
       expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.errors).toBeDefined();
+        expect(result.errors.length).toBeGreaterThan(0);
+      }
     });
   });
 });
