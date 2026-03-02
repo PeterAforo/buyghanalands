@@ -68,7 +68,16 @@ export async function GET(request: NextRequest) {
       },
       processingTimeMs: result.processingTimeMs,
     });
-  } catch (error) {
+  } catch (error: any) {
+    // Handle index not found error gracefully
+    if (error?.code === 'index_not_found' || error?.message?.includes('not found')) {
+      return NextResponse.json({
+        listings: [],
+        pagination: { page: 1, limit: 20, totalHits: 0, totalPages: 0 },
+        processingTimeMs: 0,
+        message: "Search index is being built. Please try again later.",
+      });
+    }
     return NextResponse.json(
       { error: "Search failed" },
       { status: 500 }
