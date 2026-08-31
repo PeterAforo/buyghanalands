@@ -19,6 +19,7 @@ import {
   BarChart3,
   Home,
   LogOut,
+  Tags,
 } from "lucide-react";
 
 const menuItems = [
@@ -26,6 +27,7 @@ const menuItems = [
   { href: "/admin/analytics", label: "Statistics", icon: BarChart3 },
   { href: "/admin/users", label: "Customers", icon: Users },
   { href: "/admin/listings", label: "Listings", icon: Package },
+  { href: "/admin/land-categories", label: "Land Categories", icon: Tags },
   { href: "/admin/messages", label: "Messages", icon: MessageSquare },
   { href: "/admin/transactions", label: "Transactions", icon: CreditCard },
 ];

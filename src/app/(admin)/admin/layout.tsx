@@ -3,25 +3,12 @@ import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
 import { AdminLayoutClient } from "@/components/admin/admin-layout-client";
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import {
-  LayoutDashboard,
-  Users,
-  MapPin,
-  FolderTree,
-  FileCheck,
-  AlertTriangle,
-  Settings,
-  Shield,
-  CreditCard,
-  BarChart3,
-  MessageSquare,
   LogOut,
   Bell,
   Search,
-  ChevronDown,
   Home,
-  Package,
-  Lock,
 } from "lucide-react";
 
 async function checkAdminAccess(userId: string) {
@@ -35,23 +22,6 @@ async function checkAdminAccess(userId: string) {
     email: user?.email || "admin@buyghanalands.com",
   };
 }
-
-const menuItems = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/analytics", label: "Statistics", icon: BarChart3 },
-  { href: "/admin/users", label: "Customers", icon: Users },
-  { href: "/admin/listings", label: "Listings", icon: Package, badge: null },
-  { href: "/admin/messages", label: "Messages", icon: MessageSquare, badge: "13" },
-  { href: "/admin/transactions", label: "Transactions", icon: CreditCard },
-];
-
-const generalItems = [
-  { href: "/admin/settings", label: "Settings", icon: Settings },
-  { href: "/admin/verifications", label: "Verifications", icon: FileCheck },
-  { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
-  { href: "/admin/fraud", label: "Fraud Cases", icon: Shield },
-  { href: "/admin/system", label: "System Health", icon: Lock },
-];
 
 export default async function AdminLayout({
   children,
@@ -92,50 +62,8 @@ export default async function AdminLayout({
           <span className="text-white font-semibold text-lg">BuyGhanaLands</span>
         </div>
 
-        {/* Menu Section */}
-        <div className="px-4 mt-4">
-          <p className="text-[#a3c4b5] text-[10px] font-semibold uppercase tracking-wider mb-3 px-3">Menu</p>
-          <nav className="space-y-1" aria-label="Main menu">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-3 px-3 py-2.5 text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white rounded-xl transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063]"
-                >
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                  <span className="text-sm font-medium flex-1">{item.label}</span>
-                  {item.badge && (
-                    <span className="bg-[#c5e063] text-[#1a3a2f] text-xs font-semibold px-2 py-0.5 rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* General Section */}
-        <div className="px-4 mt-8">
-          <p className="text-[#a3c4b5] text-[10px] font-semibold uppercase tracking-wider mb-3 px-3">General</p>
-          <nav className="space-y-1" aria-label="General menu">
-            {generalItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-3 px-3 py-2.5 text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063]"
-                >
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                  <span className="text-sm font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
+        {/* Navigation */}
+        <AdminSidebar />
 
         {/* User Profile at Bottom */}
         <div className="mt-auto p-4 border-t border-[#2a4a3f]">
