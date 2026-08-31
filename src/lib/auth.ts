@@ -10,30 +10,42 @@ const providers = [
   Credentials({
     name: "credentials",
     credentials: {
-      phone: { label: "Phone", type: "text" },
+      identifier: { label: "Email or Phone", type: "text" },
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials) {
-      if (!credentials?.phone || !credentials?.password) {
+      if (!credentials?.identifier || !credentials?.password) {
         return null;
       }
 
-      // Normalize phone number - convert 0XXXXXXXXX to +233XXXXXXXXX
-      let phone = (credentials.phone as string).trim();
-      if (phone.startsWith("0") && phone.length === 10) {
-        phone = "+233" + phone.substring(1);
-      }
+      const identifier = (credentials.identifier as string).trim();
+      const isEmail = identifier.includes("@");
 
-      // Try to find user with normalized phone first
-      let user = await withDbRetry(() => prisma.user.findUnique({
-        where: { phone },
-      }));
+      let user;
 
-      // If not found, try with original input (for users with different phone formats)
-      if (!user) {
+      if (isEmail) {
+        // Look up by email
         user = await withDbRetry(() => prisma.user.findUnique({
-          where: { phone: (credentials.phone as string).trim() },
+          where: { email: identifier.toLowerCase() },
         }));
+      } else {
+        // Normalize phone number - convert 0XXXXXXXXX to +233XXXXXXXXX
+        let phone = identifier;
+        if (phone.startsWith("0") && phone.length === 10) {
+          phone = "+233" + phone.substring(1);
+        }
+
+        // Try to find user with normalized phone first
+        user = await withDbRetry(() => prisma.user.findUnique({
+          where: { phone },
+        }));
+
+        // If not found, try with original input (for users with different phone formats)
+        if (!user) {
+          user = await withDbRetry(() => prisma.user.findUnique({
+            where: { phone: identifier },
+          }));
+        }
       }
 
       if (!user || !user.passwordHash) {
@@ -81,6 +93,35 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
+  trustHost: true,
+  cookies: {
+    csrfToken: {
+      name: "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: "next-auth.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   callbacks: {
     async signIn({ user, account }) {
       // For Google OAuth, create or link the user in the database

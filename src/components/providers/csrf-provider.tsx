@@ -26,7 +26,7 @@ export function CSRFProvider({ children, initialToken }: CSRFProviderProps) {
 
   const refreshToken = async () => {
     try {
-      const response = await fetch("/api/auth/csrf", {
+      const response = await fetch("/api/csrf", {
         method: "GET",
         credentials: "include",
       });

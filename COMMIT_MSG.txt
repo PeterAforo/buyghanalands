@@ -1,0 +1,23 @@
+Fix login: resolve MissingCSRF error and add email/phone login
+
+Root cause: A custom CSRF route at /api/auth/csrf was overriding
+NextAuth v5's built-in CSRF endpoint, setting a cookie named
+"csrf_token" instead of "next-auth.csrf-token". NextAuth could not
+find its own CSRF cookie during credential validation, causing
+MissingCSRF errors on every login attempt.
+
+Fixes:
+- Move custom CSRF route from /api/auth/csrf to /api/csrf so
+  NextAuth's built-in CSRF handler works at /api/auth/csrf
+- Update CSRFProvider to fetch from /api/csrf
+- Add trustHost: true and explicit cookie config to NextAuth
+- Add AUTH_URL env var (preferred over NEXTAUTH_URL in v5)
+- Rename credentials field from "phone" to "identifier" to accept
+  either email or phone number
+- Update authorize() to detect email (contains @) and look up by
+  email, otherwise normalize phone and look up by phone
+- Update login form label, placeholder, and Zod schema
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

@@ -27,10 +27,10 @@ import {
 } from "lucide-react";
 
 const loginSchema = z.object({
-  phone: z
+  identifier: z
     .string()
-    .min(10, "Phone number must be at least 10 digits")
-    .regex(/^[0-9+]+$/, "Invalid phone number"),
+    .min(4, "Enter your email or phone number")
+    .regex(/^[0-9+@a-zA-Z._\s-]+$/, "Invalid email or phone number"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -73,7 +73,7 @@ function LoginForm() {
     setError(null);
 
     const result = await signIn("credentials", {
-      phone: data.phone,
+      identifier: data.identifier,
       password: data.password,
       redirect: false,
     });
@@ -226,24 +226,24 @@ function LoginForm() {
               )}
 
               <div className="space-y-2">
-                <label htmlFor="phone" className="text-sm font-medium text-gray-700">
-                  Phone Number
+                <label htmlFor="identifier" className="text-sm font-medium text-gray-700">
+                  Email or Phone Number
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
-                    id="phone"
-                    type="tel"
+                    id="identifier"
+                    type="text"
                     data-testid="login-email"
-                    placeholder="0XX XXX XXXX"
+                    placeholder="you@email.com or 0XX XXX XXXX"
                     className={`w-full pl-12 pr-4 py-3.5 rounded-xl border ${
-                      errors.phone ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
+                      errors.identifier ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
                     } focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition-all`}
-                    {...register("phone")}
+                    {...register("identifier")}
                   />
                 </div>
-                {errors.phone && (
-                  <p className="text-sm text-red-600">{errors.phone.message}</p>
+                {errors.identifier && (
+                  <p className="text-sm text-red-600">{errors.identifier.message}</p>
                 )}
               </div>
 
