@@ -48,6 +48,13 @@ async function getAdminStats() {
     openDisputes,
     openFraudCases,
     recentPayments,
+    pendingKyc,
+    pendingPermits,
+    openSupportTickets,
+    pendingInsuranceClaims,
+    activeSubscriptions,
+    totalProfessionals,
+    openReports,
   ] = await withDbRetry(() => Promise.all([
     prisma.user.count(),
     prisma.listing.count(),
@@ -64,6 +71,13 @@ async function getAdminStats() {
       where: { status: "SUCCESS", createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
       _sum: { amount: true },
     }),
+    prisma.kycRequest.count({ where: { status: { in: ["PENDING", "MANUAL_REVIEW"] } } }),
+    prisma.permitApplication.count({ where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } } }),
+    prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
+    prisma.insuranceClaim.count({ where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } } }),
+    prisma.subscription.count({ where: { status: "ACTIVE" } }),
+    prisma.professionalProfile.count({ where: { isActive: true } }),
+    prisma.report.count({ where: { status: "OPEN" } }),
   ]));
 
   return {
@@ -77,6 +91,13 @@ async function getAdminStats() {
     openDisputes,
     openFraudCases,
     monthlyRevenue: recentPayments._sum.amount || 0,
+    pendingKyc,
+    pendingPermits,
+    openSupportTickets,
+    pendingInsuranceClaims,
+    activeSubscriptions,
+    totalProfessionals,
+    openReports,
   };
 }
 
@@ -249,6 +270,48 @@ export default async function AdminDashboard() {
             <span className="text-sm text-red-500 font-medium">-5%</span>
             <span className="text-sm text-gray-400">from last month</span>
           </div>
+        </div>
+      </div>
+
+      {/* Needs Attention Section */}
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-6">
+        <h3 className="font-semibold text-[#1a3a2f] mb-4">Needs Attention</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <Link href="/admin/kyc" className="flex flex-col items-center p-3 rounded-xl border hover:bg-amber-50 transition-colors">
+            <Shield className="h-6 w-6 text-amber-500 mb-1" />
+            <p className="text-2xl font-bold text-[#1a3a2f]">{stats.pendingKyc}</p>
+            <p className="text-xs text-gray-500">Pending KYC</p>
+          </Link>
+          <Link href="/admin/permits" className="flex flex-col items-center p-3 rounded-xl border hover:bg-amber-50 transition-colors">
+            <FileText className="h-6 w-6 text-amber-500 mb-1" />
+            <p className="text-2xl font-bold text-[#1a3a2f]">{stats.pendingPermits}</p>
+            <p className="text-xs text-gray-500">Pending Permits</p>
+          </Link>
+          <Link href="/admin/support" className="flex flex-col items-center p-3 rounded-xl border hover:bg-red-50 transition-colors">
+            <AlertTriangle className="h-6 w-6 text-red-500 mb-1" />
+            <p className="text-2xl font-bold text-[#1a3a2f]">{stats.openSupportTickets}</p>
+            <p className="text-xs text-gray-500">Support Tickets</p>
+          </Link>
+          <Link href="/admin/insurance-claims" className="flex flex-col items-center p-3 rounded-xl border hover:bg-purple-50 transition-colors">
+            <Shield className="h-6 w-6 text-purple-500 mb-1" />
+            <p className="text-2xl font-bold text-[#1a3a2f]">{stats.pendingInsuranceClaims}</p>
+            <p className="text-xs text-gray-500">Insurance Claims</p>
+          </Link>
+          <Link href="/admin/reports" className="flex flex-col items-center p-3 rounded-xl border hover:bg-red-50 transition-colors">
+            <AlertTriangle className="h-6 w-6 text-red-500 mb-1" />
+            <p className="text-2xl font-bold text-[#1a3a2f]">{stats.openReports}</p>
+            <p className="text-xs text-gray-500">Open Reports</p>
+          </Link>
+          <Link href="/admin/subscriptions" className="flex flex-col items-center p-3 rounded-xl border hover:bg-green-50 transition-colors">
+            <DollarSign className="h-6 w-6 text-green-500 mb-1" />
+            <p className="text-2xl font-bold text-[#1a3a2f]">{stats.activeSubscriptions}</p>
+            <p className="text-xs text-gray-500">Active Subs</p>
+          </Link>
+          <Link href="/admin/professionals" className="flex flex-col items-center p-3 rounded-xl border hover:bg-blue-50 transition-colors">
+            <Users className="h-6 w-6 text-blue-500 mb-1" />
+            <p className="text-2xl font-bold text-[#1a3a2f]">{stats.totalProfessionals}</p>
+            <p className="text-xs text-gray-500">Professionals</p>
+          </Link>
         </div>
       </div>
 

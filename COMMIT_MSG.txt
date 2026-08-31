@@ -1,0 +1,17 @@
+Expand admin module: 21 new admin pages, 28 new API routes, CMS, notifications, sidebar restructure
+
+Admin expansion completing all 18 identified operational gaps:
+- Verification: KYC reviews, permits, listing verifications
+- Trust and Safety: fraud cases, reports, insurance claims, audit logs
+- Marketplace: professionals, bookings, workflows, subscriptions, payments, offers, documents
+- Content: Website CMS (news, FAQs, support categories, homepage stats, page content, site settings), notifications (broadcast + targeted by role/region/KYC)
+- System: support tickets
+- Sidebar restructured into 6 logical groups (Main, Verification, Trust and Safety, Marketplace, Content, System)
+- Dashboard enhanced with Needs Attention section showing pending KYC, permits, support, insurance, reports, subscriptions, professionals
+- Homepage stats now read from CMS with fallback to hardcoded defaults
+- 20 new tests covering auth gating, role checks, CMS CRUD, notifications broadcast, insurance claims review, professional verification
+- Added CMS_CONTENT, PROFESSIONAL_PROFILE, INSURANCE_CLAIM, PUSH_NOTIFICATION to AuditEntityType enum
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

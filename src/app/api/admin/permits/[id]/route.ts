@@ -9,6 +9,67 @@ const updatePermitSchema = z.object({
   note: z.string().optional(),
 });
 
+async function isAdmin(userId: string): Promise<boolean> {
+  const user = await withDbRetry(() => prisma.user.findUnique({
+    where: { id: userId },
+    select: { roles: true },
+  }));
+  return user?.roles.some((role) => ["ADMIN", "MODERATOR", "COMPLIANCE"].includes(role)) || false;
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id } = await params;
+
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
+      where: { id },
+      include: {
+        applicant: {
+          select: { id: true, fullName: true, phone: true, email: true, kycTier: true, accountStatus: true },
+        },
+        assembly: true,
+        listing: {
+          select: { id: true, title: true, region: true, district: true },
+        },
+        documents: {
+          orderBy: { createdAt: "desc" },
+        },
+        statusHistory: {
+          include: { changedBy: { select: { fullName: true } } },
+          orderBy: { createdAt: "desc" },
+        },
+        queries: {
+          orderBy: { createdAt: "desc" },
+        },
+        payments: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    }));
+
+    if (!permit) {
+      return NextResponse.json({ error: "Permit not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(serializeForJson(permit));
+  } catch (error) {
+    console.error("Error fetching permit:", error);
+    return NextResponse.json({ error: "Failed to fetch permit" }, { status: 500 });
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

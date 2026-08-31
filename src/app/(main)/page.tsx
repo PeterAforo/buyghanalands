@@ -177,6 +177,28 @@ function Eyebrow({ children, tone = "gold" }: { children: React.ReactNode; tone?
 
 export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [cmsStats, setCmsStats] = useState<typeof stats | null>(null);
+
+  useEffect(() => {
+    // Fetch CMS-managed homepage stats (with fallback to hardcoded defaults)
+    fetch("/api/homepage-stats")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data) && data.length > 0) {
+          const iconMap: Record<string, any> = { MapPin, ShieldCheck, Banknote, Users };
+          setCmsStats(
+            data.map((s: any) => ({
+              value: parseInt(s.value) || s.value,
+              label: s.label,
+              suffix: s.suffix || "",
+              prefix: s.prefix || "",
+              icon: iconMap[s.icon] || MapPin,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -251,7 +273,7 @@ export default function Home() {
         <div className="relative border-t border-white/10 bg-black/60 backdrop-blur-md">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
             <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-              {stats.map((stat) => (
+              {(cmsStats || stats).map((stat) => (
                 <div key={stat.label} className="flex items-center gap-3">
                   <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white/10">
                     <stat.icon className="h-5 w-5 text-amber-300" />
