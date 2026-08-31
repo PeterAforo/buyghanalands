@@ -76,7 +76,7 @@ export function serializeForJson<T>(value: T): T {
     if (proto !== null && proto !== Object.prototype && proto.constructor !== Object) {
       // If it has a toJSON method, use it
       if (typeof (value as { toJSON?: () => unknown }).toJSON === "function") {
-        return serializeForJson((value as { toJSON: () => unknown }).toJSON()) as T;
+        return serializeForJson((value as unknown as { toJSON: () => unknown }).toJSON()) as T;
       }
       // Otherwise leave as-is (might be a Map, Set, or custom class)
       return value;

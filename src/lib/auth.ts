@@ -75,7 +75,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    })
+    }) as any
   );
 }
 
@@ -110,11 +110,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // Attach DB user info to the user object for JWT callback
-          (user as Record<string, unknown>).id = dbUser.id;
-          (user as Record<string, unknown>).phone = dbUser.phone;
-          (user as Record<string, unknown>).roles = dbUser.roles;
-          (user as Record<string, unknown>).kycTier = dbUser.kycTier;
-          (user as Record<string, unknown>).accountStatus = dbUser.accountStatus;
+          const u = user as unknown as Record<string, unknown>;
+          u.id = dbUser.id;
+          u.phone = dbUser.phone;
+          u.roles = dbUser.roles;
+          u.kycTier = dbUser.kycTier;
+          u.accountStatus = dbUser.accountStatus;
         } catch (error) {
           console.error("Google OAuth sign-in error:", error);
           return false;
@@ -124,11 +125,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async jwt({ token, user }) {
       if (user) {
-        token.id = (user as Record<string, unknown>).id as string ?? user.id ?? "";
-        token.phone = (user as Record<string, unknown>).phone as string ?? user.phone ?? "";
-        token.roles = (user as Record<string, unknown>).roles as string[] ?? user.roles ?? [];
-        token.kycTier = (user as Record<string, unknown>).kycTier as string ?? user.kycTier ?? "";
-        token.accountStatus = (user as Record<string, unknown>).accountStatus as string ?? user.accountStatus ?? "";
+        const u = user as unknown as Record<string, unknown>;
+        token.id = (u.id as string) ?? user.id ?? "";
+        token.phone = (u.phone as string) ?? (user as any).phone ?? "";
+        token.roles = (u.roles as string[]) ?? (user as any).roles ?? [];
+        token.kycTier = (u.kycTier as string) ?? (user as any).kycTier ?? "";
+        token.accountStatus = (u.accountStatus as string) ?? (user as any).accountStatus ?? "";
       }
       return token;
     },

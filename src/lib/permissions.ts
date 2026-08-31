@@ -232,7 +232,7 @@ export async function canCreateListing(userId: string): Promise<PermissionCheckR
         where: { agentId: agentProfile.id },
       }));
 
-      const limit = agentSub.features?.listingLimit ?? 15;
+      const limit = Number(agentSub.features?.listingLimit ?? 15);
       if (limit !== -1 && managedListings >= limit) {
         return {
           allowed: false,
@@ -448,7 +448,7 @@ export async function hasFeatureAccess(
   }
 
   // Fall back to plan config
-  return planHasFeature(category, subscription.plan, feature);
+  return planHasFeature(category, subscription.plan ?? "", feature);
 }
 
 /**

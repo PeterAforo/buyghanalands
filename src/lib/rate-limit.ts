@@ -122,9 +122,13 @@ async function getStore(): Promise<RateLimitStore> {
   const redisUrl = process.env.REDIS_URL;
   if (redisUrl) {
     try {
-      // Try to dynamically import ioredis if installed
-      const { default: Redis } = await import("ioredis");
-      const redisClient = new Redis(redisUrl);
+      // Dynamic import with variable to prevent bundler static analysis
+      // ioredis is an optional dependency — only needed in production with Redis
+      const moduleName = "ioredis";
+      const mod = await (eval(`import(${JSON.stringify(moduleName)})`) as Promise<{
+        default: new (url: string) => any;
+      }>);
+      const redisClient = new mod.default(redisUrl);
       _store = new RedisRateLimitStore(redisClient);
       console.log("Rate limiter: using Redis store");
     } catch {
