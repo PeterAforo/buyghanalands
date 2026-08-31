@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
       include: {
         seller: {
@@ -24,7 +24,7 @@ export async function GET(
           orderBy: { sortOrder: "asc" },
         },
       },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -67,10 +67,10 @@ export async function PUT(
     const body = await request.json();
 
     // Check if user owns this listing
-    const existingListing = await prisma.listing.findUnique({
+    const existingListing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
       select: { sellerId: true },
-    });
+    }));
 
     if (!existingListing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -80,10 +80,10 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const listing = await prisma.listing.update({
+    const listing = await withDbRetry(() => prisma.listing.update({
       where: { id },
       data: body,
-    });
+    }));
 
     // Convert BigInt to string for JSON serialization
     const serializedListing = {
@@ -117,10 +117,10 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if user owns this listing
-    const existingListing = await prisma.listing.findUnique({
+    const existingListing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
       select: { sellerId: true },
-    });
+    }));
 
     if (!existingListing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -130,9 +130,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.listing.delete({
+    await withDbRetry(() => prisma.listing.delete({
       where: { id },
-    });
+    }));
 
     return NextResponse.json({ message: "Listing deleted" });
   } catch (error) {

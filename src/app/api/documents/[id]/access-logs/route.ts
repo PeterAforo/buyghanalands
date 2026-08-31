@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -14,20 +14,20 @@ export async function GET(
 
     const { id } = await params;
 
-    const document = await prisma.document.findUnique({
+    const document = await withDbRetry(() => prisma.document.findUnique({
       where: { id },
       select: { ownerId: true },
-    });
+    }));
 
     if (!document) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
     // Only owner or admin can view access logs
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     const isAdmin = user?.roles.some((r) => ["ADMIN", "COMPLIANCE"].includes(r));
     if (document.ownerId !== session.user.id && !isAdmin) {
@@ -39,7 +39,7 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
 
-    const [logs, total] = await Promise.all([
+    const [logs, total] = await withDbRetry(() => Promise.all([
       prisma.documentAccessLog.findMany({
         where: { documentId: id },
         include: {
@@ -50,7 +50,7 @@ export async function GET(
         take: limit,
       }),
       prisma.documentAccessLog.count({ where: { documentId: id } }),
-    ]);
+    ]));
 
     return NextResponse.json({
       logs,

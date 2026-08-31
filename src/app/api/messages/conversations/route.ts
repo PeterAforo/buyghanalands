@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all unique conversations
-    const messages = await prisma.message.findMany({
+    const messages = await withDbRetry(() => prisma.message.findMany({
       where: {
         OR: [
           { senderId: session.user.id },
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         listing: { select: { id: true, title: true } },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     // Group by conversation partner
     const conversationsMap = new Map<string, {

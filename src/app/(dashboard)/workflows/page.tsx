@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { WorkflowsClient } from "./workflows-client";
 
 export const dynamic = "force-dynamic";
 
 async function getWorkflows(userId: string) {
-  const workflows = await prisma.propertyWorkflow.findMany({
+  const workflows = await withDbRetry(() => prisma.propertyWorkflow.findMany({
     where: { userId },
     include: {
       listing: {
@@ -61,7 +61,7 @@ async function getWorkflows(userId: string) {
       },
     },
     orderBy: { updatedAt: "desc" },
-  });
+  }));
 
   return workflows.map((w) => ({
     ...w,

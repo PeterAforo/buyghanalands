@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -15,10 +15,10 @@ const updateUserSchema = z.object({
 });
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -40,9 +40,9 @@ export async function PUT(
     const body = await request.json();
     const { action } = body;
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id },
-    });
+    }));
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -70,7 +70,7 @@ export async function PUT(
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await withDbRetry(() => prisma.user.update({
       where: { id },
       data: { accountStatus: newStatus },
       select: {
@@ -78,10 +78,10 @@ export async function PUT(
         fullName: true,
         accountStatus: true,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: id,
@@ -90,7 +90,7 @@ export async function PUT(
         action: `USER_${action.toUpperCase()}`,
         diff: { from: user.accountStatus, to: newStatus },
       },
-    });
+    }));
 
     return NextResponse.json(updatedUser);
   } catch (error) {
@@ -115,7 +115,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id },
       include: {
         listings: {
@@ -142,7 +142,7 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -174,9 +174,9 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateUserSchema.parse(body);
 
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await withDbRetry(() => prisma.user.findUnique({
       where: { id },
-    });
+    }));
 
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -184,18 +184,18 @@ export async function PATCH(
 
     // Check for unique constraints if updating phone or email
     if (validatedData.phone && validatedData.phone !== existingUser.phone) {
-      const phoneExists = await prisma.user.findUnique({
+      const phoneExists = await withDbRetry(() => prisma.user.findUnique({
         where: { phone: validatedData.phone },
-      });
+      }));
       if (phoneExists) {
         return NextResponse.json({ error: "Phone number already in use" }, { status: 400 });
       }
     }
 
     if (validatedData.email && validatedData.email !== existingUser.email) {
-      const emailExists = await prisma.user.findUnique({
-        where: { email: validatedData.email },
-      });
+      const emailExists = await withDbRetry(() => prisma.user.findUnique({
+        where: { email: validatedData.email ?? undefined },
+      }));
       if (emailExists) {
         return NextResponse.json({ error: "Email already in use" }, { status: 400 });
       }
@@ -213,7 +213,7 @@ export async function PATCH(
       updateData.passwordHash = await bcrypt.hash(validatedData.password, 12);
     }
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await withDbRetry(() => prisma.user.update({
       where: { id },
       data: updateData,
       select: {
@@ -227,10 +227,10 @@ export async function PATCH(
         createdAt: true,
         updatedAt: true,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: id,
@@ -239,7 +239,7 @@ export async function PATCH(
         action: "USER_UPDATED_BY_ADMIN",
         diff: { before: existingUser, after: updatedUser, changes: validatedData },
       },
-    });
+    }));
 
     return NextResponse.json(updatedUser);
   } catch (error) {
@@ -273,22 +273,22 @@ export async function DELETE(
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id },
-    });
+    }));
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Soft delete - deactivate the account
-    await prisma.user.update({
+    await withDbRetry(() => prisma.user.update({
       where: { id },
       data: { accountStatus: "DEACTIVATED" },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: id,
@@ -297,7 +297,7 @@ export async function DELETE(
         action: "USER_DELETED_BY_ADMIN",
         diff: { deletedUser: user.fullName },
       },
-    });
+    }));
 
     return NextResponse.json({ success: true, message: "User deactivated successfully" });
   } catch (error) {

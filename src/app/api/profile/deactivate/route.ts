@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const deactivateSchema = z.object({
   password: z.string().min(1, "Password is required"),
@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = deactivateSchema.parse(body);
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { id: true, passwordHash: true, accountStatus: true },
-    });
+    }));
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for active transactions
-    const activeTransactions = await prisma.transaction.count({
+    const activeTransactions = await withDbRetry(() => prisma.transaction.count({
       where: {
         OR: [
           { buyerId: session.user.id },
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
           notIn: ["CLOSED", "RELEASED", "REFUNDED"],
         },
       },
-    });
+    }));
 
     if (activeTransactions > 0) {
       return NextResponse.json(
@@ -56,13 +56,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Deactivate account
-    await prisma.user.update({
+    await withDbRetry(() => prisma.user.update({
       where: { id: session.user.id },
       data: { accountStatus: "DEACTIVATED" },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: session.user.id,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         action: "SELF_DEACTIVATE",
         diff: { reason: data.reason || "User requested deactivation" },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: "Account deactivated successfully. You can reactivate by contacting support.",

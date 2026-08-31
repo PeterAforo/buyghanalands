@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -37,9 +37,9 @@ export async function PUT(
     const body = await request.json();
     const { action } = body;
 
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -65,16 +65,16 @@ export async function PUT(
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    const updatedListing = await prisma.listing.update({
+    const updatedListing = await withDbRetry(() => prisma.listing.update({
       where: { id },
       data: {
         status: newStatus,
         publishedAt: newStatus === "PUBLISHED" ? new Date() : listing.publishedAt,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "LISTING",
         entityId: id,
@@ -83,7 +83,7 @@ export async function PUT(
         action: `MODERATION_${action.toUpperCase()}`,
         diff: { from: listing.status, to: newStatus },
       },
-    });
+    }));
 
     return NextResponse.json({
       ...updatedListing,
@@ -113,7 +113,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
       include: {
         seller: {
@@ -135,7 +135,7 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -171,9 +171,9 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateListingSchema.parse(body);
 
-    const existingListing = await prisma.listing.findUnique({
+    const existingListing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
-    });
+    }));
 
     if (!existingListing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -191,25 +191,25 @@ export async function PATCH(
     if (validatedData.verificationLevel) updateData.verificationLevel = validatedData.verificationLevel;
     if (validatedData.isFeatured !== undefined) updateData.isFeatured = validatedData.isFeatured;
 
-    const updatedListing = await prisma.listing.update({
+    const updatedListing = await withDbRetry(() => prisma.listing.update({
       where: { id },
       data: updateData,
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "LISTING",
         entityId: id,
         actorType: "USER",
         actorUserId: session.user.id,
         action: "LISTING_UPDATED_BY_ADMIN",
-        diff: { 
-          before: JSON.parse(JSON.stringify(existingListing, (_, v) => typeof v === 'bigint' ? v.toString() : v)), 
-          changes: validatedData 
+        diff: {
+          before: JSON.parse(JSON.stringify(existingListing, (_, v) => typeof v === 'bigint' ? v.toString() : v)),
+          changes: validatedData
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       ...updatedListing,
@@ -242,22 +242,22 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
     // Soft delete - set status to SUSPENDED
-    await prisma.listing.update({
+    await withDbRetry(() => prisma.listing.update({
       where: { id },
       data: { status: "SUSPENDED" },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "LISTING",
         entityId: id,
@@ -266,7 +266,7 @@ export async function DELETE(
         action: "LISTING_DELETED_BY_ADMIN",
         diff: { deletedListing: listing.title },
       },
-    });
+    }));
 
     return NextResponse.json({ success: true, message: "Listing suspended successfully" });
   } catch (error) {

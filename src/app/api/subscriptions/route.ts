@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import {
   BUYER_PLANS,
   SELLER_PLANS,
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       whereClause.category = category;
     }
 
-    const subscriptions = await prisma.subscription.findMany({
+    const subscriptions = await withDbRetry(() => prisma.subscription.findMany({
       where: whereClause,
       include: {
         payments: {
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
           take: 5,
         },
       },
-    });
+    }));
 
     // Format subscriptions with plan details
     const formattedSubscriptions = subscriptions.map((sub) => {
@@ -129,13 +129,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing active subscription in this category
-    const existing = await prisma.subscription.findFirst({
+    const existing = await withDbRetry(() => prisma.subscription.findFirst({
       where: {
         userId: session.user.id,
         category: data.category as any,
         status: "ACTIVE",
       },
-    });
+    }));
 
     if (existing) {
       return NextResponse.json(
@@ -186,24 +186,24 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    const subscription = await prisma.subscription.create({
+    const subscription = await withDbRetry(() => prisma.subscription.create({
       data: subscriptionData,
-    });
+    }));
 
     // Add role to user if not present
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     const roleToAdd = data.category as any;
     if (user && !user.roles.includes(roleToAdd)) {
-      await prisma.user.update({
+      await withDbRetry(() => prisma.user.update({
         where: { id: session.user.id },
         data: {
           roles: { push: roleToAdd },
         },
-      });
+      }));
     }
 
     // Return subscription with payment info if required

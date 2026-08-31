@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -16,19 +16,19 @@ export async function GET(
     const { id } = await params;
 
     // Verify ownership or admin
-    const professional = await prisma.professionalProfile.findUnique({
+    const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { id },
       select: { userId: true },
-    });
+    }));
 
     if (!professional) {
       return NextResponse.json({ error: "Professional not found" }, { status: 404 });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     const isAdmin = user?.roles.some((r) => ["ADMIN", "FINANCE"].includes(r));
     if (professional.userId !== session.user.id && !isAdmin) {
@@ -36,7 +36,7 @@ export async function GET(
     }
 
     // Get completed bookings with payment info
-    const bookings = await prisma.booking.findMany({
+    const bookings = await withDbRetry(() => prisma.booking.findMany({
       where: {
         professionalId: id,
         status: "COMPLETED",
@@ -52,7 +52,7 @@ export async function GET(
         },
       },
       orderBy: { completedAt: "desc" },
-    });
+    }));
 
     // Calculate totals
     const totalEarnings = bookings.reduce((sum, b) => {
@@ -104,10 +104,10 @@ export async function POST(
     const data = requestPayoutSchema.parse(body);
 
     // Verify ownership
-    const professional = await prisma.professionalProfile.findUnique({
+    const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { id },
       select: { userId: true },
-    });
+    }));
 
     if (!professional) {
       return NextResponse.json({ error: "Professional not found" }, { status: 404 });
@@ -118,7 +118,7 @@ export async function POST(
     }
 
     // Create payout request (simplified - would integrate with payment provider)
-    const payment = await prisma.payment.create({
+    const payment = await withDbRetry(() => prisma.payment.create({
       data: {
         type: "PROFESSIONAL_PAYOUT",
         payeeUserId: session.user.id,
@@ -129,10 +129,10 @@ export async function POST(
         provider: data.provider === "MOMO" ? "HUBTEL" : "BANK_TRANSFER",
         status: "PENDING",
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "PAYMENT",
         entityId: payment.id,
@@ -141,7 +141,7 @@ export async function POST(
         action: "PAYOUT_REQUEST",
         diff: { amount: data.amount, provider: data.provider },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: "Payout request submitted",

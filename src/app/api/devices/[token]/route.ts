@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function DELETE(
   request: NextRequest,
@@ -15,12 +15,12 @@ export async function DELETE(
     const { token } = await params;
 
     // Delete the device token (only if owned by user)
-    const result = await prisma.deviceToken.deleteMany({
+    const result = await withDbRetry(() => prisma.deviceToken.deleteMany({
       where: {
         token,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (result.count === 0) {
       return NextResponse.json(

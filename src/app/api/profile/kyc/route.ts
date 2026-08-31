@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { put } from "@vercel/blob";
+import { performAutomatedChecks } from "@/lib/kyc";
 
 // KYC document types stored in Document.metadata
 const KYC_DOC_TYPES = ["GHANA_CARD", "GHANA_CARD_BACK", "SELFIE", "PROOF_OF_ADDRESS"];
@@ -13,7 +14,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
         kycTier: true,
@@ -31,7 +32,7 @@ export async function GET() {
           orderBy: { createdAt: "desc" },
         },
       },
-    });
+    }));
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const docType = formData.get("type") as string;
+    const ghanaCardNumber = formData.get("ghanaCardNumber") as string | null;
 
     if (!file || !docType) {
       return NextResponse.json({ error: "File and type are required" }, { status: 400 });
@@ -94,37 +96,37 @@ export async function POST(request: NextRequest) {
     });
 
     // Delete existing document of same type (using Document model with metadata)
-    const existingDocs = await prisma.document.findMany({
+    const existingDocs = await withDbRetry(() => prisma.document.findMany({
       where: {
         ownerId: session.user.id,
         type: "SELLER_ID",
       },
-    });
-    
+    }));
+
     // Delete existing document of same type by checking URL pattern
     for (const doc of existingDocs) {
       const fileName = doc.url.split("/").pop() || "";
       if (fileName.startsWith(docType)) {
-        await prisma.document.delete({ where: { id: doc.id } });
+        await withDbRetry(() => prisma.document.delete({ where: { id: doc.id } }));
       }
     }
 
     // Create new document record using Document model
-    const document = await prisma.document.create({
+    const document = await withDbRetry(() => prisma.document.create({
       data: {
         ownerId: session.user.id,
         type: "SELLER_ID",
         url: blob.url,
       },
-    });
+    }));
 
     // Update KYC tier if documents uploaded
-    const allDocs = await prisma.document.findMany({
-      where: { 
+    const allDocs = await withDbRetry(() => prisma.document.findMany({
+      where: {
         ownerId: session.user.id,
         type: "SELLER_ID",
       },
-    });
+    }));
 
     // Extract KYC types from URLs
     const getKycType = (url: string) => {
@@ -147,10 +149,60 @@ export async function POST(request: NextRequest) {
       newKycTier = "TIER_1_ID_UPLOAD"; // Stay at TIER_1 until admin approves
     }
 
-    await prisma.user.update({
+    await withDbRetry(() => prisma.user.update({
       where: { id: session.user.id },
       data: { kycTier: newKycTier },
-    });
+    }));
+
+    // If all 3 core documents are uploaded, run automated KYC checks
+    if (hasGhanaCard && hasGhanaCardBack && hasSelfie) {
+      // Get the document URLs for the automated checks
+      const ghanaCardUrl = allDocs.find((d) => getKycType(d.url) === "GHANA_CARD")?.url;
+      const ghanaCardBackUrl = allDocs.find((d) => getKycType(d.url) === "GHANA_CARD_BACK")?.url;
+      const selfieUrl = allDocs.find((d) => getKycType(d.url) === "SELFIE")?.url;
+
+      // Resolve ghanaCardNumber: from formData, or from an existing KycRequest
+      let resolvedGhanaCardNumber = ghanaCardNumber || undefined;
+      if (!resolvedGhanaCardNumber) {
+        const existingKyc = await withDbRetry(() => prisma.kycRequest.findFirst({
+          where: { userId: session.user.id },
+          orderBy: { createdAt: "desc" },
+          select: { ghanaCardNumber: true },
+        }));
+        resolvedGhanaCardNumber = existingKyc?.ghanaCardNumber;
+      }
+
+      if (resolvedGhanaCardNumber) {
+        const automatedResults = performAutomatedChecks({
+          ghanaCardNumber: resolvedGhanaCardNumber,
+          selfieUrl,
+          idFrontUrl: ghanaCardUrl,
+          idBackUrl: ghanaCardBackUrl,
+        });
+
+        // Determine KycRequest status based on automated results
+        const kycStatus = automatedResults.overallPassed ? "PENDING" : "FAILED";
+        let reviewNotes: string | undefined;
+        if (!automatedResults.overallPassed) {
+          const failedChecks = automatedResults.results
+            .filter((r) => !r.passed)
+            .map((r) => `${r.checkName}: ${r.notes}`);
+          reviewNotes = `Automated checks failed:\n${failedChecks.join("\n")}`;
+        }
+
+        await withDbRetry(() => prisma.kycRequest.create({
+          data: {
+            userId: session.user.id,
+            ghanaCardNumber: resolvedGhanaCardNumber,
+            selfieUrl,
+            reason: "SELLER_VERIFICATION",
+            status: kycStatus as any,
+            providerPayload: automatedResults as any,
+            reviewNotes,
+          },
+        }));
+      }
+    }
 
     return NextResponse.json({
       document: {

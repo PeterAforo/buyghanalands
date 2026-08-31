@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { 
   initializeListingsIndex, 
   indexListings, 
@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is admin
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     if (!user?.roles.includes("ADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     await clearListingsIndex();
 
     // Fetch all published listings
-    const listings = await prisma.listing.findMany({
+    const listings = await withDbRetry(() => prisma.listing.findMany({
       where: {
         status: "PUBLISHED",
       },
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           select: { status: true },
         },
       },
-    });
+    }));
 
     // Convert to searchable documents
     const documents = listings.map(listingToSearchDocument);
@@ -67,19 +67,19 @@ export async function POST(request: NextRequest) {
     const stats = await getIndexStats();
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: session.user.id,
         actorType: "USER",
         actorUserId: session.user.id,
         action: "SEARCH_REINDEX",
-        diff: { 
+        diff: {
           documentsIndexed: documents.length,
           timestamp: new Date().toISOString(),
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       success: true,

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "FINANCE"].includes(role)) || false;
 }
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       acceptedOffers,
       fundedTransactions,
       completedTransactions,
-    ] = await Promise.all([
+    ] = await withDbRetry(() => Promise.all([
       prisma.listing.count({
         where: { createdAt: { gte: startDate } },
       }),
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
           status: { in: ["RELEASED", "CLOSED"] },
         },
       }),
-    ]);
+    ]));
 
     // Calculate conversion rates
     const listingToPublished = totalListings > 0 ? (publishedListings / totalListings) * 100 : 0;
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     const overallConversion = totalListings > 0 ? (completedTransactions / totalListings) * 100 : 0;
 
     // User conversion
-    const [totalUsers, usersWithListings, usersWithTransactions] = await Promise.all([
+    const [totalUsers, usersWithListings, usersWithTransactions] = await withDbRetry(() => Promise.all([
       prisma.user.count({ where: { createdAt: { gte: startDate } } }),
       prisma.user.count({
         where: {
@@ -97,13 +97,13 @@ export async function GET(request: NextRequest) {
           ],
         },
       }),
-    ]);
+    ]));
 
     const userToSeller = totalUsers > 0 ? (usersWithListings / totalUsers) * 100 : 0;
     const userToTransactor = totalUsers > 0 ? (usersWithTransactions / totalUsers) * 100 : 0;
 
     // Verification conversion
-    const [verificationRequests, completedVerifications] = await Promise.all([
+    const [verificationRequests, completedVerifications] = await withDbRetry(() => Promise.all([
       prisma.verificationRequest.count({ where: { createdAt: { gte: startDate } } }),
       prisma.verificationRequest.count({
         where: {
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
           status: "COMPLETED",
         },
       }),
-    ]);
+    ]));
 
     const verificationSuccessRate = verificationRequests > 0
       ? (completedVerifications / verificationRequests) * 100

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
         id: true,
@@ -29,7 +29,7 @@ export async function GET() {
           },
         },
       },
-    });
+    }));
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest) {
       updateData.email = data.email || null;
     }
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await withDbRetry(() => prisma.user.update({
       where: { id: session.user.id },
       data: updateData,
       select: {
@@ -87,7 +87,7 @@ export async function PUT(request: NextRequest) {
           },
         },
       },
-    });
+    }));
 
     return NextResponse.json(updatedUser);
   } catch (error) {

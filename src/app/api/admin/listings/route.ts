@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const listings = await prisma.listing.findMany({
+    const listings = await withDbRetry(() => prisma.listing.findMany({
       where,
       include: {
         seller: {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
       take: 100,
-    });
+    }));
 
     return NextResponse.json(
       listings.map((l) => ({
@@ -106,17 +106,17 @@ export async function PUT(request: NextRequest) {
       delete: "SUSPENDED", // Soft delete = suspend
     };
 
-    const result = await prisma.listing.updateMany({
+    const result = await withDbRetry(() => prisma.listing.updateMany({
       where: { id: { in: listingIds } },
-      data: { 
+      data: {
         status: statusMap[action] as any,
         publishedAt: action === "approve" ? new Date() : undefined,
       },
-    });
+    }));
 
     // Create audit logs
     for (const listingId of listingIds) {
-      await prisma.auditLog.create({
+      await withDbRetry(() => prisma.auditLog.create({
         data: {
           entityType: "LISTING",
           entityId: listingId,
@@ -125,7 +125,7 @@ export async function PUT(request: NextRequest) {
           action: `LISTING_BULK_${action.toUpperCase()}`,
           diff: { newStatus: statusMap[action] },
         },
-      });
+      }));
     }
 
     return NextResponse.json({ success: true, count: result.count });

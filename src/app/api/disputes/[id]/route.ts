@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +14,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const dispute = await prisma.dispute.findUnique({
+    const dispute = await withDbRetry(() => prisma.dispute.findUnique({
       where: { id },
       include: {
         transaction: {
@@ -31,14 +31,14 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
 
     // Fetch messages related to this dispute's transaction
-    const messages = await prisma.message.findMany({
+    const messages = await withDbRetry(() => prisma.message.findMany({
       where: {
         transactionId: dispute.transactionId,
         body: { contains: `[Dispute #${id.slice(0, 8)}]` },
@@ -47,7 +47,7 @@ export async function GET(
         sender: { select: { fullName: true } },
       },
       orderBy: { createdAt: "asc" },
-    });
+    }));
 
     // Transform messages to include senderType
     const transformedMessages = messages.map((msg) => {

@@ -1,7 +1,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
-import { prisma } from "./db";
+import { prisma, withDbRetry } from "./db";
+import { checkRateLimit, RATE_LIMITS } from "./rate-limit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -23,15 +24,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         // Try to find user with normalized phone first
-        let user = await prisma.user.findUnique({
+        let user = await withDbRetry(() => prisma.user.findUnique({
           where: { phone },
-        });
+        }));
 
         // If not found, try with original input (for users with different phone formats)
         if (!user) {
-          user = await prisma.user.findUnique({
+          user = await withDbRetry(() => prisma.user.findUnique({
             where: { phone: (credentials.phone as string).trim() },
-          });
+          }));
         }
 
         if (!user || !user.passwordHash) {
@@ -44,6 +45,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         );
 
         if (!isValid) {
+          // Increment failed login counter and check if account should be locked
+          const rateLimit = checkRateLimit(user.phone, RATE_LIMITS.LOGIN_FAILED);
+          if (!rateLimit.success) {
+            console.warn(
+              `Account locked due to too many failed login attempts: ${user.phone}`
+            );
+          }
           return null;
         }
 

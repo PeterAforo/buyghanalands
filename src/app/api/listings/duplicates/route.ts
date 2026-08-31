@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const checkDuplicateSchema = z.object({
   latitude: z.number(),
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const maxLng = data.longitude + lngDelta;
 
     // Find nearby listings
-    const nearbyListings = await prisma.listing.findMany({
+    const nearbyListings = await withDbRetry(() => prisma.listing.findMany({
       where: {
         id: data.excludeListingId ? { not: data.excludeListingId } : undefined,
         status: { in: ["PUBLISHED", "UNDER_REVIEW", "SUBMITTED"] },
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         },
       },
       take: 10,
-    });
+    }));
 
     // Calculate actual distances using Haversine formula
     const potentialDuplicates = nearbyListings.map((listing) => {

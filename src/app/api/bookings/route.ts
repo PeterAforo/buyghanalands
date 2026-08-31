@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createServiceRequestSchema = z.object({
   professionalId: z.string().optional(),
@@ -28,10 +28,10 @@ export async function GET(request: NextRequest) {
     let where: any = {};
 
     if (role === "professional") {
-      const professional = await prisma.professionalProfile.findUnique({
+      const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
         where: { userId: session.user.id },
         select: { id: true },
-      });
+      }));
       if (!professional) {
         return NextResponse.json({ error: "Not a professional" }, { status: 403 });
       }
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     if (status) where.status = status;
 
-    const requests = await prisma.serviceRequest.findMany({
+    const requests = await withDbRetry(() => prisma.serviceRequest.findMany({
       where,
       include: {
         professional: {
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         booking: true,
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     const serialized = requests.map((r) => ({
       ...r,
@@ -111,16 +111,16 @@ export async function POST(request: NextRequest) {
 
     // Validate professional if specified
     if (data.professionalId) {
-      const professional = await prisma.professionalProfile.findUnique({
+      const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
         where: { id: data.professionalId },
         select: { isActive: true },
-      });
+      }));
       if (!professional || !professional.isActive) {
         return NextResponse.json({ error: "Professional not available" }, { status: 400 });
       }
     }
 
-    const serviceRequest = await prisma.serviceRequest.create({
+    const serviceRequest = await withDbRetry(() => prisma.serviceRequest.create({
       data: {
         requesterId: session.user.id,
         professionalId: data.professionalId,
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       ...serviceRequest,

@@ -137,11 +137,26 @@ enum ResolutionOutcome {
 }
 
 enum PaymentProvider {
+  THETELLER
   FLUTTERWAVE
   PAYSTACK
   HUBTEL
   BANK_TRANSFER
   OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_USER
+  RESOLVED
+  CLOSED
+}
+
+enum PermitQueryStatus {
+  OPEN
+  RESPONDED
+  CLOSED
 }
 
 enum PaymentType {
@@ -221,6 +236,13 @@ model User {
   accountStatus   AccountStatus @default(ACTIVE)
   language        String        @default("en")
   marketingOptIn  Boolean       @default(false)
+
+  // Payout account details (for Theteller disbursements)
+  payoutAccountNumber  String?  // Mobile money number or bank account number
+  payoutAccountIssuer  String?  // "MTN", "ATL", "VDF", "TGO", "ZPY", "GMY"
+  payoutAccountBank    String?  // Bank code for bank transfers (e.g., "GCB")
+  payoutAccountType    String?  // "MOBILE_MONEY" or "BANK"
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -278,6 +300,10 @@ model User {
   pushNotifications      PushNotification[]
   notificationPreferences NotificationPreferences?
 
+  // Auth verification relations
+  otpVerifications       OTPVerification[]
+  emailVerificationTokens EmailVerificationToken[]
+
   @@index([createdAt])
   @@index([email])
   @@index([phone])
@@ -288,6 +314,7 @@ model OTPVerification {
   phone     String   @unique
   code      String
   userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
   attempts  Int      @default(0)
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -301,6 +328,7 @@ model EmailVerificationToken {
   email     String
   token     String   @unique
   userId    String
+  user      User     @relation(fields: [userId], references: [id])
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -351,7 +379,8 @@ model Listing {
   priceGhs          BigInt
   negotiable        Boolean           @default(true)
   verificationLevel VerificationLevel @default(LEVEL_0_UNVERIFIED)
-  currentVersionId  String?
+  currentVersionId  String?  @unique
+  currentVersion    ListingVersion?   @relation("CurrentVersion", fields: [currentVersionId], references: [id])
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   publishedAt       DateTime?
@@ -409,6 +438,8 @@ model ListingVersion {
   createdBy          User              @relation(fields: [createdById], references: [id])
   createdAt          DateTime          @default(now())
 
+  currentVersionOf Listing?           @relation("CurrentVersion")
+
   @@unique([listingId, versionNumber])
   @@index([listingId, createdAt])
 }
@@ -434,6 +465,7 @@ model GeoBoundary {
   listingId String
   listing   Listing  @relation(fields: [listingId], references: [id])
   geojson   Json?
+  geometry  Unsupported("geometry(Polygon, 4326)")?
   areaSqm   Decimal? @db.Decimal(18, 4)
   createdAt DateTime @default(now())
 
@@ -707,7 +739,7 @@ model SupportTicket {
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
   subject       String
   body          String
-  status        String       @default("OPEN")
+  status        SupportTicketStatus @default(OPEN)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -994,7 +1026,7 @@ model PermitQuery {
   title               String
   details             String?
   response            String?
-  status              String            @default("OPEN")
+  status              PermitQueryStatus @default(OPEN)
   raisedAt            DateTime          @default(now())
   respondedAt         DateTime?
   createdAt           DateTime          @default(now())
@@ -1374,6 +1406,7 @@ model Subscription {
   updatedAt          DateTime             @updatedAt
 
   payments SubscriptionPayment[]
+  serviceCharges ServiceCharge[]
 
   @@unique([userId, category, status]) // One active subscription per category per user
   @@index([userId, status])
@@ -1441,6 +1474,7 @@ model ServiceCharge {
   
   // Subscription that determined the rate
   subscriptionId  String?
+  subscription    Subscription?  @relation(fields: [subscriptionId], references: [id])
   
   // Collection details
   collectedAt     DateTime?
@@ -2502,4 +2536,14 @@ model WorkflowTaskTemplate {
   
   @@unique([module, stage, taskKey])
   @@index([module, stage])
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
 }

@@ -5,7 +5,7 @@
  * Enforces limits on listings, clients, leads, and feature access.
  */
 
-import { prisma } from "./db";
+import { prisma, withDbRetry } from "./db";
 import {
   getSellerListingLimit,
   getAgentClientLimit,
@@ -60,7 +60,7 @@ export async function getActiveSubscription(
   userId: string,
   category: "BUYER" | "SELLER" | "AGENT" | "PROFESSIONAL"
 ): Promise<SubscriptionInfo | null> {
-  const subscription = await prisma.subscription.findFirst({
+  const subscription = await withDbRetry(() => prisma.subscription.findFirst({
     where: {
       userId,
       category,
@@ -77,7 +77,7 @@ export async function getActiveSubscription(
       endDate: true,
       features: true,
     },
-  });
+  }));
 
   if (!subscription) return null;
 
@@ -111,7 +111,7 @@ export async function getActiveSubscription(
  * Get all active subscriptions for a user
  */
 export async function getAllActiveSubscriptions(userId: string): Promise<SubscriptionInfo[]> {
-  const subscriptions = await prisma.subscription.findMany({
+  const subscriptions = await withDbRetry(() => prisma.subscription.findMany({
     where: {
       userId,
       status: "ACTIVE",
@@ -127,7 +127,7 @@ export async function getAllActiveSubscriptions(userId: string): Promise<Subscri
       endDate: true,
       features: true,
     },
-  });
+  }));
 
   return subscriptions.map((sub) => {
     let plan: string | null = null;
@@ -164,10 +164,10 @@ export async function getAllActiveSubscriptions(userId: string): Promise<Subscri
  */
 export async function canCreateListing(userId: string): Promise<PermissionCheckResult> {
   // Get user's roles
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
 
   if (!user) {
     return { allowed: false, reason: "User not found" };
@@ -189,12 +189,12 @@ export async function canCreateListing(userId: string): Promise<PermissionCheckR
     const limit = getSellerListingLimit(sellerPlan as any);
 
     // Count current active listings
-    const currentCount = await prisma.listing.count({
+    const currentCount = await withDbRetry(() => prisma.listing.count({
       where: {
         sellerId: userId,
         status: { notIn: ["SOLD", "ARCHIVED"] },
       },
-    });
+    }));
 
     if (limit !== -1 && currentCount >= limit) {
       return {
@@ -222,15 +222,15 @@ export async function canCreateListing(userId: string): Promise<PermissionCheckR
     }
 
     // Agents have listing limits too
-    const agentProfile = await prisma.agentProfile.findUnique({
+    const agentProfile = await withDbRetry(() => prisma.agentProfile.findUnique({
       where: { userId },
       select: { id: true },
-    });
+    }));
 
     if (agentProfile) {
-      const managedListings = await prisma.agentListing.count({
+      const managedListings = await withDbRetry(() => prisma.agentListing.count({
         where: { agentId: agentProfile.id },
-      });
+      }));
 
       const limit = agentSub.features?.listingLimit ?? 15;
       if (limit !== -1 && managedListings >= limit) {
@@ -253,14 +253,14 @@ export async function canCreateListing(userId: string): Promise<PermissionCheckR
  * Check if a listing has expired (for free tier)
  */
 export async function isListingExpired(listingId: string): Promise<boolean> {
-  const listing = await prisma.listing.findUnique({
+  const listing = await withDbRetry(() => prisma.listing.findUnique({
     where: { id: listingId },
     select: {
       sellerId: true,
       createdAt: true,
       status: true,
     },
-  });
+  }));
 
   if (!listing || listing.status === "SOLD" || listing.status === "ARCHIVED") {
     return false;
@@ -302,21 +302,21 @@ export async function canAddClient(agentUserId: string): Promise<PermissionCheck
     };
   }
 
-  const agentProfile = await prisma.agentProfile.findUnique({
+  const agentProfile = await withDbRetry(() => prisma.agentProfile.findUnique({
     where: { userId: agentUserId },
     select: { id: true },
-  });
+  }));
 
   if (!agentProfile) {
     return { allowed: false, reason: "Agent profile not found." };
   }
 
-  const currentClients = await prisma.agentClient.count({
+  const currentClients = await withDbRetry(() => prisma.agentClient.count({
     where: {
       agentId: agentProfile.id,
       status: { in: ["PENDING", "ACTIVE"] },
     },
-  });
+  }));
 
   const limit = getAgentClientLimit(agentSub.plan as any);
 
@@ -362,22 +362,22 @@ export async function canAcceptLead(professionalUserId: string): Promise<Permiss
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const professionalProfile = await prisma.professionalProfile.findUnique({
+  const professionalProfile = await withDbRetry(() => prisma.professionalProfile.findUnique({
     where: { userId: professionalUserId },
     select: { id: true },
-  });
+  }));
 
   if (!professionalProfile) {
     return { allowed: false, reason: "Professional profile not found." };
   }
 
-  const leadsThisMonth = await prisma.serviceRequest.count({
+  const leadsThisMonth = await withDbRetry(() => prisma.serviceRequest.count({
     where: {
       professionalId: professionalProfile.id,
       status: { in: ["ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED"] },
       updatedAt: { gte: startOfMonth },
     },
-  });
+  }));
 
   if (leadsThisMonth >= limit) {
     return {
@@ -396,9 +396,9 @@ export async function canAcceptLead(professionalUserId: string): Promise<Permiss
  */
 export async function canCreateProfessionalProfile(userId: string): Promise<PermissionCheckResult> {
   // Check if already has a profile
-  const existing = await prisma.professionalProfile.findUnique({
+  const existing = await withDbRetry(() => prisma.professionalProfile.findUnique({
     where: { userId },
-  });
+  }));
 
   if (existing) {
     return { allowed: false, reason: "You already have a professional profile." };
@@ -521,10 +521,10 @@ export async function needsSubscription(
  * Get onboarding redirect URL based on user state
  */
 export async function getOnboardingRedirect(userId: string): Promise<string | null> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
 
   if (!user) return "/auth/login";
 
@@ -536,9 +536,9 @@ export async function getOnboardingRedirect(userId: string): Promise<string | nu
     }
 
     // Check if agent profile exists
-    const agentProfile = await prisma.agentProfile.findUnique({
+    const agentProfile = await withDbRetry(() => prisma.agentProfile.findUnique({
       where: { userId },
-    });
+    }));
     if (!agentProfile) {
       return "/onboarding/agent/profile";
     }
@@ -552,9 +552,9 @@ export async function getOnboardingRedirect(userId: string): Promise<string | nu
     }
 
     // Check if professional profile exists
-    const profProfile = await prisma.professionalProfile.findUnique({
+    const profProfile = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { userId },
-    });
+    }));
     if (!profProfile) {
       return "/onboarding/professional/profile";
     }
@@ -593,10 +593,10 @@ function getNextProfessionalPlan(currentPlan: string | null): string {
  * Get comprehensive permissions for a user
  */
 export async function getUserPermissions(userId: string): Promise<UserPermissions> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
 
   if (!user) {
     throw new Error("User not found");
@@ -607,49 +607,49 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
   // Get seller info
   const sellerSub = subscriptions.find((s) => s.category === "SELLER");
   const listingLimit = getSellerListingLimit(sellerSub?.plan as any);
-  const currentListings = await prisma.listing.count({
+  const currentListings = await withDbRetry(() => prisma.listing.count({
     where: {
       sellerId: userId,
       status: { notIn: ["SOLD", "ARCHIVED"] },
     },
-  });
+  }));
 
   // Get agent info
   const agentSub = subscriptions.find((s) => s.category === "AGENT");
   const clientLimit = getAgentClientLimit(agentSub?.plan as any);
   let currentClients = 0;
-  const agentProfile = await prisma.agentProfile.findUnique({
+  const agentProfile = await withDbRetry(() => prisma.agentProfile.findUnique({
     where: { userId },
     select: { id: true },
-  });
+  }));
   if (agentProfile) {
-    currentClients = await prisma.agentClient.count({
+    currentClients = await withDbRetry(() => prisma.agentClient.count({
       where: {
         agentId: agentProfile.id,
         status: { in: ["PENDING", "ACTIVE"] },
       },
-    });
+    }));
   }
 
   // Get professional info
   const profSub = subscriptions.find((s) => s.category === "PROFESSIONAL");
   const leadLimit = getProfessionalLeadLimit(profSub?.plan as any);
   let currentLeadsThisMonth = 0;
-  const profProfile = await prisma.professionalProfile.findUnique({
+  const profProfile = await withDbRetry(() => prisma.professionalProfile.findUnique({
     where: { userId },
     select: { id: true },
-  });
+  }));
   if (profProfile) {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    currentLeadsThisMonth = await prisma.serviceRequest.count({
+    currentLeadsThisMonth = await withDbRetry(() => prisma.serviceRequest.count({
       where: {
         professionalId: profProfile.id,
         status: { in: ["ACCEPTED", "IN_PROGRESS", "DELIVERED", "COMPLETED"] },
         updatedAt: { gte: startOfMonth },
       },
-    });
+    }));
   }
 
   return {

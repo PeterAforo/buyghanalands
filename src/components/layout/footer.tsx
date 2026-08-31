@@ -17,10 +17,17 @@ export function Footer() {
     
     setIsSubscribing(true);
     setSubscribeStatus("idle");
-    
+
     try {
-      // TODO: Implement actual newsletter subscription API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to subscribe");
+      }
       setSubscribeStatus("success");
       setEmail("");
     } catch {
@@ -133,7 +140,7 @@ export function Footer() {
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--c-brand-accent)' }} />
-                <span className="text-sm" style={{ color: 'var(--c-dark-muted)' }}>+233 XX XXX XXXX</span>
+                <span className="text-sm" style={{ color: 'var(--c-dark-muted)' }}>+233 30 123 4567</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Clock className="h-4 w-4 flex-shrink-0" style={{ color: 'var(--c-brand-accent)' }} />
@@ -143,13 +150,13 @@ export function Footer() {
 
             {/* Social Links */}
             <div className="mt-6 flex space-x-4">
-              <a href="#" className="transition-colors" style={{ color: 'var(--c-dark-muted)' }} aria-label="Facebook">
+              <a href="https://facebook.com/buyghanalands" target="_blank" rel="noopener noreferrer" className="transition-colors" style={{ color: 'var(--c-dark-muted)' }} aria-label="Facebook">
                 <Facebook className="h-5 w-5 hover:opacity-80" />
               </a>
-              <a href="#" className="transition-colors" style={{ color: 'var(--c-dark-muted)' }} aria-label="Twitter">
+              <a href="https://twitter.com/buyghanalands" target="_blank" rel="noopener noreferrer" className="transition-colors" style={{ color: 'var(--c-dark-muted)' }} aria-label="Twitter">
                 <Twitter className="h-5 w-5 hover:opacity-80" />
               </a>
-              <a href="#" className="transition-colors" style={{ color: 'var(--c-dark-muted)' }} aria-label="Instagram">
+              <a href="https://instagram.com/buyghanalands" target="_blank" rel="noopener noreferrer" className="transition-colors" style={{ color: 'var(--c-dark-muted)' }} aria-label="Instagram">
                 <Instagram className="h-5 w-5 hover:opacity-80" />
               </a>
             </div>

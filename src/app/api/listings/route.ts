@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createListingSchema = z.object({
   title: z.string().min(5),
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    const listings = await prisma.listing.findMany({
+    const listings = await withDbRetry(() => prisma.listing.findMany({
       where,
       include: {
         seller: {
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
       orderBy,
       skip,
       take: limit,
-    });
+    }));
 
     // Serialize BigInt fields
     const serializedListings = listings.map((listing) => ({
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     const data = createListingSchema.parse(body);
 
     // Check if user has seller role and subscription
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { 
         roles: true,
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    });
+    }));
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       
       if (!hasSellerRole) {
         // Create free subscription for new sellers
-        await prisma.subscription.create({
+        await withDbRetry(() => prisma.subscription.create({
           data: {
             userId: session.user.id,
             category: "SELLER",
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
               escrowProtection: true,
             },
           },
-        });
+        }));
       } else if (currentListingCount >= 1) {
         // Has seller role but no subscription and already has a listing
         return NextResponse.json(
@@ -242,17 +242,17 @@ export async function POST(request: NextRequest) {
 
     if (!user.roles.some((role) => ["SELLER", "AGENT", "ADMIN"].includes(role))) {
       // Add SELLER role if not present
-      await prisma.user.update({
+      await withDbRetry(() => prisma.user.update({
         where: { id: session.user.id },
         data: {
           roles: {
             push: "SELLER",
           },
         },
-      });
+      }));
     }
 
-    const listing = await prisma.listing.create({
+    const listing = await withDbRetry(() => prisma.listing.create({
       data: {
         sellerId: session.user.id,
         title: data.title,
@@ -273,10 +273,10 @@ export async function POST(request: NextRequest) {
         negotiable: data.negotiable,
         status: "DRAFT",
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "LISTING",
         entityId: listing.id,
@@ -285,7 +285,7 @@ export async function POST(request: NextRequest) {
         action: "CREATE",
         diff: { created: data },
       },
-    });
+    }));
 
     // Convert BigInt to string for JSON serialization
     const serializedListing = {

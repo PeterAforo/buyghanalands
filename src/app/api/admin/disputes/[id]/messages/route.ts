@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -33,10 +33,10 @@ export async function POST(
     const body = await request.json();
     const data = messageSchema.parse(body);
 
-    const dispute = await prisma.dispute.findUnique({
+    const dispute = await withDbRetry(() => prisma.dispute.findUnique({
       where: { id: disputeId },
       include: { transaction: true },
-    });
+    }));
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
@@ -44,7 +44,7 @@ export async function POST(
 
     // Use the Message model with transactionId to link to dispute
     // Send to both buyer and seller
-    const message = await prisma.message.create({
+    const message = await withDbRetry(() => prisma.message.create({
       data: {
         senderId: session.user.id,
         receiverId: dispute.transaction.buyerId, // Primary recipient
@@ -54,17 +54,17 @@ export async function POST(
       include: {
         sender: { select: { fullName: true } },
       },
-    });
+    }));
 
     // Also send to seller
-    await prisma.message.create({
+    await withDbRetry(() => prisma.message.create({
       data: {
         senderId: session.user.id,
         receiverId: dispute.transaction.sellerId,
         transactionId: dispute.transactionId,
         body: `[ADMIN - Dispute #${disputeId.slice(0, 8)}] ${data.content}`,
       },
-    });
+    }));
 
     return NextResponse.json({
       id: message.id,

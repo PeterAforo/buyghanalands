@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -10,10 +10,10 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const devices = await prisma.deviceToken.findMany({
+    const devices = await withDbRetry(() => prisma.deviceToken.findMany({
       where: { userId: session.user.id },
       orderBy: { lastUsedAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(devices);
   } catch (error) {
@@ -39,25 +39,25 @@ export async function POST(request: NextRequest) {
     const data = registerDeviceSchema.parse(body);
 
     // Check if token already exists
-    const existing = await prisma.deviceToken.findUnique({
+    const existing = await withDbRetry(() => prisma.deviceToken.findUnique({
       where: { token: data.token },
-    });
+    }));
 
     if (existing) {
       // Update existing token
-      const updated = await prisma.deviceToken.update({
+      const updated = await withDbRetry(() => prisma.deviceToken.update({
         where: { token: data.token },
         data: {
           userId: session.user.id,
           lastUsedAt: new Date(),
           isActive: true,
         },
-      });
+      }));
       return NextResponse.json(updated);
     }
 
     // Create new device token
-    const device = await prisma.deviceToken.create({
+    const device = await withDbRetry(() => prisma.deviceToken.create({
       data: {
         userId: session.user.id,
         token: data.token,
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         isActive: true,
         lastUsedAt: new Date(),
       },
-    });
+    }));
 
     return NextResponse.json(device, { status: 201 });
   } catch (error) {
@@ -96,10 +96,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "token is required" }, { status: 400 });
     }
 
-    const device = await prisma.deviceToken.findUnique({
+    const device = await withDbRetry(() => prisma.deviceToken.findUnique({
       where: { token },
       select: { userId: true },
-    });
+    }));
 
     if (!device) {
       return NextResponse.json({ error: "Device not found" }, { status: 404 });
@@ -109,7 +109,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.deviceToken.delete({ where: { token } });
+    await withDbRetry(() => prisma.deviceToken.delete({ where: { token } }));
 
     return NextResponse.json({ message: "Device removed" });
   } catch (error) {

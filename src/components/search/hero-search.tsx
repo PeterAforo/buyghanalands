@@ -28,8 +28,16 @@ const PRICE_RANGES = [
   { value: "5000000-", label: "Above GHS 5M" },
 ];
 
+const PURPOSE_TABS = [
+  { value: "BUY", label: "Buy Land" },
+  { value: "LEASE", label: "Lease" },
+  { value: "VERIFY", label: "Verify Land" },
+];
+
 function HeroSearch({ className, variant = "hero" }: HeroSearchProps) {
   const router = useRouter();
+  const [purpose, setPurpose] = React.useState("BUY");
+  const [keyword, setKeyword] = React.useState("");
   const [region, setRegion] = React.useState("");
   const [landType, setLandType] = React.useState<string[]>([]);
   const [priceRange, setPriceRange] = React.useState("");
@@ -39,7 +47,12 @@ function HeroSearch({ className, variant = "hero" }: HeroSearchProps) {
   const [priceDropdownOpen, setPriceDropdownOpen] = React.useState(false);
 
   const handleSearch = () => {
+    if (purpose === "VERIFY") {
+      router.push("/verification");
+      return;
+    }
     const params = new URLSearchParams();
+    if (keyword.trim()) params.set("q", keyword.trim());
     if (region) params.set("region", region);
     if (landType.length > 0) params.set("landType", landType.join(","));
     if (priceRange) {
@@ -88,8 +101,43 @@ function HeroSearch({ className, variant = "hero" }: HeroSearchProps) {
 
   return (
     <div className={cn("w-full", className)}>
+      {/* Purpose Tabs */}
+      <div className="flex items-center gap-1 mb-[-1px] pl-1">
+        {PURPOSE_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setPurpose(tab.value)}
+            className={cn(
+              "relative px-5 py-3 text-sm font-semibold rounded-t-xl transition-colors",
+              purpose === tab.value
+                ? "bg-white text-emerald-800"
+                : "bg-white/10 text-white/80 hover:bg-white/20 backdrop-blur-sm"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Main Search Bar */}
-      <div className="bg-white rounded-2xl shadow-xl p-2 md:p-3">
+      <div className="bg-white rounded-2xl rounded-tl-none shadow-2xl p-2 md:p-3">
+        {/* Keyword field */}
+        <div className="relative mb-2 md:mb-3">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            placeholder={
+              purpose === "VERIFY"
+                ? "Enter a plot to request professional verification…"
+                : "Search by area, town, or landmark — e.g. East Legon, Tema…"
+            }
+            className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all"
+          />
+        </div>
+
         <div className="flex flex-col md:flex-row gap-2 md:gap-0">
           {/* Location Dropdown */}
           <div className="relative flex-1 md:border-r border-gray-200">
@@ -249,10 +297,10 @@ function HeroSearch({ className, variant = "hero" }: HeroSearchProps) {
           <div className="md:pl-2">
             <button
               onClick={handleSearch}
-              className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors"
+              className="w-full md:w-auto md:h-full flex items-center justify-center gap-2 px-8 py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl shadow-lg shadow-emerald-700/25 transition-colors"
             >
               <Search className="h-5 w-5" />
-              <span>Search</span>
+              <span>{purpose === "VERIFY" ? "Request Verification" : "Search Land"}</span>
             </button>
           </div>
         </div>

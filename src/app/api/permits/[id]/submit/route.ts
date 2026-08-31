@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function POST(
   request: NextRequest,
@@ -14,13 +14,13 @@ export async function POST(
 
     const { id } = await params;
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       include: {
         documents: true,
         payments: { where: { status: "SUCCESS" } },
       },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -50,16 +50,16 @@ export async function POST(
     }
 
     // Update status
-    const updated = await prisma.permitApplication.update({
+    const updated = await withDbRetry(() => prisma.permitApplication.update({
       where: { id },
       data: {
         status: "SUBMITTED",
         submittedAt: new Date(),
       },
-    });
+    }));
 
     // Create status history
-    await prisma.permitStatusHistory.create({
+    await withDbRetry(() => prisma.permitStatusHistory.create({
       data: {
         permitApplicationId: id,
         fromStatus: "DRAFT",
@@ -67,10 +67,10 @@ export async function POST(
         note: "Application submitted by applicant",
         changedById: session.user.id,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "PERMIT_APPLICATION",
         entityId: id,
@@ -79,7 +79,7 @@ export async function POST(
         action: "SUBMIT",
         diff: { documentsCount: permit.documents.length },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: "Application submitted successfully",

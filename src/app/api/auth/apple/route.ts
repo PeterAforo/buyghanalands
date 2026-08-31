@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { SignJWT } from "jose";
 import { z } from "zod";
 import crypto from "crypto";
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     const email = applePayload.email || data.user?.email;
 
     // Try to find existing user by Apple ID (stored in a custom field or by email)
-    let user = await prisma.user.findFirst({
+    let user = await withDbRetry(() => prisma.user.findFirst({
       where: {
         OR: [
           { email: email || undefined },
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
         accountStatus: true,
         fullName: true,
       },
-    });
+    }));
 
     if (!user) {
       // Create new user from Apple Sign-In
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       // They will need to add their real phone number later
       const placeholderPhone = `apple_${appleUserId.substring(0, 20)}`;
 
-      user = await prisma.user.create({
+      user = await withDbRetry(() => prisma.user.create({
         data: {
           email: email || null,
           emailVerified: !!email, // Apple verifies emails
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
           accountStatus: true,
           fullName: true,
         },
-      });
+      }));
     }
 
     // Check if user account is active
@@ -189,13 +189,13 @@ export async function POST(request: NextRequest) {
     expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
 
     // Store refresh token
-    await prisma.refreshToken.create({
+    await withDbRetry(() => prisma.refreshToken.create({
       data: {
         token: refreshToken,
         userId: user.id,
         expiresAt,
       },
-    });
+    }));
 
     return NextResponse.json({
       accessToken,

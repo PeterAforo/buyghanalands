@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { WorkflowDetailClient } from "./workflow-detail-client";
 
 export const dynamic = "force-dynamic";
 
 async function getWorkflow(id: string, userId: string) {
-  const workflow = await prisma.propertyWorkflow.findFirst({
+  const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
     where: {
       id,
       userId,
@@ -62,7 +62,7 @@ async function getWorkflow(id: string, userId: string) {
       },
       costTracker: true,
     },
-  });
+  }));
 
   if (!workflow) return null;
 

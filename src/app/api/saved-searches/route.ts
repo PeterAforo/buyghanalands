@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const savedSearchSchema = z.object({
@@ -27,10 +27,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const savedSearches = await prisma.savedSearch.findMany({
+    const savedSearches = await withDbRetry(() => prisma.savedSearch.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     const serialized = savedSearches.map((s) => ({
       id: s.id,
@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
     const data = savedSearchSchema.parse(body);
 
     // Limit saved searches per user
-    const count = await prisma.savedSearch.count({
+    const count = await withDbRetry(() => prisma.savedSearch.count({
       where: { userId: session.user.id },
-    });
+    }));
 
     if (count >= 10) {
       return NextResponse.json(
@@ -71,14 +71,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const savedSearch = await prisma.savedSearch.create({
+    const savedSearch = await withDbRetry(() => prisma.savedSearch.create({
       data: {
         userId: session.user.id,
         name: data.name,
         filters: data.filters,
         alertEnabled: data.alertEnabled,
       },
-    });
+    }));
 
     return NextResponse.json({
       id: savedSearch.id,

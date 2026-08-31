@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { SessionProvider } from "@/components/providers/session-provider";
 
 export const metadata: Metadata = {
   title: "Admin Panel - Buy Ghana Lands",
@@ -11,9 +10,5 @@ export default function AdminRootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <SessionProvider>
-      {children}
-    </SessionProvider>
-  );
+  return <>{children}</>;
 }

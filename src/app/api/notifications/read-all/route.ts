@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function PUT() {
   try {
@@ -9,13 +9,13 @@ export async function PUT() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await prisma.pushNotification.updateMany({
+    const result = await withDbRetry(() => prisma.pushNotification.updateMany({
       where: {
         userId: session.user.id,
         read: false,
       },
       data: { read: true },
-    });
+    }));
 
     return NextResponse.json({
       success: true,

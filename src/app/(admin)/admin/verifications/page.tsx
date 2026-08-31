@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 async function getVerificationRequests() {
-  const requests = await prisma.verificationRequest.findMany({
+  const requests = await withDbRetry(() => prisma.verificationRequest.findMany({
     include: {
       listing: {
         select: {
@@ -42,17 +42,17 @@ async function getVerificationRequests() {
       { status: "asc" },
       { createdAt: "desc" },
     ],
-  });
+  }));
 
   return requests;
 }
 
 async function getStats() {
-  const [pending, completed, rejected] = await Promise.all([
+  const [pending, completed, rejected] = await withDbRetry(() => Promise.all([
     prisma.verificationRequest.count({ where: { status: "PENDING" } }),
     prisma.verificationRequest.count({ where: { status: "COMPLETED" } }),
     prisma.verificationRequest.count({ where: { status: "REJECTED" } }),
-  ]);
+  ]));
 
   return { pending, completed, rejected, total: pending + completed + rejected };
 }

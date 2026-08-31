@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
+import { performAutomatedChecks } from "@/lib/kyc";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,10 +12,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's KYC requests
-    const kycRequests = await prisma.kycRequest.findMany({
+    const kycRequests = await withDbRetry(() => prisma.kycRequest.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(kycRequests);
   } catch (error) {
@@ -40,12 +41,12 @@ export async function POST(request: NextRequest) {
     const data = initiateKycSchema.parse(body);
 
     // Check for existing pending KYC request
-    const existingRequest = await prisma.kycRequest.findFirst({
+    const existingRequest = await withDbRetry(() => prisma.kycRequest.findFirst({
       where: {
         userId: session.user.id,
         status: { in: ["INITIATED", "PENDING", "MANUAL_REVIEW"] },
       },
-    });
+    }));
 
     if (existingRequest) {
       return NextResponse.json(
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create KYC request
-    const kycRequest = await prisma.kycRequest.create({
+    const kycRequest = await withDbRetry(() => prisma.kycRequest.create({
       data: {
         userId: session.user.id,
         ghanaCardNumber: data.ghanaCardNumber,
@@ -63,17 +64,42 @@ export async function POST(request: NextRequest) {
         reason: data.reason,
         status: "INITIATED",
       },
+    }));
+
+    // Run automated KYC checks (hybrid system: automated checks + admin review)
+    const automatedResults = performAutomatedChecks({
+      ghanaCardNumber: data.ghanaCardNumber,
+      selfieUrl: data.selfieUrl,
     });
 
-    // In production, this would call the Ghana Card verification API
-    // For now, we'll simulate by setting to PENDING
-    await prisma.kycRequest.update({
+    // Determine status based on automated check results
+    let newStatus: "PENDING" | "FAILED";
+    let reviewNotes: string | undefined;
+
+    if (!automatedResults.overallPassed) {
+      // One or more checks failed — mark as FAILED with details
+      newStatus = "FAILED";
+      const failedChecks = automatedResults.results
+        .filter((r) => !r.passed)
+        .map((r) => `${r.checkName}: ${r.notes}`);
+      reviewNotes = `Automated checks failed:\n${failedChecks.join("\n")}`;
+    } else {
+      // All checks passed — still needs admin review before final approval
+      newStatus = "PENDING";
+    }
+
+    // Update the KYC request with automated check results and status
+    const updatedRequest = await withDbRetry(() => prisma.kycRequest.update({
       where: { id: kycRequest.id },
-      data: { status: "PENDING" },
-    });
+      data: {
+        status: newStatus,
+        providerPayload: automatedResults as any,
+        reviewNotes,
+      },
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "KYC_REQUEST",
         entityId: kycRequest.id,
@@ -82,11 +108,11 @@ export async function POST(request: NextRequest) {
         action: "INITIATE",
         diff: { reason: data.reason },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: "KYC verification initiated",
-      request: kycRequest,
+      request: updatedRequest,
     }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

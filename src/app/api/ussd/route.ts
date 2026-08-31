@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 // USSD Session state management (in-memory for simplicity, use Redis in production)
 const sessions: Map<string, { state: string; data: any; lastAccess: number }> = new Map();
@@ -231,7 +231,7 @@ async function searchListings(region: string, landType: string | null): Promise<
     };
     if (landType) where.landType = landType;
 
-    const listings = await prisma.listing.findMany({
+    const listings = await withDbRetry(() => prisma.listing.findMany({
       where,
       select: {
         title: true,
@@ -241,7 +241,7 @@ async function searchListings(region: string, landType: string | null): Promise<
       },
       take: 5,
       orderBy: { publishedAt: "desc" },
-    });
+    }));
 
     if (listings.length === 0) {
       return `END No lands found in ${region}.
@@ -262,17 +262,17 @@ Visit buyghanalands.com for more options.`;
 
 async function getMyListings(phone: string): Promise<string> {
   try {
-    const user = await prisma.user.findFirst({
+    const user = await withDbRetry(() => prisma.user.findFirst({
       where: { phone: { contains: phone.slice(-9) } },
       select: { id: true },
-    });
+    }));
 
     if (!user) {
       return `END No account found for this number.
 Register at buyghanalands.com`;
     }
 
-    const listings = await prisma.listing.findMany({
+    const listings = await withDbRetry(() => prisma.listing.findMany({
       where: { sellerId: user.id },
       select: {
         title: true,
@@ -281,7 +281,7 @@ Register at buyghanalands.com`;
       },
       take: 5,
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     if (listings.length === 0) {
       return `END You have no listings.
@@ -301,17 +301,17 @@ Create one at buyghanalands.com`;
 
 async function getMyTransactions(phone: string): Promise<string> {
   try {
-    const user = await prisma.user.findFirst({
+    const user = await withDbRetry(() => prisma.user.findFirst({
       where: { phone: { contains: phone.slice(-9) } },
       select: { id: true },
-    });
+    }));
 
     if (!user) {
       return `END No account found for this number.
 Register at buyghanalands.com`;
     }
 
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await withDbRetry(() => prisma.transaction.findMany({
       where: {
         OR: [{ buyerId: user.id }, { sellerId: user.id }],
       },
@@ -322,7 +322,7 @@ Register at buyghanalands.com`;
       },
       take: 5,
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     if (transactions.length === 0) {
       return `END No transactions found.
@@ -342,7 +342,7 @@ Browse lands at buyghanalands.com`;
 
 async function getPriceGuide(region: string): Promise<string> {
   try {
-    const listings = await prisma.listing.findMany({
+    const listings = await withDbRetry(() => prisma.listing.findMany({
       where: {
         status: "PUBLISHED",
         region: { contains: region, mode: "insensitive" },
@@ -352,7 +352,7 @@ async function getPriceGuide(region: string): Promise<string> {
         sizeAcres: true,
         landType: true,
       },
-    });
+    }));
 
     if (listings.length === 0) {
       return `END No price data for ${region}.

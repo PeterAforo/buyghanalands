@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const approveMilestoneSchema = z.object({
   milestoneId: z.string().min(1),
@@ -21,7 +21,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const transaction = await prisma.transaction.findUnique({
+    const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id },
       select: {
         id: true,
@@ -29,7 +29,7 @@ export async function GET(
         sellerId: true,
         status: true,
       },
-    });
+    }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -39,10 +39,10 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const milestones = await prisma.escrowMilestone.findMany({
+    const milestones = await withDbRetry(() => prisma.escrowMilestone.findMany({
       where: { transactionId: id },
       orderBy: { sortOrder: "asc" },
-    });
+    }));
 
     return NextResponse.json({
       milestones: milestones.map((m) => ({
@@ -69,7 +69,7 @@ export async function POST(
     const body = await request.json();
     const data = approveMilestoneSchema.parse(body);
 
-    const transaction = await prisma.transaction.findUnique({
+    const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id },
       select: {
         id: true,
@@ -79,7 +79,7 @@ export async function POST(
         agreedPriceGhs: true,
         listing: { select: { title: true } },
       },
-    });
+    }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -92,9 +92,9 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const milestone = await prisma.escrowMilestone.findUnique({
+    const milestone = await withDbRetry(() => prisma.escrowMilestone.findUnique({
       where: { id: data.milestoneId },
-    });
+    }));
 
     if (!milestone || milestone.transactionId !== id) {
       return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
@@ -115,10 +115,10 @@ export async function POST(
       updateData.sellerApprovedAt = data.action === "approve" ? new Date() : null;
     }
 
-    const updatedMilestone = await prisma.escrowMilestone.update({
+    const updatedMilestone = await withDbRetry(() => prisma.escrowMilestone.update({
       where: { id: data.milestoneId },
       data: updateData,
-    });
+    }));
 
     // Check if all required approvals are met
     const allApproved = 
@@ -127,26 +127,26 @@ export async function POST(
       (!updatedMilestone.requiresAdminApproval || updatedMilestone.adminApprovedAt);
 
     if (allApproved && data.action === "approve") {
-      await prisma.escrowMilestone.update({
+      await withDbRetry(() => prisma.escrowMilestone.update({
         where: { id: data.milestoneId },
         data: { completedAt: new Date() },
-      });
+      }));
 
       // Check if all milestones are completed
-      const allMilestones = await prisma.escrowMilestone.findMany({
+      const allMilestones = await withDbRetry(() => prisma.escrowMilestone.findMany({
         where: { transactionId: id },
-      });
+      }));
 
       const allCompleted = allMilestones.every((m) => m.completedAt);
 
       if (allCompleted && transaction.status === "VERIFICATION_PERIOD") {
         // Auto-transition to READY_TO_RELEASE
-        await prisma.transaction.update({
+        await withDbRetry(() => prisma.transaction.update({
           where: { id },
           data: { status: "READY_TO_RELEASE" },
-        });
+        }));
 
-        await prisma.auditLog.create({
+        await withDbRetry(() => prisma.auditLog.create({
           data: {
             entityType: "TRANSACTION",
             entityId: id,
@@ -154,12 +154,12 @@ export async function POST(
             action: "STATUS_CHANGE",
             diff: { from: "VERIFICATION_PERIOD", to: "READY_TO_RELEASE", reason: "all_milestones_completed" },
           },
-        });
+        }));
       }
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "TRANSACTION",
         entityId: id,
@@ -173,7 +173,7 @@ export async function POST(
           note: data.note,
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       success: true,

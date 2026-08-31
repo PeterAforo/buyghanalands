@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       where.listing.region = region;
     }
 
-    const featured = await prisma.featuredListing.findMany({
+    const featured = await withDbRetry(() => prisma.featuredListing.findMany({
       where,
       include: {
         listing: {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         { startDate: "desc" },
       ],
       take: limit,
-    });
+    }));
 
     const serialized = featured.map((f) => ({
       ...f,

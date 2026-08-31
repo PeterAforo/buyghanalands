@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
 
     // Get recent messages grouped by sender-receiver-listing combination
-    const messages = await prisma.message.findMany({
+    const messages = await withDbRetry(() => prisma.message.findMany({
       where: search ? {
         OR: [
           { listing: { title: { contains: search, mode: "insensitive" } } },
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
       take: 100,
-    });
+    }));
 
     // Group messages into conversations
     const conversationMap = new Map<string, {

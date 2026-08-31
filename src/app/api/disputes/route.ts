@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -9,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const disputes = await prisma.dispute.findMany({
+    const disputes = await withDbRetry(() => prisma.dispute.findMany({
       where: {
         OR: [
           { transaction: { buyerId: session.user.id } },
@@ -32,7 +32,7 @@ export async function GET() {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(
       disputes.map((d) => ({

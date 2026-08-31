@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -27,7 +27,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const dispute = await prisma.dispute.findUnique({
+    const dispute = await withDbRetry(() => prisma.dispute.findUnique({
       where: { id },
       include: {
         raisedBy: { select: { id: true, fullName: true } },
@@ -45,14 +45,14 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
 
     // Fetch messages related to this dispute's transaction
-    const messages = await prisma.message.findMany({
+    const messages = await withDbRetry(() => prisma.message.findMany({
       where: {
         transactionId: dispute.transactionId,
         body: { contains: `Dispute #${id.slice(0, 8)}` },
@@ -61,7 +61,7 @@ export async function GET(
         sender: { select: { fullName: true } },
       },
       orderBy: { createdAt: "asc" },
-    });
+    }));
 
     // Transform messages to include senderType
     const transformedMessages = messages.map((msg) => {
@@ -118,10 +118,10 @@ export async function PUT(
     const body = await request.json();
     const data = updateDisputeSchema.parse(body);
 
-    const dispute = await prisma.dispute.findUnique({
+    const dispute = await withDbRetry(() => prisma.dispute.findUnique({
       where: { id },
       include: { transaction: true },
-    });
+    }));
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
@@ -143,7 +143,7 @@ export async function PUT(
       updateData.resolution = data.resolution;
     }
 
-    const updatedDispute = await prisma.dispute.update({
+    const updatedDispute = await withDbRetry(() => prisma.dispute.update({
       where: { id },
       data: updateData,
       include: {
@@ -162,10 +162,10 @@ export async function PUT(
           },
         },
       },
-    });
+    }));
 
     // Fetch messages related to this dispute
-    const messages = await prisma.message.findMany({
+    const messages = await withDbRetry(() => prisma.message.findMany({
       where: {
         transactionId: updatedDispute.transactionId,
         body: { contains: `Dispute #${id.slice(0, 8)}` },
@@ -174,7 +174,7 @@ export async function PUT(
         sender: { select: { fullName: true } },
       },
       orderBy: { createdAt: "asc" },
-    });
+    }));
 
     const transformedMessages = messages.map((msg) => {
       let senderType: "BUYER" | "SELLER" | "ADMIN" = "ADMIN";
@@ -193,24 +193,24 @@ export async function PUT(
 
     // Update transaction status based on resolution
     if (data.status === "RESOLVED_BUYER") {
-      await prisma.transaction.update({
+      await withDbRetry(() => prisma.transaction.update({
         where: { id: dispute.transactionId },
         data: { status: "REFUNDED", closedAt: new Date() },
-      });
+      }));
     } else if (data.status === "RESOLVED_SELLER") {
-      await prisma.transaction.update({
+      await withDbRetry(() => prisma.transaction.update({
         where: { id: dispute.transactionId },
         data: { status: "RELEASED", closedAt: new Date() },
-      });
+      }));
     } else if (data.status === "RESOLVED_SPLIT") {
-      await prisma.transaction.update({
+      await withDbRetry(() => prisma.transaction.update({
         where: { id: dispute.transactionId },
         data: { status: "PARTIAL_SETTLED", closedAt: new Date() },
-      });
+      }));
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "DISPUTE",
         entityId: id,
@@ -219,7 +219,7 @@ export async function PUT(
         action: data.status ? `STATUS_CHANGE_${data.status}` : "UPDATE",
         diff: { status: data.status, resolution: data.resolution },
       },
-    });
+    }));
 
     return NextResponse.json({
       ...updatedDispute,

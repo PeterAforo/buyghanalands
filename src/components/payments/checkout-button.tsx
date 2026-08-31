@@ -55,9 +55,9 @@ export function CheckoutButton({
         throw new Error(data.error || "Payment initialization failed");
       }
 
-      // Redirect to Flutterwave payment page
-      if (data.paymentLink) {
-        window.location.href = data.paymentLink;
+      // Redirect to Theteller checkout
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
       } else {
         throw new Error("No payment link received");
       }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createTransactionSchema = z.object({
   offerId: z.string().min(1),
@@ -31,14 +31,14 @@ export async function POST(request: NextRequest) {
     const data = createTransactionSchema.parse(body);
 
     // Get the offer
-    const offer = await prisma.offer.findUnique({
+    const offer = await withDbRetry(() => prisma.offer.findUnique({
       where: { id: data.offerId },
       include: {
         listing: {
           select: { id: true, sellerId: true, status: true },
         },
       },
-    });
+    }));
 
     if (!offer) {
       return NextResponse.json({ error: "Offer not found" }, { status: 404 });
@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if transaction already exists for this offer
-    const existingTransaction = await prisma.transaction.findUnique({
+    const existingTransaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { offerId: data.offerId },
-    });
+    }));
 
     if (existingTransaction) {
       return NextResponse.json(
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const transaction = await prisma.transaction.create({
+    const transaction = await withDbRetry(() => prisma.transaction.create({
       data: {
         listingId: offer.listingId,
         offerId: offer.id,
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
         buyer: { select: { fullName: true } },
         seller: { select: { fullName: true } },
       },
-    });
+    }));
 
     // Create default milestones
-    await prisma.escrowMilestone.createMany({
+    await withDbRetry(() => prisma.escrowMilestone.createMany({
       data: [
         {
           transactionId: transaction.id,
@@ -112,10 +112,10 @@ export async function POST(request: NextRequest) {
           sortOrder: 3,
         },
       ],
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "TRANSACTION",
         entityId: transaction.id,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         action: "CREATE",
         diff: { offerId: data.offerId, agreedPriceGhs: Number(offer.amountGhs) },
       },
-    });
+    }));
 
     return NextResponse.json(transaction, { status: 201 });
   } catch (error) {
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
             OR: [{ buyerId: session.user.id }, { sellerId: session.user.id }],
           };
 
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await withDbRetry(() => prisma.transaction.findMany({
       where,
       include: {
         listing: {
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
         milestones: { orderBy: { sortOrder: "asc" } },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(transactions);
   } catch (error) {

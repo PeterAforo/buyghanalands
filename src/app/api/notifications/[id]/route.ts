@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function PUT(
   request: NextRequest,
@@ -15,13 +15,13 @@ export async function PUT(
     const { id } = await params;
 
     // Mark notification as read
-    const notification = await prisma.pushNotification.updateMany({
+    const notification = await withDbRetry(() => prisma.pushNotification.updateMany({
       where: {
         id,
         userId: session.user.id,
       },
       data: { read: true },
-    });
+    }));
 
     if (notification.count === 0) {
       return NextResponse.json(
@@ -52,12 +52,12 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const notification = await prisma.pushNotification.deleteMany({
+    const notification = await withDbRetry(() => prisma.pushNotification.deleteMany({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (notification.count === 0) {
       return NextResponse.json(

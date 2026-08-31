@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const createAlertSchema = z.object({
@@ -40,12 +40,12 @@ export async function GET(
     const unreadOnly = searchParams.get("unreadOnly") === "true";
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -54,14 +54,14 @@ export async function GET(
       );
     }
 
-    const alerts = await prisma.workflowAlert.findMany({
+    const alerts = await withDbRetry(() => prisma.workflowAlert.findMany({
       where: {
         propertyWorkflowId: id,
         isDismissed: false,
         ...(unreadOnly && { isRead: false }),
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json({ alerts });
   } catch (error) {
@@ -88,12 +88,12 @@ export async function POST(
     const validatedData = createAlertSchema.parse(body);
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -102,7 +102,7 @@ export async function POST(
       );
     }
 
-    const alert = await prisma.workflowAlert.create({
+    const alert = await withDbRetry(() => prisma.workflowAlert.create({
       data: {
         propertyWorkflowId: id,
         alertType: validatedData.alertType,
@@ -120,7 +120,7 @@ export async function POST(
         isRead: false,
         isDismissed: false,
       },
-    });
+    }));
 
     return NextResponse.json({ alert }, { status: 201 });
   } catch (error) {
@@ -157,12 +157,12 @@ export async function PATCH(
     const validatedData = updateAlertSchema.parse(body);
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -172,13 +172,13 @@ export async function PATCH(
     }
 
     if (markAllRead) {
-      await prisma.workflowAlert.updateMany({
+      await withDbRetry(() => prisma.workflowAlert.updateMany({
         where: {
           propertyWorkflowId: id,
           isRead: false,
         },
         data: { isRead: true },
-      });
+      }));
       return NextResponse.json({ success: true });
     }
 
@@ -189,13 +189,13 @@ export async function PATCH(
       );
     }
 
-    const alert = await prisma.workflowAlert.update({
+    const alert = await withDbRetry(() => prisma.workflowAlert.update({
       where: {
         id: alertId,
         propertyWorkflowId: id,
       },
       data: validatedData,
-    });
+    }));
 
     return NextResponse.json({ alert });
   } catch (error) {

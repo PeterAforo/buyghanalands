@@ -361,7 +361,7 @@ export default function AdminSettingsPage() {
                   type="text"
                   value={newKey}
                   onChange={(e) => setNewKey(e.target.value)}
-                  placeholder="e.g., FLUTTERWAVE_SECRET_KEY"
+                  placeholder="e.g., THETELLER_API_KEY"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
                 />
                 <p className="text-[10px] text-gray-400 mt-1">Will be formatted as uppercase with underscores</p>

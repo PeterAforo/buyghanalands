@@ -52,9 +52,9 @@ Given the existing React/Next.js frontend, TypeScript codebase, and the team's J
 | **Authentication** | NextAuth.js 5 (JWT strategy) |
 | **Search** | Meilisearch |
 | **File Storage** | Cloudinary |
-| **Payments** | Flutterwave |
+| **Payments** | Theteller (Payswitch) |
 | **SMS** | mNotify |
-| **Email** | Resend / Nodemailer |
+| **Email** | Nodemailer (SMTP) |
 
 ### 2.2 Feature Inventory
 
@@ -66,7 +66,7 @@ Given the existing React/Next.js frontend, TypeScript codebase, and the team's J
 | **Maps** | Property locations, boundaries, geospatial | ✅ Critical (GPS) |
 | **Offers** | Make offers, negotiate, accept/reject | ✅ Critical |
 | **Transactions** | Escrow, payments, milestones | ✅ Critical |
-| **Payments** | Flutterwave integration, mobile money | ✅ Critical |
+| **Payments** | Theteller (Payswitch) integration, mobile money | ✅ Critical |
 | **Documents** | Upload, view, verify documents | ✅ Critical (Camera) |
 | **Verification** | Land verification workflow | ✅ High |
 | **Messaging** | In-app messaging between parties | ✅ High |
@@ -136,7 +136,7 @@ Given the existing React/Next.js frontend, TypeScript codebase, and the team's J
    - EAS Build for CI/CD
 
 5. **Ghana-Specific Considerations:**
-   - Mobile money integration (Flutterwave SDK available)
+   - Mobile money integration (Theteller (Payswitch) SDK available)
    - Offline support for low-connectivity areas
    - SMS OTP verification (already implemented)
 
@@ -319,7 +319,7 @@ Given the existing React/Next.js frontend, TypeScript codebase, and the team's J
 | `/api/search/*` | 1 | ✅ Ready | Meilisearch integrated |
 | `/api/offers/*` | 3 | ✅ Ready | - |
 | `/api/transactions/*` | 5 | ✅ Ready | - |
-| `/api/payments/*` | 5 | ✅ Ready | Flutterwave mobile SDK compatible |
+| `/api/payments/*` | 5 | ✅ Ready | Theteller (Payswitch) mobile SDK compatible |
 | `/api/messages/*` | 3 | ✅ Ready | - |
 | `/api/favorites/*` | 2 | ✅ Ready | - |
 | `/api/documents/*` | 4 | ⚠️ Partial | Base64 upload, needs multipart |
@@ -966,7 +966,7 @@ export const spacing = {
 **Week 5: Transactions & Payments**
 - [ ] Transaction list
 - [ ] Transaction details
-- [ ] Payment initiation (Flutterwave)
+- [ ] Payment initiation (Theteller (Payswitch))
 - [ ] Payment status tracking
 
 **Week 6: Messaging**
@@ -1068,7 +1068,7 @@ export const spacing = {
 
 | Factor | Impact | Notes |
 |--------|--------|-------|
-| Payment Integration | +1 week | Flutterwave mobile SDK |
+| Payment Integration | +1 week | Theteller (Payswitch) mobile SDK |
 | Offline Support | +2 weeks | SQLite, sync logic |
 | Push Notifications | +1 week | FCM setup, backend changes |
 | Apple Sign-In | +0.5 weeks | Required for App Store |

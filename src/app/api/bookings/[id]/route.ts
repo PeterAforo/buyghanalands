@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const updateServiceRequestSchema = z.object({
   status: z.enum(["OPEN", "OFFERED", "ACCEPTED", "DECLINED", "CANCELLED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "DISPUTED"]).optional(),
@@ -20,7 +20,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const serviceRequest = await prisma.serviceRequest.findUnique({
+    const serviceRequest = await withDbRetry(() => prisma.serviceRequest.findUnique({
       where: { id },
       include: {
         professional: {
@@ -41,17 +41,17 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!serviceRequest) {
       return NextResponse.json({ error: "Service request not found" }, { status: 404 });
     }
 
     // Check authorization
-    const professional = await prisma.professionalProfile.findUnique({
+    const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { userId: session.user.id },
       select: { id: true },
-    });
+    }));
 
     const isRequester = serviceRequest.requesterId === session.user.id;
     const isProfessional = professional?.id === serviceRequest.professionalId;
@@ -85,20 +85,20 @@ export async function PUT(
     const body = await request.json();
     const data = updateServiceRequestSchema.parse(body);
 
-    const serviceRequest = await prisma.serviceRequest.findUnique({
+    const serviceRequest = await withDbRetry(() => prisma.serviceRequest.findUnique({
       where: { id },
       select: { requesterId: true, professionalId: true, status: true },
-    });
+    }));
 
     if (!serviceRequest) {
       return NextResponse.json({ error: "Service request not found" }, { status: 404 });
     }
 
     // Check authorization
-    const professional = await prisma.professionalProfile.findUnique({
+    const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { userId: session.user.id },
       select: { id: true },
-    });
+    }));
 
     const isRequester = serviceRequest.requesterId === session.user.id;
     const isProfessional = professional?.id === serviceRequest.professionalId;
@@ -129,14 +129,14 @@ export async function PUT(
       }
     }
 
-    const updated = await prisma.serviceRequest.update({
+    const updated = await withDbRetry(() => prisma.serviceRequest.update({
       where: { id },
       data: {
         status: data.status,
         acceptedPriceGhs: data.acceptedPriceGhs,
         closedAt: data.status === "COMPLETED" || data.status === "CANCELLED" ? new Date() : undefined,
       },
-    });
+    }));
 
     return NextResponse.json({
       ...updated,

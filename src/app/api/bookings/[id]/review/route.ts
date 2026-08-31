@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createReviewSchema = z.object({
   rating: z.number().min(1).max(5),
@@ -23,7 +23,7 @@ export async function POST(
     const data = createReviewSchema.parse(body);
 
     // Get service request with booking
-    const serviceRequest = await prisma.serviceRequest.findUnique({
+    const serviceRequest = await withDbRetry(() => prisma.serviceRequest.findUnique({
       where: { id },
       select: {
         requesterId: true,
@@ -36,7 +36,7 @@ export async function POST(
           },
         },
       },
-    });
+    }));
 
     if (!serviceRequest) {
       return NextResponse.json({ error: "Service request not found" }, { status: 404 });
@@ -57,28 +57,28 @@ export async function POST(
     }
 
     // Check if already reviewed
-    const existingReview = await prisma.review.findFirst({
+    const existingReview = await withDbRetry(() => prisma.review.findFirst({
       where: {
         reviewerId: session.user.id,
-        professionalId: serviceRequest.professionalId,
+        professionalId: serviceRequest.professionalId ?? undefined,
         bookingId: serviceRequest.booking?.id,
       },
-    });
+    }));
 
     if (existingReview) {
       return NextResponse.json({ error: "Already reviewed" }, { status: 400 });
     }
 
     // Create review
-    const review = await prisma.review.create({
+    const review = await withDbRetry(() => prisma.review.create({
       data: {
         reviewerId: session.user.id,
-        professionalId: serviceRequest.professionalId,
+        professionalId: serviceRequest.professionalId!,
         bookingId: serviceRequest.booking?.id,
         rating: data.rating,
         comment: data.comment,
       },
-    });
+    }));
 
     return NextResponse.json(review, { status: 201 });
   } catch (error) {

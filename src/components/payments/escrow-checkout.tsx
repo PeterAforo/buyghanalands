@@ -70,8 +70,8 @@ export function EscrowCheckout({ listing, onClose }: EscrowCheckoutProps) {
         throw new Error(data.error || "Payment initialization failed");
       }
 
-      if (data.paymentLink) {
-        window.location.href = data.paymentLink;
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

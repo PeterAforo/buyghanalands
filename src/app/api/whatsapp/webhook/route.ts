@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 // WhatsApp Cloud API webhook handler
 export async function GET(request: NextRequest) {
@@ -44,18 +44,18 @@ async function handleIncomingMessage(message: any, contact: any) {
   const messageId = message.id;
 
   // Get or create conversation state
-  let session = await prisma.whatsAppSession.findUnique({
+  let session = await withDbRetry(() => prisma.whatsAppSession.findUnique({
     where: { phone },
-  });
+  }));
 
   if (!session) {
-    session = await prisma.whatsAppSession.create({
+    session = await withDbRetry(() => prisma.whatsAppSession.create({
       data: {
         phone,
         state: "MAIN_MENU",
         data: {},
       },
-    });
+    }));
   }
 
   let response = "";
@@ -185,14 +185,14 @@ Reply with a number.`;
   }
 
   // Update session
-  await prisma.whatsAppSession.update({
+  await withDbRetry(() => prisma.whatsAppSession.update({
     where: { phone },
     data: {
       state: newState,
       data: newData,
       lastMessageAt: new Date(),
     },
-  });
+  }));
 
   // Send response
   await sendWhatsAppMessage(phone, response);
@@ -219,7 +219,7 @@ async function searchListings(region: string, landType: string | null) {
   };
   if (landType) where.landType = landType;
 
-  const listings = await prisma.listing.findMany({
+  const listings = await withDbRetry(() => prisma.listing.findMany({
     where,
     select: {
       title: true,
@@ -229,7 +229,7 @@ async function searchListings(region: string, landType: string | null) {
     },
     take: 5,
     orderBy: { publishedAt: "desc" },
-  });
+  }));
 
   if (listings.length === 0) {
     return `❌ No lands found in ${region}.
@@ -253,9 +253,9 @@ Type "menu" to go back.`;
 }
 
 async function getMyListings(phone: string) {
-  const user = await prisma.user.findFirst({
+  const user = await withDbRetry(() => prisma.user.findFirst({
     where: { phone: { contains: phone.slice(-9) } },
-  });
+  }));
 
   if (!user) {
     return `❌ No account found for this number.
@@ -265,12 +265,12 @@ Register at buyghanalands.com to list your land.
 Type "menu" to go back.`;
   }
 
-  const listings = await prisma.listing.findMany({
+  const listings = await withDbRetry(() => prisma.listing.findMany({
     where: { sellerId: user.id },
     select: { title: true, status: true, priceGhs: true },
     take: 5,
     orderBy: { createdAt: "desc" },
-  });
+  }));
 
   if (listings.length === 0) {
     return `📋 You have no listings yet.
@@ -291,9 +291,9 @@ Type "menu" to go back.`;
 }
 
 async function getMyTransactions(phone: string) {
-  const user = await prisma.user.findFirst({
+  const user = await withDbRetry(() => prisma.user.findFirst({
     where: { phone: { contains: phone.slice(-9) } },
-  });
+  }));
 
   if (!user) {
     return `❌ No account found for this number.
@@ -303,7 +303,7 @@ Register at buyghanalands.com
 Type "menu" to go back.`;
   }
 
-  const transactions = await prisma.transaction.findMany({
+  const transactions = await withDbRetry(() => prisma.transaction.findMany({
     where: {
       OR: [{ buyerId: user.id }, { sellerId: user.id }],
     },
@@ -314,7 +314,7 @@ Type "menu" to go back.`;
     },
     take: 5,
     orderBy: { createdAt: "desc" },
-  });
+  }));
 
   if (transactions.length === 0) {
     return `📊 No transactions found.
@@ -335,13 +335,13 @@ Type "menu" to go back.`;
 }
 
 async function getPriceEstimate(region: string) {
-  const listings = await prisma.listing.findMany({
+  const listings = await withDbRetry(() => prisma.listing.findMany({
     where: {
       status: "PUBLISHED",
       region: { contains: region, mode: "insensitive" },
     },
     select: { priceGhs: true, sizeAcres: true, landType: true },
-  });
+  }));
 
   if (listings.length === 0) {
     return `❌ No price data for ${region}.

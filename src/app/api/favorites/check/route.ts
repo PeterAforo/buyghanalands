@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 // GET - Check if a listing is favorited
 export async function GET(request: NextRequest) {
@@ -17,14 +17,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Listing ID required" }, { status: 400 });
     }
 
-    const favorite = await prisma.favorite.findUnique({
+    const favorite = await withDbRetry(() => prisma.favorite.findUnique({
       where: {
         userId_listingId: {
           userId: session.user.id,
           listingId,
         },
       },
-    });
+    }));
 
     return NextResponse.json({ isFavorited: !!favorite });
   } catch (error) {

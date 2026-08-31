@@ -1,47 +1,49 @@
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { ListingsClient } from "./listings-client";
 
 export const dynamic = 'force-dynamic';
 
 async function getListings() {
   try {
-    const listings = await prisma.listing.findMany({
-      where: {
-        status: "PUBLISHED",
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        region: true,
-        district: true,
-        town: true,
-        landType: true,
-        tenureType: true,
-        sizeAcres: true,
-        priceGhs: true,
-        negotiable: true,
-        verificationLevel: true,
-        seller: {
-          select: {
-            id: true,
-            fullName: true,
-            kycTier: true,
+    const listings = await withDbRetry(() =>
+      prisma.listing.findMany({
+        where: {
+          status: "PUBLISHED",
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          region: true,
+          district: true,
+          town: true,
+          landType: true,
+          tenureType: true,
+          sizeAcres: true,
+          priceGhs: true,
+          negotiable: true,
+          verificationLevel: true,
+          seller: {
+            select: {
+              id: true,
+              fullName: true,
+              kycTier: true,
+            },
+          },
+          media: {
+            take: 1,
+            orderBy: { sortOrder: "asc" },
+            select: {
+              url: true,
+            },
           },
         },
-        media: {
-          take: 1,
-          orderBy: { sortOrder: "asc" },
-          select: {
-            url: true,
-          },
+        orderBy: {
+          publishedAt: "desc",
         },
-      },
-      orderBy: {
-        publishedAt: "desc",
-      },
-      take: 20,
-    });
+        take: 20,
+      })
+    );
 
     return listings;
   } catch (error) {
@@ -52,28 +54,30 @@ async function getListings() {
 
 async function getFilterOptions() {
   try {
-    const [regions, constituencies, districts, landTypes] = await Promise.all([
-      prisma.listing.findMany({
-        where: { status: "PUBLISHED" },
-        select: { region: true },
-        distinct: ["region"],
-      }),
-      prisma.listing.findMany({
-        where: { status: "PUBLISHED" },
-        select: { constituency: true },
-        distinct: ["constituency"],
-      }),
-      prisma.listing.findMany({
-        where: { status: "PUBLISHED" },
-        select: { district: true },
-        distinct: ["district"],
-      }),
-      prisma.listing.findMany({
-        where: { status: "PUBLISHED" },
-        select: { landType: true },
-        distinct: ["landType"],
-      }),
-    ]);
+    const [regions, constituencies, districts, landTypes] = await withDbRetry(() =>
+      Promise.all([
+        prisma.listing.findMany({
+          where: { status: "PUBLISHED" },
+          select: { region: true },
+          distinct: ["region"],
+        }),
+        prisma.listing.findMany({
+          where: { status: "PUBLISHED" },
+          select: { constituency: true },
+          distinct: ["constituency"],
+        }),
+        prisma.listing.findMany({
+          where: { status: "PUBLISHED" },
+          select: { district: true },
+          distinct: ["district"],
+        }),
+        prisma.listing.findMany({
+          where: { status: "PUBLISHED" },
+          select: { landType: true },
+          distinct: ["landType"],
+        }),
+      ])
+    );
 
     return {
       regions: regions.map((r) => r.region),

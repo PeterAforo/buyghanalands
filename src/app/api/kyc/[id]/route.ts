@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -14,24 +14,24 @@ export async function GET(
 
     const { id } = await params;
 
-    const kycRequest = await prisma.kycRequest.findUnique({
+    const kycRequest = await withDbRetry(() => prisma.kycRequest.findUnique({
       where: { id },
       include: {
         user: {
           select: { id: true, fullName: true, phone: true, kycTier: true },
         },
       },
-    });
+    }));
 
     if (!kycRequest) {
       return NextResponse.json({ error: "KYC request not found" }, { status: 404 });
     }
 
     // Check authorization
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     const isAdmin = user?.roles.some((r) => ["ADMIN", "COMPLIANCE"].includes(r));
     if (kycRequest.userId !== session.user.id && !isAdmin) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (region) where.region = region;
 
-    const assemblies = await prisma.districtAssembly.findMany({
+    const assemblies = await withDbRetry(() => prisma.districtAssembly.findMany({
       where,
       orderBy: { name: "asc" },
-    });
+    }));
 
     return NextResponse.json(assemblies);
   } catch (error) {

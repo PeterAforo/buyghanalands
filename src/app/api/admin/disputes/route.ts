@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const disputes = await prisma.dispute.findMany({
+    const disputes = await withDbRetry(() => prisma.dispute.findMany({
       where,
       include: {
         raisedBy: { select: { id: true, fullName: true } },
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
       take: 100,
-    });
+    }));
 
     return NextResponse.json(
       disputes.map((d) => ({

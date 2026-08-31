@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 // This endpoint can be called by a cron job to expire old offers
 export async function POST() {
@@ -8,7 +8,7 @@ export async function POST() {
     const now = new Date();
 
     // Find and expire all offers past their expiry date
-    const expiredOffers = await prisma.offer.updateMany({
+    const expiredOffers = await withDbRetry(() => prisma.offer.updateMany({
       where: {
         status: { in: ["SENT", "COUNTERED"] },
         expiresAt: { lt: now },
@@ -16,11 +16,11 @@ export async function POST() {
       data: {
         status: "EXPIRED",
       },
-    });
+    }));
 
     // Log the expiration
     if (expiredOffers.count > 0) {
-      await prisma.auditLog.create({
+      await withDbRetry(() => prisma.auditLog.create({
         data: {
           entityType: "OFFER",
           entityId: "BATCH",
@@ -28,7 +28,7 @@ export async function POST() {
           action: "BATCH_EXPIRE",
           diff: { count: expiredOffers.count, expiredAt: now.toISOString() },
         },
-      });
+      }));
     }
 
     return NextResponse.json({
@@ -47,7 +47,7 @@ export async function GET() {
     const now = new Date();
     const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    const [expired, expiringIn24h, active] = await Promise.all([
+    const [expired, expiringIn24h, active] = await withDbRetry(() => Promise.all([
       prisma.offer.count({
         where: {
           status: { in: ["SENT", "COUNTERED"] },
@@ -66,7 +66,7 @@ export async function GET() {
           expiresAt: { gte: now },
         },
       }),
-    ]);
+    ]));
 
     return NextResponse.json({
       needsExpiration: expired,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -14,14 +14,14 @@ export async function GET(
 
     const { id } = await params;
 
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await withDbRetry(() => prisma.subscription.findUnique({
       where: { id },
       include: {
         payments: {
           orderBy: { createdAt: "desc" },
         },
       },
-    });
+    }));
 
     if (!subscription) {
       return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
@@ -51,10 +51,10 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await withDbRetry(() => prisma.subscription.findUnique({
       where: { id },
       select: { userId: true, status: true },
-    });
+    }));
 
     if (!subscription) {
       return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
@@ -66,13 +66,13 @@ export async function PUT(
 
     // Only allow cancellation
     if (body.action === "cancel") {
-      const updated = await prisma.subscription.update({
+      const updated = await withDbRetry(() => prisma.subscription.update({
         where: { id },
         data: {
           status: "CANCELLED",
           cancelledAt: new Date(),
         },
-      });
+      }));
       return NextResponse.json(updated);
     }
 

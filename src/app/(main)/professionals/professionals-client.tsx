@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   MapPin,
@@ -15,10 +13,6 @@ import {
   Briefcase,
   Search,
   Loader2,
-  Phone,
-  Mail,
-  MessageCircle,
-  Award,
   Clock,
   Users,
   Shield,
@@ -31,10 +25,7 @@ import {
   ChevronRight,
   Filter,
   X,
-  Sparkles,
-  TrendingUp,
   Building2,
-  Globe,
   ArrowRight,
 } from "lucide-react";
 
@@ -60,60 +51,48 @@ interface ProfessionalsClientProps {
   professionalTypes: { value: string; label: string }[];
 }
 
-const professionalConfig: Record<
-  string,
-  { icon: any; color: string; bgColor: string; gradient: string; description: string }
-> = {
-  SURVEYOR: {
-    icon: Compass,
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
-    gradient: "from-blue-500 to-blue-600",
-    description: "Land surveys & boundary demarcation",
-  },
-  LAWYER: {
-    icon: Scale,
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
-    gradient: "from-purple-500 to-purple-600",
-    description: "Legal documentation & title search",
-  },
-  ARCHITECT: {
-    icon: PenTool,
-    color: "text-pink-600",
-    bgColor: "bg-pink-50",
-    gradient: "from-pink-500 to-pink-600",
-    description: "Building design & planning",
-  },
-  ENGINEER: {
-    icon: HardHat,
-    color: "text-orange-600",
-    bgColor: "bg-orange-50",
-    gradient: "from-orange-500 to-orange-600",
-    description: "Structural assessment & engineering",
-  },
-  PLANNER: {
-    icon: ClipboardList,
-    color: "text-teal-600",
-    bgColor: "bg-teal-50",
-    gradient: "from-teal-500 to-teal-600",
-    description: "Town planning consultation",
-  },
-  VALUER: {
-    icon: Calculator,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50",
-    gradient: "from-emerald-500 to-emerald-600",
-    description: "Property valuation services",
-  },
+const HERO_IMAGE = "/images/african-american-woman-looking-map.jpg";
+const CTA_IMAGE = "/images/medium-shot-smiley-man-posing.jpg";
+
+// Deterministic, profession-appropriate demo portrait when no avatar exists
+function demoAvatar(id: string, professionalType: string) {
+  const prof = professionalType.toLowerCase();
+  const known = ["surveyor", "lawyer", "architect", "engineer", "planner", "valuer"];
+  const folder = known.includes(prof) ? prof : "surveyor";
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return `/images/professionals/${folder}-${(hash % 3) + 1}.jpg`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const professionalConfig: Record<string, { icon: any; description: string }> = {
+  SURVEYOR: { icon: Compass, description: "Land surveys & boundary demarcation" },
+  LAWYER: { icon: Scale, description: "Legal documentation & title search" },
+  ARCHITECT: { icon: PenTool, description: "Building design & planning" },
+  ENGINEER: { icon: HardHat, description: "Structural assessment & engineering" },
+  PLANNER: { icon: ClipboardList, description: "Town planning consultation" },
+  VALUER: { icon: Calculator, description: "Property valuation services" },
 };
+
+function typeLabel(type: string) {
+  return type.charAt(0) + type.slice(1).toLowerCase();
+}
+
+// Editorial eyebrow label
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+      <span className="h-px w-6 bg-amber-400" />
+      {children}
+    </span>
+  );
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08 },
-  },
+  visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
 };
 
 const itemVariants = {
@@ -139,7 +118,6 @@ export function ProfessionalsClient({
       const params = new URLSearchParams();
       if (type) params.set("category", type);
       if (query) params.set("search", query);
-
       const res = await fetch(`/api/professionals?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -171,7 +149,6 @@ export function ProfessionalsClient({
     fetchProfessionals("", "");
   };
 
-  // Stats
   const totalProfessionals = professionals.length;
   const verifiedCount = professionals.filter((p) => p.licenseStatus === "VERIFIED").length;
   const avgRating =
@@ -179,7 +156,6 @@ export function ProfessionalsClient({
       ? (professionals.reduce((acc, p) => acc + p.avgRating, 0) / professionals.length).toFixed(1)
       : "0";
 
-  // Filter professionals
   const filteredProfessionals = professionals.filter((p) => {
     if (verifiedOnly && p.licenseStatus !== "VERIFIED") return false;
     if (locationFilter && !p.baseLocation?.toLowerCase().includes(locationFilter.toLowerCase()))
@@ -188,108 +164,74 @@ export function ProfessionalsClient({
   });
 
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-20">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }}
+    <div className="min-h-screen bg-[#faf8f2]">
+      {/* ============================================================
+          EDITORIAL HERO HEADER
+          ============================================================ */}
+      <section className="relative overflow-hidden bg-black">
+        <div className="absolute inset-0">
+          <Image
+            src={HERO_IMAGE}
+            alt="Land professional at work"
+            fill
+            priority
+            className="object-cover scale-105"
           />
         </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#faf8f2] via-transparent to-black/30" />
 
-        {/* Floating Icons */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-10 w-16 h-16 bg-blue-500/20 rounded-2xl rotate-12 blur-sm" />
-          <div className="absolute top-40 right-20 w-20 h-20 bg-purple-500/20 rounded-2xl -rotate-12 blur-sm" />
-          <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-emerald-500/20 rounded-2xl rotate-45 blur-sm" />
-        </div>
-
-        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-6">
-              <Sparkles className="h-4 w-4 text-yellow-400" />
-              <span className="text-white/90 text-sm font-medium">
-                Trusted by 1000+ property buyers
-              </span>
-            </div>
-
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
-              Find Expert
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">
-                Professionals
-              </span>
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-28 pb-24 lg:pt-32 lg:pb-32">
+          <div className="max-w-3xl">
+            <Eyebrow>Trusted by 1,000+ property buyers</Eyebrow>
+            <h1 className="font-display mt-6 text-4xl font-semibold leading-[1.05] tracking-tight text-white text-shadow-hero sm:text-5xl lg:text-6xl">
+              Find expert
+              <br />
+              <span className="italic text-amber-300">professionals</span>
             </h1>
-            <p className="text-lg text-slate-300 max-w-2xl mx-auto mb-10">
-              Connect with verified surveyors, lawyers, architects, engineers, and more. Get expert
-              help for your land purchase and construction projects in Ghana.
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/85 text-shadow-soft">
+              Connect with verified surveyors, lawyers, architects, engineers and valuers —
+              expert help for your land purchase and construction in Ghana.
             </p>
 
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by name, specialty, or location..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/95 backdrop-blur-sm shadow-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="px-8 py-4 h-auto bg-emerald-500 hover:bg-emerald-400 text-white font-semibold rounded-2xl shadow-lg transition-all"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <>
-                      <Search className="h-5 w-5 mr-2" />
-                      Search
-                    </>
-                  )}
-                </Button>
+            <form onSubmit={handleSearch} className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, specialty, or location..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl bg-white/95 py-4 pl-12 pr-4 text-gray-900 shadow-xl backdrop-blur-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                />
               </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-8 py-4 font-semibold text-emerald-950 shadow-lg shadow-amber-400/25 transition-all hover:bg-amber-300"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <Search className="h-5 w-5" />
+                    Search
+                  </>
+                )}
+              </button>
             </form>
-          </motion.div>
+          </div>
         </div>
+      </section>
 
-        {/* Wave Divider */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z"
-              fill="#f9fafb"
-            />
-          </svg>
-        </div>
-      </div>
-
-      {/* Professional Type Cards */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-8 relative z-20">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"
-        >
+      {/* ============================================================
+          PROFESSIONAL TYPE CARDS
+          ============================================================ */}
+      <div className="relative z-20 mx-auto -mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           {professionalTypes.map((type) => {
             const config = professionalConfig[type.value] || {
               icon: Briefcase,
-              color: "text-gray-600",
-              bgColor: "bg-gray-50",
-              gradient: "from-gray-500 to-gray-600",
               description: "Professional services",
             };
             const Icon = config.icon;
@@ -300,90 +242,96 @@ export function ProfessionalsClient({
               <button
                 key={type.value}
                 onClick={() => handleTypeFilter(type.value)}
-                className={`group relative p-4 rounded-2xl transition-all duration-300 ${
+                className={`group rounded-2xl border p-4 text-center transition-all duration-300 ${
                   isSelected
-                    ? `bg-gradient-to-br ${config.gradient} text-white shadow-lg scale-105`
-                    : "bg-white hover:shadow-lg hover:-translate-y-1 border border-gray-100"
+                    ? "border-emerald-700 bg-emerald-700 text-white shadow-xl"
+                    : "border-emerald-950/10 bg-white text-emerald-950 hover:-translate-y-1 hover:border-emerald-600/40 hover:shadow-lg"
                 }`}
               >
                 <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 mx-auto transition-colors ${
-                    isSelected ? "bg-white/20" : config.bgColor
+                  className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl transition-colors ${
+                    isSelected ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700"
                   }`}
                 >
-                  <Icon className={`h-6 w-6 ${isSelected ? "text-white" : config.color}`} />
+                  <Icon className="h-6 w-6" />
                 </div>
-                <p
-                  className={`font-semibold text-sm ${isSelected ? "text-white" : "text-gray-900"}`}
-                >
-                  {type.label}
-                </p>
-                <p
-                  className={`text-xs mt-1 ${isSelected ? "text-white/80" : "text-gray-500"}`}
-                >
+                <p className="text-sm font-semibold">{type.label}</p>
+                <p className={`mt-1 text-xs ${isSelected ? "text-white/80" : "text-gray-500"}`}>
                   {count} available
                 </p>
               </button>
             );
           })}
-        </motion.div>
+        </div>
       </div>
 
-      {/* Stats Bar */}
+      {/* ============================================================
+          STATS + FILTER BAR
+          ============================================================ */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="rounded-2xl border border-emerald-950/10 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-6">
-            <div className="flex items-center gap-8">
+            <div className="flex flex-wrap items-center gap-6 sm:gap-8">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-emerald-100 rounded-xl">
-                  <Users className="h-6 w-6 text-emerald-600" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+                  <Users className="h-6 w-6 text-emerald-700" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{totalProfessionals}</p>
+                  <p className="font-display text-2xl font-semibold text-emerald-950">
+                    {totalProfessionals}
+                  </p>
                   <p className="text-sm text-gray-500">Professionals</p>
                 </div>
               </div>
-              <div className="h-12 w-px bg-gray-200 hidden sm:block" />
+              <div className="hidden h-12 w-px bg-gray-200 sm:block" />
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <Shield className="h-6 w-6 text-blue-600" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+                  <Shield className="h-6 w-6 text-emerald-700" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{verifiedCount}</p>
+                  <p className="font-display text-2xl font-semibold text-emerald-950">
+                    {verifiedCount}
+                  </p>
                   <p className="text-sm text-gray-500">Verified</p>
                 </div>
               </div>
-              <div className="h-12 w-px bg-gray-200 hidden sm:block" />
+              <div className="hidden h-12 w-px bg-gray-200 sm:block" />
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-yellow-100 rounded-xl">
-                  <Star className="h-6 w-6 text-yellow-600" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
+                  <Star className="h-6 w-6 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{avgRating}</p>
+                  <p className="font-display text-2xl font-semibold text-emerald-950">{avgRating}</p>
                   <p className="text-sm text-gray-500">Avg Rating</p>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
+              <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`rounded-xl ${showFilters ? "bg-emerald-50 border-emerald-200 text-emerald-700" : ""}`}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                  showFilters
+                    ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-emerald-300"
+                }`}
               >
-                <Filter className="h-4 w-4 mr-2" />
+                <Filter className="h-4 w-4" />
                 Filters
-              </Button>
+              </button>
               {(selectedType || searchQuery || verifiedOnly || locationFilter) && (
-                <Button variant="ghost" onClick={clearFilters} className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl">
-                  <X className="h-4 w-4 mr-2" />
+                <Button
+                  variant="ghost"
+                  onClick={clearFilters}
+                  className="rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  <X className="mr-2 h-4 w-4" />
                   Clear
                 </Button>
               )}
             </div>
           </div>
 
-          {/* Additional Filters */}
           <AnimatePresence>
             {showFilters && (
               <motion.div
@@ -393,11 +341,9 @@ export function ProfessionalsClient({
                 transition={{ duration: 0.3 }}
                 className="overflow-hidden"
               >
-                <div className="pt-6 mt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="mt-6 grid grid-cols-1 gap-4 border-t border-gray-100 pt-6 md:grid-cols-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Location
-                    </label>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Location</label>
                     <Input
                       placeholder="Filter by location..."
                       value={locationFilter}
@@ -406,15 +352,15 @@ export function ProfessionalsClient({
                     />
                   </div>
                   <div className="flex items-end">
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                    <label className="group flex cursor-pointer items-center gap-3">
                       <div className="relative">
                         <input
                           type="checkbox"
                           checked={verifiedOnly}
                           onChange={(e) => setVerifiedOnly(e.target.checked)}
-                          className="sr-only peer"
+                          className="peer sr-only"
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-4 peer-focus:ring-emerald-300"></div>
                       </div>
                       <span className="text-sm font-medium text-gray-700">Verified only</span>
                     </label>
@@ -426,36 +372,38 @@ export function ProfessionalsClient({
         </div>
       </div>
 
-      {/* Professionals Grid */}
+      {/* ============================================================
+          PROFESSIONALS GRID
+          ============================================================ */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-16">
         {isLoading ? (
           <div className="flex justify-center py-16">
             <div className="text-center">
-              <Loader2 className="h-10 w-10 animate-spin text-emerald-600 mx-auto mb-4" />
+              <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-emerald-600" />
               <p className="text-gray-500">Loading professionals...</p>
             </div>
           </div>
         ) : filteredProfessionals.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16"
-          >
-            <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6">
-              <Briefcase className="h-10 w-10 text-gray-400" />
+          <div className="py-16 text-center">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50">
+              <Briefcase className="h-10 w-10 text-emerald-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No professionals found</h3>
-            <p className="text-gray-600 max-w-md mx-auto mb-6">
+            <h3 className="font-display text-2xl font-semibold text-emerald-950">
+              No professionals found
+            </h3>
+            <p className="mx-auto mt-2 max-w-md text-gray-600">
               {selectedType || searchQuery || verifiedOnly || locationFilter
-                ? "Try adjusting your filters to see more results"
-                : "Professional profiles will appear here once registered"}
+                ? "Try adjusting your filters to see more results."
+                : "Professional profiles will appear here once registered."}
             </p>
             {(selectedType || searchQuery || verifiedOnly || locationFilter) && (
-              <Button onClick={clearFilters} variant="outline" className="rounded-xl">
-                Clear Filters
-              </Button>
+              <div className="mt-6">
+                <Button onClick={clearFilters} variant="outline" className="rounded-xl">
+                  Clear Filters
+                </Button>
+              </div>
             )}
-          </motion.div>
+          </div>
         ) : (
           <motion.div
             variants={containerVariants}
@@ -472,106 +420,96 @@ export function ProfessionalsClient({
         )}
       </div>
 
-      {/* CTA Section */}
-      <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-green-900 py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Are You a Professional?</h2>
-          <p className="text-emerald-100 max-w-2xl mx-auto mb-8">
-            Join our network of trusted professionals and connect with clients looking for your
-            expertise. Get verified and start receiving inquiries today.
-          </p>
-          <Link href="/auth/register?type=professional">
-            <Button className="bg-white text-emerald-900 hover:bg-emerald-50 rounded-xl px-8 py-3 h-auto font-semibold">
-              Register as Professional
-              <ArrowRight className="h-5 w-5 ml-2" />
-            </Button>
-          </Link>
+      {/* ============================================================
+          CTA — image-backed
+          ============================================================ */}
+      <section className="py-16 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden rounded-[2rem]">
+            <Image src={CTA_IMAGE} alt="" fill className="object-cover" sizes="100vw" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/75 to-black/50" />
+            <div className="relative z-10 px-8 py-14 text-center md:px-16 md:py-20">
+              <h2 className="font-display mx-auto max-w-2xl text-3xl font-semibold text-white text-shadow-soft sm:text-4xl">
+                Are you a professional?
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-lg text-white/85 text-shadow-soft">
+                Join our network of trusted professionals and connect with clients looking for your
+                expertise. Get verified and start receiving inquiries today.
+              </p>
+              <div className="mt-8">
+                <Link href="/auth/register?type=professional">
+                  <Button className="h-13 gap-2 rounded-xl bg-amber-400 px-8 font-semibold text-emerald-950 hover:bg-amber-300">
+                    Register as Professional
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
 
 function ProfessionalCard({ professional }: { professional: Professional }) {
-  const config = professionalConfig[professional.professionalType] || {
-    icon: Briefcase,
-    color: "text-gray-600",
-    bgColor: "bg-gray-50",
-    gradient: "from-gray-500 to-gray-600",
-    description: "Professional services",
-  };
-  const Icon = config.icon;
+  const isVerified = professional.licenseStatus === "VERIFIED";
 
   return (
     <Link href={`/professionals/${professional.id}`}>
-      <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer h-full border-0 shadow-md rounded-2xl">
-        {/* Header with gradient */}
-        <div className={`h-24 bg-gradient-to-br ${config.gradient} relative overflow-hidden`}>
-          <div className="absolute inset-0 opacity-20">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
-              }}
-            />
-          </div>
-          {/* Verification Badge */}
-          {professional.licenseStatus === "VERIFIED" && (
-            <div className="absolute top-3 right-3">
-              <Badge className="bg-white/20 text-white backdrop-blur-sm border-0">
-                <CheckCircle className="h-3 w-3 mr-1" />
+      <div className="group h-full overflow-hidden rounded-3xl border border-emerald-950/10 bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+        {/* Editorial header band */}
+        <div className="relative h-24 overflow-hidden bg-gradient-to-r from-emerald-900 to-emerald-700">
+          <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/5" />
+          <div className="absolute -bottom-8 right-10 h-20 w-20 rounded-full bg-amber-400/10" />
+          {isVerified && (
+            <div className="absolute right-3 top-3">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-emerald-950">
+                <CheckCircle className="h-3 w-3" />
                 Verified
-              </Badge>
+              </span>
             </div>
           )}
         </div>
 
-        <CardContent className="p-5 -mt-10 relative">
+        <div className="relative -mt-10 p-5">
           {/* Avatar */}
-          <div className="flex items-end gap-4 mb-4">
+          <div className="mb-4 flex items-end gap-4">
             <div className="relative">
-              <div className="h-20 w-20 rounded-2xl bg-white shadow-lg flex items-center justify-center overflow-hidden border-4 border-white">
-                {professional.user.avatarUrl ? (
-                  <Image
-                    src={professional.user.avatarUrl}
-                    alt={professional.user.fullName}
-                    width={80}
-                    height={80}
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className={`w-full h-full ${config.bgColor} flex items-center justify-center`}>
-                    <Icon className={`h-8 w-8 ${config.color}`} />
-                  </div>
-                )}
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-white shadow-lg">
+                <Image
+                  src={professional.user.avatarUrl || demoAvatar(professional.id, professional.professionalType)}
+                  alt={professional.user.fullName}
+                  width={80}
+                  height={80}
+                  className="h-full w-full object-cover"
+                />
               </div>
-              {professional.licenseStatus === "VERIFIED" && (
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white">
+              {isVerified && (
+                <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-500">
                   <CheckCircle className="h-3 w-3 text-white" />
                 </div>
               )}
             </div>
             <div className="flex-1 pb-1">
-              <h3 className="font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">
+              <h3 className="font-display font-semibold text-emerald-950 transition-colors group-hover:text-emerald-700">
                 {professional.user.fullName}
               </h3>
-              <p className={`text-sm font-medium ${config.color}`}>
-                {professional.professionalType.charAt(0) +
-                  professional.professionalType.slice(1).toLowerCase()}
+              <p className="text-sm font-medium text-emerald-600">
+                {typeLabel(professional.professionalType)}
               </p>
             </div>
           </div>
 
-          {/* Company */}
           {professional.companyName && (
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+            <div className="mb-3 flex items-center gap-2 text-sm text-gray-600">
               <Building2 className="h-4 w-4 text-gray-400" />
               {professional.companyName}
             </div>
           )}
 
           {/* Rating */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="mb-4 flex items-center gap-3">
             {professional.avgRating > 0 ? (
               <>
                 <div className="flex items-center gap-1">
@@ -580,13 +518,13 @@ function ProfessionalCard({ professional }: { professional: Professional }) {
                       key={i}
                       className={`h-4 w-4 ${
                         i < Math.round(professional.avgRating)
-                          ? "fill-yellow-400 text-yellow-400"
+                          ? "fill-amber-400 text-amber-400"
                           : "text-gray-200"
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-emerald-950">
                   {professional.avgRating.toFixed(1)}
                 </span>
                 <span className="text-sm text-gray-500">({professional.reviewCount} reviews)</span>
@@ -596,11 +534,11 @@ function ProfessionalCard({ professional }: { professional: Professional }) {
             )}
           </div>
 
-          {/* Location & Experience */}
-          <div className="flex flex-wrap gap-3 mb-4">
+          {/* Location & experience */}
+          <div className="mb-4 flex flex-wrap gap-3">
             {professional.baseLocation && (
               <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                <MapPin className="h-4 w-4 text-emerald-500" />
+                <MapPin className="h-4 w-4 text-emerald-600" />
                 {professional.baseLocation}
               </div>
             )}
@@ -614,39 +552,35 @@ function ProfessionalCard({ professional }: { professional: Professional }) {
 
           {/* Services */}
           {professional.services.length > 0 && (
-            <div className="pt-4 border-t border-gray-100">
-              <p className="text-xs font-medium text-gray-500 mb-2">Services</p>
+            <div className="border-t border-gray-100 pt-4">
+              <p className="mb-2 text-xs font-medium text-gray-500">Services</p>
               <div className="flex flex-wrap gap-1.5">
                 {professional.services.slice(0, 3).map((service) => (
-                  <Badge
+                  <span
                     key={service.id}
-                    variant="secondary"
-                    className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700"
                   >
                     {service.title}
-                  </Badge>
+                  </span>
                 ))}
                 {professional.services.length > 3 && (
-                  <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
                     +{professional.services.length - 3} more
-                  </Badge>
+                  </span>
                 )}
               </div>
             </div>
           )}
 
-          {/* Action Button */}
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <Button
-              variant="ghost"
-              className="w-full justify-between text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
-            >
-              View Profile
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          {/* Action */}
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <span className="flex items-center justify-between text-sm font-medium text-emerald-700">
+              View profile
+              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 }

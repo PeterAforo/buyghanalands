@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Find OTP record
-    const otpRecord = await prisma.oTPVerification.findUnique({
+    const otpRecord = await withDbRetry(() => prisma.oTPVerification.findUnique({
       where: { phone },
-    });
+    }));
 
     if (!otpRecord) {
       return NextResponse.json({ error: "No OTP found for this phone" }, { status: 404 });
@@ -46,35 +46,35 @@ export async function POST(request: NextRequest) {
 
     // Check if expired
     if (new Date() > otpRecord.expiresAt) {
-      await prisma.oTPVerification.delete({ where: { phone } });
+      await withDbRetry(() => prisma.oTPVerification.delete({ where: { phone } }));
       return NextResponse.json({ error: "OTP has expired" }, { status: 400 });
     }
 
     // Check attempts
     if (otpRecord.attempts >= 3) {
-      await prisma.oTPVerification.delete({ where: { phone } });
+      await withDbRetry(() => prisma.oTPVerification.delete({ where: { phone } }));
       return NextResponse.json({ error: "Too many attempts. Please request a new OTP" }, { status: 400 });
     }
 
     // Verify code
     if (otpRecord.code !== code) {
-      await prisma.oTPVerification.update({
+      await withDbRetry(() => prisma.oTPVerification.update({
         where: { phone },
         data: { attempts: otpRecord.attempts + 1 },
-      });
+      }));
       return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
     }
 
     // OTP verified - update user if linked
     if (otpRecord.userId) {
-      await prisma.user.update({
-        where: { id: otpRecord.userId },
+      await withDbRetry(() => prisma.user.update({
+        where: { id: otpRecord.userId! },
         data: { phoneVerified: true },
-      });
+      }));
     }
 
     // Delete OTP record
-    await prisma.oTPVerification.delete({ where: { phone } });
+    await withDbRetry(() => prisma.oTPVerification.delete({ where: { phone } }));
 
     return NextResponse.json({
       success: true,

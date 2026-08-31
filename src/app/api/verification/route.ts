@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const where: any = { userId: session.user.id };
     if (listingId) where.listingId = listingId;
 
-    const requests = await prisma.verificationRequest.findMany({
+    const requests = await withDbRetry(() => prisma.verificationRequest.findMany({
       where,
       include: {
         listing: {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(requests);
   } catch (error) {
@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
     const data = createVerificationSchema.parse(body);
 
     // Verify listing ownership
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id: data.listingId },
       select: { sellerId: true, verificationLevel: true, status: true },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -71,12 +71,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if there's already a pending request
-    const existingRequest = await prisma.verificationRequest.findFirst({
+    const existingRequest = await withDbRetry(() => prisma.verificationRequest.findFirst({
       where: {
         listingId: data.listingId,
         status: "PENDING",
       },
-    });
+    }));
 
     if (existingRequest) {
       return NextResponse.json(
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     // Create verification request with default checklist
     const checklist = getVerificationChecklist(data.levelRequested);
 
-    const verificationRequest = await prisma.verificationRequest.create({
+    const verificationRequest = await withDbRetry(() => prisma.verificationRequest.create({
       data: {
         userId: session.user.id,
         listingId: data.listingId,
@@ -99,10 +99,10 @@ export async function POST(request: NextRequest) {
       include: {
         listing: { select: { id: true, title: true } },
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "VERIFICATION_REQUEST",
         entityId: verificationRequest.id,
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         action: "CREATE",
         diff: { levelRequested: data.levelRequested },
       },
-    });
+    }));
 
     return NextResponse.json(verificationRequest, { status: 201 });
   } catch (error) {

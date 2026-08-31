@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -9,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const profile = await prisma.professionalProfile.findUnique({
+    const profile = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { userId: session.user.id },
       include: {
         services: {
@@ -33,7 +33,7 @@ export async function GET() {
           take: 10,
         },
       },
-    });
+    }));
 
     if (!profile) {
       return NextResponse.json({ error: "Professional profile not found" }, { status: 404 });

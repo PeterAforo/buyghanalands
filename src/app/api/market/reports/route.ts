@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,12 +14,12 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get("period") || "30d";
 
     // Check subscription for analytics access
-    const subscription = await prisma.subscription.findFirst({
+    const subscription = await withDbRetry(() => prisma.subscription.findFirst({
       where: {
         userId: session.user.id,
         status: "ACTIVE",
       },
-    });
+    }));
 
     const features = subscription?.features as any;
     if (!features?.analytics) {
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     if (region) where.region = region;
 
     // Get listings data
-    const listings = await prisma.listing.findMany({
+    const listings = await withDbRetry(() => prisma.listing.findMany({
       where,
       select: {
         region: true,
@@ -66,10 +66,10 @@ export async function GET(request: NextRequest) {
         sizeAcres: true,
         createdAt: true,
       },
-    });
+    }));
 
     // Get completed transactions
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await withDbRetry(() => prisma.transaction.findMany({
       where: {
         status: "RELEASED",
         createdAt: { gte: startDate },
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-    });
+    }));
 
     // Calculate market statistics
     const stats = calculateMarketStats(listings, transactions);

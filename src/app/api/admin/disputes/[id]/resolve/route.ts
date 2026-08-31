@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { notifyTransactionRefunded, notifyTransactionReleased } from "@/lib/notifications";
 
 async function isDisputeResolver(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -37,7 +37,7 @@ export async function POST(
     const body = await request.json();
     const data = resolveSchema.parse(body);
 
-    const dispute = await prisma.dispute.findUnique({
+    const dispute = await withDbRetry(() => prisma.dispute.findUnique({
       where: { id },
       include: {
         transaction: {
@@ -48,7 +48,7 @@ export async function POST(
           },
         },
       },
-    });
+    }));
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
@@ -76,7 +76,7 @@ export async function POST(
     }
 
     // Update dispute
-    const updatedDispute = await prisma.dispute.update({
+    const updatedDispute = await withDbRetry(() => prisma.dispute.update({
       where: { id },
       data: {
         status: "RESOLVED",
@@ -85,7 +85,7 @@ export async function POST(
         resolvedAt: new Date(),
         platformReviewedAt: new Date(),
       },
-    });
+    }));
 
     // Update transaction status based on outcome
     let transactionStatus: string;
@@ -106,13 +106,13 @@ export async function POST(
         transactionStatus = "CLOSED";
     }
 
-    await prisma.transaction.update({
+    await withDbRetry(() => prisma.transaction.update({
       where: { id: dispute.transactionId },
       data: {
         status: transactionStatus as any,
         closedAt: new Date(),
       },
-    });
+    }));
 
     // Send notifications
     const listingTitle = dispute.transaction.listing.title;
@@ -129,7 +129,7 @@ export async function POST(
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "DISPUTE",
         entityId: id,
@@ -144,7 +144,7 @@ export async function POST(
           transactionStatus,
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: "Dispute resolved successfully",

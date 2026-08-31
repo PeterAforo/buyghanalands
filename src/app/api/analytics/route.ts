@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is admin
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
     const isAdmin = user?.roles.includes("ADMIN");
 
     if (type === "overview") {
@@ -62,12 +62,12 @@ async function getOverviewAnalytics(userId: string, isAdmin: boolean | undefined
   const transactionWhere = isAdmin ? {} : { OR: [{ buyerId: userId }, { sellerId: userId }] };
 
   // Get counts
-  const [totalListings, activeListings, totalTransactions, completedTransactions] = await Promise.all([
+  const [totalListings, activeListings, totalTransactions, completedTransactions] = await withDbRetry(() => Promise.all([
     prisma.listing.count({ where: whereClause }),
     prisma.listing.count({ where: { ...whereClause, status: "PUBLISHED" } }),
     prisma.transaction.count({ where: transactionWhere }),
     prisma.transaction.count({ where: { ...transactionWhere, status: "RELEASED" } }),
-  ]);
+  ]));
 
   // Get monthly data for chart
   const months = [];
@@ -77,7 +77,7 @@ async function getOverviewAnalytics(userId: string, isAdmin: boolean | undefined
     const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
     const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-    const [listings, transactions] = await Promise.all([
+    const [listings, transactions] = await withDbRetry(() => Promise.all([
       prisma.listing.count({
         where: {
           ...whereClause,
@@ -90,7 +90,7 @@ async function getOverviewAnalytics(userId: string, isAdmin: boolean | undefined
           createdAt: { gte: monthStart, lte: monthEnd },
         },
       }),
-    ]);
+    ]));
 
     months.push({
       name: date.toLocaleDateString("en-US", { month: "short" }),
@@ -115,14 +115,14 @@ async function getRevenueAnalytics(userId: string, isAdmin: boolean | undefined,
     ? { status: "RELEASED" as const, createdAt: { gte: startDate } }
     : { sellerId: userId, status: "RELEASED" as const, createdAt: { gte: startDate } };
 
-  const transactions = await prisma.transaction.findMany({
+  const transactions = await withDbRetry(() => prisma.transaction.findMany({
     where: whereClause,
     select: {
       agreedPriceGhs: true,
       createdAt: true,
     },
     orderBy: { createdAt: "asc" },
-  });
+  }));
 
   // Group by month
   const monthlyRevenue: { [key: string]: number } = {};
@@ -148,7 +148,7 @@ async function getRevenueAnalytics(userId: string, isAdmin: boolean | undefined,
 async function getListingsAnalytics(userId: string, isAdmin: boolean | undefined, startDate: Date) {
   const whereClause = isAdmin ? { createdAt: { gte: startDate } } : { sellerId: userId, createdAt: { gte: startDate } };
 
-  const listings = await prisma.listing.findMany({
+  const listings = await withDbRetry(() => prisma.listing.findMany({
     where: whereClause,
     select: {
       landType: true,
@@ -156,7 +156,7 @@ async function getListingsAnalytics(userId: string, isAdmin: boolean | undefined
       status: true,
       priceGhs: true,
     },
-  });
+  }));
 
   // Group by land type
   const byLandType: { [key: string]: number } = {};
@@ -189,14 +189,14 @@ async function getTransactionsAnalytics(userId: string, isAdmin: boolean | undef
     ? { createdAt: { gte: startDate } }
     : { OR: [{ buyerId: userId }, { sellerId: userId }], createdAt: { gte: startDate } };
 
-  const transactions = await prisma.transaction.findMany({
+  const transactions = await withDbRetry(() => prisma.transaction.findMany({
     where: whereClause,
     select: {
       status: true,
       agreedPriceGhs: true,
       createdAt: true,
     },
-  });
+  }));
 
   // Group by status
   const byStatus: { [key: string]: number } = {};

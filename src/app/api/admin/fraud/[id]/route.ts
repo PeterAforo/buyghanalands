@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isCompliance(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "COMPLIANCE", "MODERATOR"].includes(role)) || false;
 }
 
@@ -27,7 +27,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const fraudCase = await prisma.fraudCase.findUnique({
+    const fraudCase = await withDbRetry(() => prisma.fraudCase.findUnique({
       where: { id },
       include: {
         openedBy: { select: { id: true, fullName: true } },
@@ -58,14 +58,14 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!fraudCase) {
       return NextResponse.json({ error: "Fraud case not found" }, { status: 404 });
     }
 
     // Get related reports
-    const relatedReports = await prisma.report.findMany({
+    const relatedReports = await withDbRetry(() => prisma.report.findMany({
       where: {
         OR: [
           { targetType: "LISTING", targetId: fraudCase.listingId || "" },
@@ -77,7 +77,7 @@ export async function GET(
       },
       orderBy: { createdAt: "desc" },
       take: 20,
-    });
+    }));
 
     return NextResponse.json({
       ...fraudCase,
@@ -120,17 +120,17 @@ export async function PUT(
     const body = await request.json();
     const data = updateFraudCaseSchema.parse(body);
 
-    const fraudCase = await prisma.fraudCase.findUnique({
+    const fraudCase = await withDbRetry(() => prisma.fraudCase.findUnique({
       where: { id },
       select: { id: true, status: true, listingId: true, userId: true },
-    });
+    }));
 
     if (!fraudCase) {
       return NextResponse.json({ error: "Fraud case not found" }, { status: 404 });
     }
 
     // Update fraud case
-    const updated = await prisma.fraudCase.update({
+    const updated = await withDbRetry(() => prisma.fraudCase.update({
       where: { id },
       data: {
         status: data.status,
@@ -138,26 +138,26 @@ export async function PUT(
         evidence: data.evidence,
         closedAt: data.status === "CLOSED" ? new Date() : undefined,
       },
-    });
+    }));
 
     // Suspend listing if requested
     if (data.suspendListing && fraudCase.listingId) {
-      await prisma.listing.update({
-        where: { id: fraudCase.listingId },
+      await withDbRetry(() => prisma.listing.update({
+        where: { id: fraudCase.listingId ?? undefined },
         data: { status: "SUSPENDED" },
-      });
+      }));
     }
 
     // Suspend user if requested
     if (data.suspendUser && fraudCase.userId) {
-      await prisma.user.update({
-        where: { id: fraudCase.userId },
+      await withDbRetry(() => prisma.user.update({
+        where: { id: fraudCase.userId ?? undefined },
         data: { accountStatus: "SUSPENDED" },
-      });
+      }));
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "FRAUD_CASE",
         entityId: id,
@@ -172,7 +172,7 @@ export async function PUT(
           suspendUser: data.suspendUser,
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: "Fraud case updated",

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const favorites = await prisma.favorite.findMany({
+    const favorites = await withDbRetry(() => prisma.favorite.findMany({
       where: { userId: session.user.id },
       include: {
         listing: {
@@ -26,7 +26,7 @@ export async function GET() {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(
       favorites.map((f) => ({
@@ -61,35 +61,35 @@ export async function POST(request: NextRequest) {
     const data = addFavoriteSchema.parse(body);
 
     // Check if listing exists
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id: data.listingId },
       select: { id: true, status: true },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
     // Check if already favorited
-    const existing = await prisma.favorite.findUnique({
+    const existing = await withDbRetry(() => prisma.favorite.findUnique({
       where: {
         userId_listingId: {
           userId: session.user.id,
           listingId: data.listingId,
         },
       },
-    });
+    }));
 
     if (existing) {
       return NextResponse.json({ error: "Already in favorites" }, { status: 400 });
     }
 
-    const favorite = await prisma.favorite.create({
+    const favorite = await withDbRetry(() => prisma.favorite.create({
       data: {
         userId: session.user.id,
         listingId: data.listingId,
       },
-    });
+    }));
 
     return NextResponse.json(favorite, { status: 201 });
   } catch (error) {
@@ -119,14 +119,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "listingId is required" }, { status: 400 });
     }
 
-    await prisma.favorite.delete({
+    await withDbRetry(() => prisma.favorite.delete({
       where: {
         userId_listingId: {
           userId: session.user.id,
           listingId,
         },
       },
-    });
+    }));
 
     return NextResponse.json({ message: "Removed from favorites" });
   } catch (error) {

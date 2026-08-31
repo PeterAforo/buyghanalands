@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 import { formatPrice, formatDate } from "@/lib/utils";
@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 async function getDashboardData(userId: string) {
-  const [listings, offers, transactions, messages] = await Promise.all([
+  const [listings, offers, transactions, messages] = await withDbRetry(() => Promise.all([
     prisma.listing.findMany({
       where: { sellerId: userId },
       orderBy: { createdAt: "desc" },
@@ -60,25 +60,25 @@ async function getDashboardData(userId: string) {
         readAt: null,
       },
     }),
-  ]);
+  ]));
 
   const stats = {
-    totalListings: await prisma.listing.count({ where: { sellerId: userId } }),
-    activeListings: await prisma.listing.count({
+    totalListings: await withDbRetry(() => prisma.listing.count({ where: { sellerId: userId } })),
+    activeListings: await withDbRetry(() => prisma.listing.count({
       where: { sellerId: userId, status: "PUBLISHED" },
-    }),
-    pendingOffers: await prisma.offer.count({
+    })),
+    pendingOffers: await withDbRetry(() => prisma.offer.count({
       where: {
         listing: { sellerId: userId },
         status: "SENT",
       },
-    }),
-    activeTransactions: await prisma.transaction.count({
+    })),
+    activeTransactions: await withDbRetry(() => prisma.transaction.count({
       where: {
         OR: [{ buyerId: userId }, { sellerId: userId }],
         status: { notIn: ["CLOSED", "RELEASED", "REFUNDED"] },
       },
-    }),
+    })),
     unreadMessages: messages,
   };
 

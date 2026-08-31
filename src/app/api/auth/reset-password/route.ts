@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -28,12 +28,12 @@ export async function POST(request: NextRequest) {
     const data = resetPasswordSchema.parse(body);
 
     // Find the OTP verification record
-    const otpRecord = await prisma.oTPVerification.findFirst({
+    const otpRecord = await withDbRetry(() => prisma.oTPVerification.findFirst({
       where: {
         code: data.code,
         expiresAt: { gt: new Date() },
       },
-    });
+    }));
 
     if (!otpRecord || !otpRecord.userId) {
       return NextResponse.json(
@@ -54,18 +54,18 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(data.password, 12);
 
     // Update user password
-    await prisma.user.update({
+    await withDbRetry(() => prisma.user.update({
       where: { id: otpRecord.userId! },
       data: { passwordHash: hashedPassword },
-    });
+    }));
 
     // Delete the OTP record
-    await prisma.oTPVerification.delete({
+    await withDbRetry(() => prisma.oTPVerification.delete({
       where: { id: otpRecord.id },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: otpRecord.userId!,
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         action: "PASSWORD_RESET",
         diff: {},
       },
-    });
+    }));
 
     return NextResponse.json({ success: true });
   } catch (error) {

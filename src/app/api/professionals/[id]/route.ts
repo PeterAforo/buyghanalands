@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const professional = await prisma.professionalProfile.findUnique({
+    const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { id },
       include: {
         user: {
@@ -35,7 +35,7 @@ export async function GET(
           select: { bookings: true },
         },
       },
-    });
+    }));
 
     if (!professional) {
       return NextResponse.json({ error: "Professional not found" }, { status: 404 });
@@ -70,10 +70,10 @@ export async function PUT(
     const body = await request.json();
 
     // Verify ownership
-    const professional = await prisma.professionalProfile.findUnique({
+    const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { id },
       select: { userId: true },
-    });
+    }));
 
     if (!professional) {
       return NextResponse.json({ error: "Professional not found" }, { status: 404 });
@@ -83,10 +83,10 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const updated = await prisma.professionalProfile.update({
+    const updated = await withDbRetry(() => prisma.professionalProfile.update({
       where: { id },
       data: body,
-    });
+    }));
 
     return NextResponse.json(updated);
   } catch (error) {

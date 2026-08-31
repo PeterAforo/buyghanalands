@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isSupport(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT"].includes(role)) || false;
 }
 
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const [tickets, total, stats] = await Promise.all([
+    const [tickets, total, stats] = await withDbRetry(() => Promise.all([
       prisma.supportTicket.findMany({
         where,
         include: {
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         by: ["status"],
         _count: true,
       }),
-    ]);
+    ]));
 
     const statusCounts = stats.reduce((acc, s) => {
       acc[s.status] = s._count;

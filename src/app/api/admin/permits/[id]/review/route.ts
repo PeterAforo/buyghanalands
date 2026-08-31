@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isPermitReviewer(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "MODERATOR", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -36,10 +36,10 @@ export async function POST(
     const body = await request.json();
     const data = reviewSchema.parse(body);
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { id: true, status: true, applicantId: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -64,14 +64,14 @@ export async function POST(
         newStatus = "QUERY_RAISED";
         
         // Create query
-        await prisma.permitQuery.create({
+        await withDbRetry(() => prisma.permitQuery.create({
           data: {
             permitApplicationId: id,
-            title: data.queryTitle,
+            title: data.queryTitle!,
             details: data.queryDetails,
             status: "OPEN",
           },
-        });
+        }));
         break;
 
       case "approve":
@@ -90,15 +90,15 @@ export async function POST(
     }
 
     if (newStatus) {
-      await prisma.permitApplication.update({
+      await withDbRetry(() => prisma.permitApplication.update({
         where: { id },
         data: {
           status: newStatus as any,
           decidedAt: ["APPROVED", "REJECTED"].includes(newStatus) ? new Date() : undefined,
         },
-      });
+      }));
 
-      await prisma.permitStatusHistory.create({
+      await withDbRetry(() => prisma.permitStatusHistory.create({
         data: {
           permitApplicationId: id,
           fromStatus: permit.status as any,
@@ -106,11 +106,11 @@ export async function POST(
           note: statusNote,
           changedById: session.user.id,
         },
-      });
+      }));
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "PERMIT_APPLICATION",
         entityId: id,
@@ -123,7 +123,7 @@ export async function POST(
           note: data.note,
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: `Permit ${data.action.replace("_", " ")} completed`,

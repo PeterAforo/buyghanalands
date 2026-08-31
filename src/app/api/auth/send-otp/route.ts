@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { sendOTP } from "@/lib/sms";
 import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     // Store OTP in database with expiry
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    await prisma.oTPVerification.upsert({
+    await withDbRetry(() => prisma.oTPVerification.upsert({
       where: { phone },
       update: {
         code: result.otp!,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         expiresAt,
         userId: userId || null,
       },
-    });
+    }));
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const dispute = await prisma.dispute.findUnique({
+    const dispute = await withDbRetry(() => prisma.dispute.findUnique({
       where: { id },
       include: {
         transaction: {
@@ -28,7 +28,7 @@ export async function GET(
           orderBy: { createdAt: "desc" },
         },
       },
-    });
+    }));
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
@@ -37,10 +37,10 @@ export async function GET(
     // Check authorization
     const isBuyer = dispute.transaction.buyerId === session.user.id;
     const isSeller = dispute.transaction.sellerId === session.user.id;
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
     const isAdmin = user?.roles.some((r) => ["ADMIN", "SUPPORT", "COMPLIANCE"].includes(r));
 
     if (!isBuyer && !isSeller && !isAdmin) {
@@ -85,14 +85,14 @@ export async function POST(
     const body = await request.json();
     const data = uploadEvidenceSchema.parse(body);
 
-    const dispute = await prisma.dispute.findUnique({
+    const dispute = await withDbRetry(() => prisma.dispute.findUnique({
       where: { id },
       include: {
         transaction: {
           select: { buyerId: true, sellerId: true },
         },
       },
-    });
+    }));
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
@@ -101,10 +101,10 @@ export async function POST(
     // Check authorization - only parties or admin can upload evidence
     const isBuyer = dispute.transaction.buyerId === session.user.id;
     const isSeller = dispute.transaction.sellerId === session.user.id;
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
     const isAdmin = user?.roles.some((r) => ["ADMIN", "SUPPORT"].includes(r));
 
     if (!isBuyer && !isSeller && !isAdmin) {
@@ -120,7 +120,7 @@ export async function POST(
     }
 
     // Create document as evidence
-    const document = await prisma.document.create({
+    const document = await withDbRetry(() => prisma.document.create({
       data: {
         ownerId: session.user.id,
         disputeId: id,
@@ -129,10 +129,10 @@ export async function POST(
         mimeType: data.mimeType,
         accessPolicy: "TRANSACTION_PARTIES",
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "DISPUTE",
         entityId: id,
@@ -141,7 +141,7 @@ export async function POST(
         action: "UPLOAD_EVIDENCE",
         diff: { documentId: document.id, description: data.description },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: "Evidence uploaded successfully",

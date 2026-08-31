@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -14,9 +14,9 @@ export async function GET(
 
     const { id } = await params;
 
-    const alert = await prisma.listingAlert.findUnique({
+    const alert = await withDbRetry(() => prisma.listingAlert.findUnique({
       where: { id },
-    });
+    }));
 
     if (!alert) {
       return NextResponse.json({ error: "Alert not found" }, { status: 404 });
@@ -46,10 +46,10 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const alert = await prisma.listingAlert.findUnique({
+    const alert = await withDbRetry(() => prisma.listingAlert.findUnique({
       where: { id },
       select: { userId: true },
-    });
+    }));
 
     if (!alert) {
       return NextResponse.json({ error: "Alert not found" }, { status: 404 });
@@ -59,7 +59,7 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const updated = await prisma.listingAlert.update({
+    const updated = await withDbRetry(() => prisma.listingAlert.update({
       where: { id },
       data: {
         name: body.name,
@@ -69,7 +69,7 @@ export async function PUT(
         frequency: body.frequency,
         isActive: body.isActive,
       },
-    });
+    }));
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -90,10 +90,10 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const alert = await prisma.listingAlert.findUnique({
+    const alert = await withDbRetry(() => prisma.listingAlert.findUnique({
       where: { id },
       select: { userId: true },
-    });
+    }));
 
     if (!alert) {
       return NextResponse.json({ error: "Alert not found" }, { status: 404 });
@@ -103,7 +103,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.listingAlert.delete({ where: { id } });
+    await withDbRetry(() => prisma.listingAlert.delete({ where: { id } }));
 
     return NextResponse.json({ message: "Alert deleted" });
   } catch (error) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,10 +11,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Check admin role
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     if (!user?.roles.includes("ADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     };
     if (status) where.status = status;
 
-    const requests = await prisma.verificationRequest.findMany({
+    const requests = await withDbRetry(() => prisma.verificationRequest.findMany({
       where,
       include: {
         user: {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(requests);
   } catch (error) {
@@ -66,10 +66,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check admin role
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     if (!user?.roles.includes("ADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -78,9 +78,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = reviewSchema.parse(body);
 
-    const verificationRequest = await prisma.verificationRequest.findUnique({
+    const verificationRequest = await withDbRetry(() => prisma.verificationRequest.findUnique({
       where: { id: data.requestId },
-    });
+    }));
 
     if (!verificationRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     if (data.action === "APPROVE") {
       // Update verification request
-      await prisma.verificationRequest.update({
+      await withDbRetry(() => prisma.verificationRequest.update({
         where: { id: data.requestId },
         data: {
           status: "COMPLETED",
@@ -96,10 +96,10 @@ export async function POST(request: NextRequest) {
           completedAt: new Date(),
           outcomeNotes: data.note,
         },
-      });
+      }));
 
       // Create or update seller badge
-      await prisma.sellerBadge.upsert({
+      await withDbRetry(() => prisma.sellerBadge.upsert({
         where: { userId: verificationRequest.userId },
         create: {
           userId: verificationRequest.userId,
@@ -116,16 +116,16 @@ export async function POST(request: NextRequest) {
           issuedById: session.user.id,
           expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         },
-      });
+      }));
 
       // Update user KYC tier
-      await prisma.user.update({
+      await withDbRetry(() => prisma.user.update({
         where: { id: verificationRequest.userId },
         data: { kycTier: "TIER_2_GHANA_CARD" },
-      });
+      }));
 
     } else if (data.action === "REJECT") {
-      await prisma.verificationRequest.update({
+      await withDbRetry(() => prisma.verificationRequest.update({
         where: { id: data.requestId },
         data: {
           status: "REJECTED",
@@ -133,16 +133,16 @@ export async function POST(request: NextRequest) {
           completedAt: new Date(),
           outcomeNotes: data.note,
         },
-      });
+      }));
 
     } else if (data.action === "REQUEST_INFO") {
-      await prisma.verificationRequest.update({
+      await withDbRetry(() => prisma.verificationRequest.update({
         where: { id: data.requestId },
         data: {
           status: "PENDING",
           outcomeNotes: data.note,
         },
-      });
+      }));
     }
 
     return NextResponse.json({ success: true, action: data.action });

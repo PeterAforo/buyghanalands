@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -12,7 +12,7 @@ export async function GET() {
     const userId = session.user.id;
 
     // Fetch recent activities from various sources
-    const [offers, transactions, messages, listings] = await Promise.all([
+    const [offers, transactions, messages, listings] = await withDbRetry(() => Promise.all([
       // Recent offers (sent and received)
       prisma.offer.findMany({
         where: {
@@ -57,7 +57,7 @@ export async function GET() {
         orderBy: { updatedAt: "desc" },
         take: 5,
       }),
-    ]);
+    ]));
 
     // Transform to activity format
     const activities: any[] = [];

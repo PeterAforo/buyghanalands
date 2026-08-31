@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
 import {
@@ -38,7 +38,7 @@ async function getAnalytics() {
     listingsByRegion,
     listingsByType,
     transactionsByStatus,
-  ] = await Promise.all([
+  ] = await withDbRetry(() => Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: previousThirtyDays, lt: thirtyDaysAgo } } }),
@@ -56,7 +56,7 @@ async function getAnalytics() {
     prisma.listing.groupBy({ by: ["region"], where: { status: "PUBLISHED" }, _count: true, orderBy: { _count: { region: "desc" } }, take: 10 }),
     prisma.listing.groupBy({ by: ["landType"], where: { status: "PUBLISHED" }, _count: true }),
     prisma.transaction.groupBy({ by: ["status"], _count: true }),
-  ]);
+  ]));
 
   // Calculate growth percentages
   const userGrowth = newUsersPrevMonth > 0 ? ((newUsersThisMonth - newUsersPrevMonth) / newUsersPrevMonth) * 100 : 0;

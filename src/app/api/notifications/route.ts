@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const querySchema = z.object({
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       ...(params.unreadOnly ? { read: false } : {}),
     };
 
-    const [notifications, total, unreadCount] = await Promise.all([
+    const [notifications, total, unreadCount] = await withDbRetry(() => Promise.all([
       prisma.pushNotification.findMany({
         where,
         orderBy: { createdAt: "desc" },
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       prisma.pushNotification.count({
         where: { userId: session.user.id, read: false },
       }),
-    ]);
+    ]));
 
     return NextResponse.json({
       notifications,

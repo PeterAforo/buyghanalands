@@ -126,6 +126,8 @@ export const RATE_LIMITS = {
   REGISTER: { limit: 5, windowSeconds: 3600, identifier: "register" },
   // Login: 10 attempts per 15 minutes per IP
   LOGIN: { limit: 10, windowSeconds: 900, identifier: "login" },
+  // Login failed attempts: 5 failures per 15 minutes per phone (account lockout)
+  LOGIN_FAILED: { limit: 5, windowSeconds: 900, identifier: "login-failed" },
   // Password reset: 3 requests per hour per email
   PASSWORD_RESET: { limit: 3, windowSeconds: 3600, identifier: "password-reset" },
   // General API: 100 requests per minute per IP

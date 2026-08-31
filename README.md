@@ -5,7 +5,7 @@ Ghana's trusted platform for secure land transactions. Verified listings, protec
 ## Features
 
 - **Verified Listings** - Platform-reviewed and Lands Commission verified properties
-- **Protected Payments** - Escrow-style transaction protection via Paystack
+- **Protected Payments** - Escrow-style transaction protection via Theteller (Payswitch)
 - **Document Vault** - Secure storage for land documents with access controls
 - **Professional Network** - Connect with surveyors, lawyers, and architects
 - **Building Permits** - Apply for and track permit applications
@@ -19,7 +19,7 @@ Ghana's trusted platform for secure land transactions. Verified listings, protec
 - **ORM**: Prisma 7
 - **Authentication**: Auth.js (NextAuth v5)
 - **Styling**: Tailwind CSS
-- **Payments**: Paystack
+- **Payments**: Theteller (Payswitch)
 - **Maps**: Mapbox
 
 ## Getting Started
@@ -55,8 +55,8 @@ DIRECT_URL="postgresql://..."
 AUTH_SECRET="your-secret-key"
 NEXTAUTH_URL="http://localhost:3000"
 MAPBOX_ACCESS_TOKEN="pk...."
-PAYSTACK_SECRET_KEY="sk_..."
-PAYSTACK_PUBLIC_KEY="pk_..."
+THETELLER_MERCHANT_ID="your_merchant_id"
+THETELLER_API_KEY="your_api_key"
 ```
 
 4. Push database schema:

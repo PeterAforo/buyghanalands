@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import crypto from "crypto";
 
 const ENCRYPTION_KEY = process.env.AUTH_SECRET || "default-key-change-in-production";
@@ -29,16 +29,16 @@ function decrypt(text: string): string {
 }
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.includes("ADMIN") || false;
 }
 
 // Settings that should be encrypted
 const SENSITIVE_KEYS = [
-  "SMTP_PASS", "PAYSTACK_SECRET_KEY", "MNOTIFY_API_KEY", 
+  "SMTP_PASS", "THETELLER_API_KEY", "THETELLER_PASS_CODE", "MNOTIFY_API_KEY",
   "S3_SECRET_KEY", "FCM_SERVER_KEY", "AUTH_SECRET"
 ];
 
@@ -54,8 +54,12 @@ const DEFAULT_SETTINGS: Record<string, Record<string, { value: string; descripti
     FROM_NAME: { value: "BuyGhanaLands", description: "Sender display name", isEncrypted: false },
   },
   payment: {
-    PAYSTACK_PUBLIC_KEY: { value: "", description: "Paystack public key", isEncrypted: false },
-    PAYSTACK_SECRET_KEY: { value: "", description: "Paystack secret key", isEncrypted: true },
+    THETELLER_MERCHANT_ID: { value: "", description: "Theteller merchant ID", isEncrypted: false },
+    THETELLER_API_USER: { value: "", description: "Theteller API username", isEncrypted: false },
+    THETELLER_API_KEY: { value: "", description: "Theteller API key", isEncrypted: true },
+    THETELLER_PASS_CODE: { value: "", description: "Theteller float pass code", isEncrypted: true },
+    THETELLER_BASE_URL: { value: "https://test.theteller.net", description: "Theteller API base URL", isEncrypted: false },
+    THETELLER_CHECKOUT_URL: { value: "https://checkout-test.theteller.net", description: "Theteller checkout URL", isEncrypted: false },
   },
   sms: {
     MNOTIFY_API_KEY: { value: "", description: "mNotify API key for SMS", isEncrypted: true },
@@ -98,10 +102,10 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
 
     // Fetch settings from database
-    const dbSettings = await prisma.systemSetting.findMany({
+    const dbSettings = await withDbRetry(() => prisma.systemSetting.findMany({
       where: category ? { category } : undefined,
       orderBy: [{ category: "asc" }, { key: "asc" }],
-    });
+    }));
 
     // Build response with defaults and DB values
     const result: Record<string, Record<string, { value: string; description: string; isEncrypted: boolean }>> = {};
@@ -173,14 +177,14 @@ export async function PUT(request: NextRequest) {
       if (value === "••••••••") continue; // Skip masked values
       
       // Check if it's a known sensitive key or if it was previously marked as encrypted
-      const existingSetting = await prisma.systemSetting.findUnique({
+      const existingSetting = await withDbRetry(() => prisma.systemSetting.findUnique({
         where: { category_key: { category, key } },
-      });
+      }));
       
       const isEncrypted = SENSITIVE_KEYS.includes(key) || existingSetting?.isEncrypted || false;
       const storedValue = isEncrypted ? encrypt(value) : value;
 
-      await prisma.systemSetting.upsert({
+      await withDbRetry(() => prisma.systemSetting.upsert({
         where: { category_key: { category, key } },
         update: {
           value: storedValue,
@@ -194,11 +198,11 @@ export async function PUT(request: NextRequest) {
           description: DEFAULT_SETTINGS[category]?.[key]?.description || existingSetting?.description || "",
           updatedBy: session.user.id,
         },
-      });
+      }));
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "LISTING",
         entityId: "system-settings",
@@ -207,7 +211,7 @@ export async function PUT(request: NextRequest) {
         action: "UPDATE",
         diff: { category, keys: Object.keys(settings) },
       },
-    });
+    }));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -235,12 +239,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the setting
-    await prisma.systemSetting.delete({
+    await withDbRetry(() => prisma.systemSetting.delete({
       where: { category_key: { category, key } },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "LISTING",
         entityId: "system-settings",
@@ -249,7 +253,7 @@ export async function DELETE(request: NextRequest) {
         action: "DELETE",
         diff: { category, key },
       },
-    });
+    }));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -261,9 +265,9 @@ export async function DELETE(request: NextRequest) {
 // Helper to get a setting value (for use in other parts of the app)
 export async function getSetting(category: string, key: string): Promise<string | null> {
   try {
-    const setting = await prisma.systemSetting.findUnique({
+    const setting = await withDbRetry(() => prisma.systemSetting.findUnique({
       where: { category_key: { category, key } },
-    });
+    }));
     
     if (!setting) {
       return DEFAULT_SETTINGS[category]?.[key]?.value || null;

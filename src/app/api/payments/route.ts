@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { initializePayment } from "@/lib/flutterwave";
-
-function generateReference(): string {
-  return `BGL-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-}
+import { prisma, withDbRetry } from "@/lib/db";
+import { initiateCheckout, generateTransactionId } from "@/lib/theteller";
 
 const initializePaymentSchema = z.object({
   transactionId: z.string().optional(),
@@ -27,10 +23,10 @@ export async function POST(request: NextRequest) {
     const data = initializePaymentSchema.parse(body);
 
     // Get user details
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { email: true, phone: true, fullName: true },
-    });
+    }));
 
     if (!user) {
       return NextResponse.json(
@@ -42,42 +38,36 @@ export async function POST(request: NextRequest) {
     // Use email if available, otherwise generate a placeholder from phone
     const payerEmail = user.email || `${user.phone.replace(/\D/g, '')}@buyghanalands.com`;
 
-    const reference = generateReference();
+    const reference = generateTransactionId();
 
     // Create payment record
-    const payment = await prisma.payment.create({
+    const payment = await withDbRetry(() => prisma.payment.create({
       data: {
         transactionId: data.transactionId,
         listingId: data.listingId,
-        provider: "FLUTTERWAVE",
+        provider: "THETELLER",
         type: data.type,
         status: "INITIATED",
         amount: data.amount,
         payerUserId: session.user.id,
         providerRef: reference,
       },
-    });
+    }));
 
-    // Initialize Flutterwave payment
-    const flutterwaveResponse = await initializePayment({
-      amount: data.amount,
+    // Initialize Theteller checkout
+    const checkoutResponse = await initiateCheckout({
+      desc: "Land purchase payment",
+      amountGhs: data.amount,
       email: payerEmail,
-      phone: user.phone,
-      name: user.fullName,
-      txRef: reference,
-      currency: "GHS",
-      meta: {
-        paymentId: payment.id,
-        userId: session.user.id,
-        type: data.type,
-      },
+      transactionId: reference,
+      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/payments/callback`,
     });
 
-    if (flutterwaveResponse.status !== "success" || !flutterwaveResponse.data?.link) {
-      await prisma.payment.update({
+    if (checkoutResponse.status !== "success" || !checkoutResponse.checkout_url) {
+      await withDbRetry(() => prisma.payment.update({
         where: { id: payment.id },
         data: { status: "FAILED" },
-      });
+      }));
 
       return NextResponse.json(
         { error: "Failed to initialize payment" },
@@ -85,14 +75,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await prisma.payment.update({
+    await withDbRetry(() => prisma.payment.update({
       where: { id: payment.id },
       data: { status: "PENDING" },
-    });
+    }));
 
     return NextResponse.json({
       paymentId: payment.id,
-      paymentUrl: flutterwaveResponse.data.link,
+      paymentUrl: checkoutResponse.checkout_url,
       reference,
     });
   } catch (error) {

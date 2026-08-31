@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const featureListingSchema = z.object({
   duration: z.enum(["7", "14", "30"]),
@@ -29,10 +29,10 @@ export async function POST(
     const data = featureListingSchema.parse(body);
 
     // Verify listing ownership
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
       select: { sellerId: true, status: true },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -47,12 +47,12 @@ export async function POST(
     }
 
     // Check if user has subscription with featured listings
-    const subscription = await prisma.subscription.findFirst({
+    const subscription = await withDbRetry(() => prisma.subscription.findFirst({
       where: {
         userId: session.user.id,
         status: "ACTIVE",
       },
-    });
+    }));
 
     const features = subscription?.features as any;
     const hasFreeFeature = features?.featuredListings > 0 || features?.featuredListings === -1;
@@ -62,7 +62,7 @@ export async function POST(
     endDate.setDate(endDate.getDate() + durationDays);
 
     // Create featured listing record
-    const featured = await prisma.featuredListing.create({
+    const featured = await withDbRetry(() => prisma.featuredListing.create({
       data: {
         listingId: id,
         userId: session.user.id,
@@ -71,11 +71,11 @@ export async function POST(
         priceGhs: hasFreeFeature ? 0 : FEATURE_PRICES[data.duration],
         status: hasFreeFeature ? "ACTIVE" : "PENDING_PAYMENT",
       },
-    });
+    }));
 
     // Update subscription usage if free feature used
     if (hasFreeFeature && features?.featuredListings > 0) {
-      await prisma.subscription.update({
+      await withDbRetry(() => prisma.subscription.update({
         where: { id: subscription!.id },
         data: {
           features: {
@@ -83,7 +83,7 @@ export async function POST(
             featuredListings: features.featuredListings - 1,
           },
         },
-      });
+      }));
     }
 
     return NextResponse.json({
@@ -107,13 +107,13 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const featured = await prisma.featuredListing.findFirst({
+    const featured = await withDbRetry(() => prisma.featuredListing.findFirst({
       where: {
         listingId: id,
         status: "ACTIVE",
         endDate: { gt: new Date() },
       },
-    });
+    }));
 
     return NextResponse.json({
       isFeatured: !!featured,

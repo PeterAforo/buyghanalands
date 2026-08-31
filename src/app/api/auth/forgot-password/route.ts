@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { sendSMS, generateOTP } from "@/lib/sms";
 import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user exists
-    const user = await prisma.user.findFirst({
+    const user = await withDbRetry(() => prisma.user.findFirst({
       where: {
         OR: [
           { phone: data.phone },
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
           { phone: `0${phone.slice(3)}` },
         ],
       },
-    });
+    }));
 
     if (!user) {
       // Don't reveal if user exists or not for security
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Store OTP
-    await prisma.oTPVerification.upsert({
+    await withDbRetry(() => prisma.oTPVerification.upsert({
       where: { phone: user.phone },
       update: {
         code: otp,
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         expiresAt,
         userId: user.id,
       },
-    });
+    }));
 
     // Send SMS
     const message = `Your BuyGhanaLands password reset code is: ${otp}. Valid for 10 minutes. Do not share this code.`;

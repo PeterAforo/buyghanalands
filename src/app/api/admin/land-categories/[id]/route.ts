@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -16,14 +16,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const category = await prisma.landCategory.findUnique({
+    const category = await withDbRetry(() => prisma.landCategory.findUnique({
       where: { id },
       include: {
         _count: {
           select: { listings: true },
         },
       },
-    });
+    }));
 
     if (!category) {
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
@@ -62,7 +62,7 @@ export async function PUT(
           .replace(/^-|-$/g, "")
       : undefined;
 
-    const category = await prisma.landCategory.update({
+    const category = await withDbRetry(() => prisma.landCategory.update({
       where: { id },
       data: {
         ...(name && { name }),
@@ -73,7 +73,7 @@ export async function PUT(
         ...(isActive !== undefined && { isActive }),
         ...(sortOrder !== undefined && { sortOrder }),
       },
-    });
+    }));
 
     return NextResponse.json(category);
   } catch (error: any) {
@@ -105,10 +105,10 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if category has listings
-    const category = await prisma.landCategory.findUnique({
+    const category = await withDbRetry(() => prisma.landCategory.findUnique({
       where: { id },
       include: { _count: { select: { listings: true } } },
-    });
+    }));
 
     if (!category) {
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
@@ -121,7 +121,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.landCategory.delete({ where: { id } });
+    await withDbRetry(() => prisma.landCategory.delete({ where: { id } }));
 
     return NextResponse.json({ success: true });
   } catch (error) {

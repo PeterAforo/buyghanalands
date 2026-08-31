@@ -5,7 +5,7 @@
  * based on subscription tiers.
  */
 
-import { prisma } from "./db";
+import { prisma, withDbRetry } from "./db";
 import {
   getSellerTransactionFeeRate,
   getProfessionalCommissionRate,
@@ -58,7 +58,7 @@ export async function calculateTransactionFees(
   agentId?: string
 ): Promise<TransactionFeeCalculation> {
   // Get seller's active subscription
-  const sellerSubscription = await prisma.subscription.findFirst({
+  const sellerSubscription = await withDbRetry(() => prisma.subscription.findFirst({
     where: {
       userId: sellerId,
       category: "SELLER",
@@ -68,7 +68,7 @@ export async function calculateTransactionFees(
       sellerPlan: true,
       transactionFeeRate: true,
     },
-  });
+  }));
 
   // Determine fee rate from subscription or use default
   const sellerFeeRate = sellerSubscription?.transactionFeeRate 
@@ -82,10 +82,10 @@ export async function calculateTransactionFees(
   let agentCommissionAmount: bigint | null = null;
 
   if (agentId) {
-    const agentProfile = await prisma.agentProfile.findUnique({
+    const agentProfile = await withDbRetry(() => prisma.agentProfile.findUnique({
       where: { userId: agentId },
       select: { commissionRate: true },
-    });
+    }));
 
     if (agentProfile) {
       agentCommissionRate = agentProfile.commissionRate / 100; // Convert from percentage
@@ -154,7 +154,7 @@ export async function calculateServiceFees(
   serviceAmount: bigint
 ): Promise<ServiceFeeCalculation> {
   // Get professional's active subscription
-  const subscription = await prisma.subscription.findFirst({
+  const subscription = await withDbRetry(() => prisma.subscription.findFirst({
     where: {
       userId: professionalUserId,
       category: "PROFESSIONAL",
@@ -164,7 +164,7 @@ export async function calculateServiceFees(
       professionalPlan: true,
       serviceCommissionRate: true,
     },
-  });
+  }));
 
   // Determine commission rate from subscription or use default
   const commissionRate = subscription?.serviceCommissionRate
@@ -191,7 +191,7 @@ export async function calculateServiceFees(
  * Get the current transaction fee rate for a seller
  */
 export async function getSellerFeeRate(sellerId: string): Promise<number> {
-  const subscription = await prisma.subscription.findFirst({
+  const subscription = await withDbRetry(() => prisma.subscription.findFirst({
     where: {
       userId: sellerId,
       category: "SELLER",
@@ -201,7 +201,7 @@ export async function getSellerFeeRate(sellerId: string): Promise<number> {
       sellerPlan: true,
       transactionFeeRate: true,
     },
-  });
+  }));
 
   return subscription?.transactionFeeRate
     ?? getSellerTransactionFeeRate(subscription?.sellerPlan ?? null);
@@ -211,7 +211,7 @@ export async function getSellerFeeRate(sellerId: string): Promise<number> {
  * Get the current service commission rate for a professional
  */
 export async function getProfessionalFeeRate(professionalUserId: string): Promise<number> {
-  const subscription = await prisma.subscription.findFirst({
+  const subscription = await withDbRetry(() => prisma.subscription.findFirst({
     where: {
       userId: professionalUserId,
       category: "PROFESSIONAL",
@@ -221,7 +221,7 @@ export async function getProfessionalFeeRate(professionalUserId: string): Promis
       professionalPlan: true,
       serviceCommissionRate: true,
     },
-  });
+  }));
 
   return subscription?.serviceCommissionRate
     ?? getProfessionalCommissionRate(subscription?.professionalPlan ?? null);
@@ -299,7 +299,7 @@ export async function createTransactionServiceCharges(
   const fees = await calculateTransactionFees(sellerId, transactionAmount, agentId);
 
   // Create seller fee charge
-  await prisma.serviceCharge.create({
+  await withDbRetry(() => prisma.serviceCharge.create({
     data: {
       transactionId,
       chargeType: "LAND_SALE_SELLER_FEE",
@@ -309,22 +309,22 @@ export async function createTransactionServiceCharges(
       feeAmountGhs: fees.sellerFeeAmount,
       payerId: sellerId,
     },
-  });
+  }));
 
   // Create agent commission charge if applicable
   if (agentId && fees.agentCommissionAmount && fees.agentCommissionRate) {
-    await prisma.serviceCharge.create({
+    await withDbRetry(() => prisma.serviceCharge.create({
       data: {
         transactionId,
         chargeType: "AGENT_COMMISSION",
         status: "PENDING",
         baseAmountGhs: transactionAmount,
-        feeRate: fees.agentCommissionRate,
-        feeAmountGhs: fees.agentCommissionAmount,
+        feeRate: fees.agentCommissionRate ?? 0,
+        feeAmountGhs: fees.agentCommissionAmount ?? BigInt(0),
         payerId: sellerId,
         payeeId: agentId,
       },
-    });
+    }));
   }
 }
 
@@ -338,7 +338,7 @@ export async function createBookingServiceCharge(
 ): Promise<void> {
   const fees = await calculateServiceFees(professionalUserId, serviceAmount);
 
-  await prisma.serviceCharge.create({
+  await withDbRetry(() => prisma.serviceCharge.create({
     data: {
       bookingId,
       chargeType: "PROFESSIONAL_SERVICE_FEE",
@@ -348,7 +348,7 @@ export async function createBookingServiceCharge(
       feeAmountGhs: fees.commissionAmount,
       payerId: professionalUserId,
     },
-  });
+  }));
 }
 
 /**
@@ -363,14 +363,14 @@ export async function markChargesCollected(
   if (transactionId) where.transactionId = transactionId;
   if (bookingId) where.bookingId = bookingId;
 
-  await prisma.serviceCharge.updateMany({
+  await withDbRetry(() => prisma.serviceCharge.updateMany({
     where,
     data: {
       status: "COLLECTED",
       collectedAt: new Date(),
       paymentRef,
     },
-  });
+  }));
 }
 
 // ============================================================================
@@ -390,7 +390,7 @@ export async function getFeeSummary(
   transactionCount: number;
   bookingCount: number;
 }> {
-  const charges = await prisma.serviceCharge.findMany({
+  const charges = await withDbRetry(() => prisma.serviceCharge.findMany({
     where: {
       status: "COLLECTED",
       collectedAt: {
@@ -404,7 +404,7 @@ export async function getFeeSummary(
       transactionId: true,
       bookingId: true,
     },
-  });
+  }));
 
   let totalPlatformFees = BigInt(0);
   let totalAgentCommissions = BigInt(0);

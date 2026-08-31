@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createPermitSchema = z.object({
   assemblyId: z.string(),
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     if (status) where.status = status;
 
-    const permits = await prisma.permitApplication.findMany({
+    const permits = await withDbRetry(() => prisma.permitApplication.findMany({
       where,
       include: {
         assembly: {
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     const serialized = permits.map((p) => ({
       ...p,
@@ -79,15 +79,15 @@ export async function POST(request: NextRequest) {
     const data = createPermitSchema.parse(body);
 
     // Verify assembly exists
-    const assembly = await prisma.districtAssembly.findUnique({
+    const assembly = await withDbRetry(() => prisma.districtAssembly.findUnique({
       where: { id: data.assemblyId },
-    });
+    }));
 
     if (!assembly) {
       return NextResponse.json({ error: "District assembly not found" }, { status: 400 });
     }
 
-    const permit = await prisma.permitApplication.create({
+    const permit = await withDbRetry(() => prisma.permitApplication.create({
       data: {
         applicantId: session.user.id,
         assemblyId: data.assemblyId,
@@ -105,16 +105,16 @@ export async function POST(request: NextRequest) {
       include: {
         assembly: true,
       },
-    });
+    }));
 
     // Create initial status history
-    await prisma.permitStatusHistory.create({
+    await withDbRetry(() => prisma.permitStatusHistory.create({
       data: {
         permitApplicationId: permit.id,
         toStatus: "DRAFT",
         note: "Application created",
       },
-    });
+    }));
 
     return NextResponse.json({
       ...permit,

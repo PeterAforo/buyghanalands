@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { put } from "@vercel/blob";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createTourSchema = z.object({
   type: z.enum(["360_PHOTO", "VIDEO", "DRONE", "WALKTHROUGH"]),
@@ -17,10 +17,10 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const tours = await prisma.virtualTour.findMany({
+    const tours = await withDbRetry(() => prisma.virtualTour.findMany({
       where: { listingId: id },
       orderBy: { sortOrder: "asc" },
-    });
+    }));
 
     return NextResponse.json(tours);
   } catch (error) {
@@ -42,10 +42,10 @@ export async function POST(
     const { id } = await params;
 
     // Verify listing ownership
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
       select: { sellerId: true },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -89,12 +89,12 @@ export async function POST(
     });
 
     // Get current max sort order
-    const maxOrder = await prisma.virtualTour.aggregate({
+    const maxOrder = await withDbRetry(() => prisma.virtualTour.aggregate({
       where: { listingId: id },
       _max: { sortOrder: true },
-    });
+    }));
 
-    const tour = await prisma.virtualTour.create({
+    const tour = await withDbRetry(() => prisma.virtualTour.create({
       data: {
         listingId: id,
         type: tourType,
@@ -104,7 +104,7 @@ export async function POST(
         description: description || null,
         sortOrder: (maxOrder._max.sortOrder || 0) + 1,
       },
-    });
+    }));
 
     return NextResponse.json(tour, { status: 201 });
   } catch (error) {
@@ -132,10 +132,10 @@ export async function DELETE(
     }
 
     // Verify listing ownership
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id },
       select: { sellerId: true },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -145,9 +145,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.virtualTour.delete({
+    await withDbRetry(() => prisma.virtualTour.delete({
       where: { id: tourId },
-    });
+    }));
 
     return NextResponse.json({ message: "Virtual tour deleted" });
   } catch (error) {

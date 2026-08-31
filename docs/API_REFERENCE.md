@@ -475,17 +475,11 @@ PATCH /api/admin/transactions/[id]
 
 ## Webhooks
 
-### Paystack Webhook
+### Theteller (Payswitch) Webhook
 ```http
-POST /api/webhooks/paystack
+POST /api/webhooks/theteller
 ```
-Handles payment confirmations from Paystack.
-
-### Flutterwave Webhook
-```http
-POST /api/webhooks/flutterwave
-```
-Handles payment confirmations from Flutterwave.
+Handles payment confirmations from Theteller (Payswitch).
 
 ---
 

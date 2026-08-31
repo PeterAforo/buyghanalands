@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const predictionRequestSchema = z.object({
   region: z.string(),
@@ -19,12 +19,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check subscription for analytics access
-    const subscription = await prisma.subscription.findFirst({
+    const subscription = await withDbRetry(() => prisma.subscription.findFirst({
       where: {
         userId: session.user.id,
         status: "ACTIVE",
       },
-    });
+    }));
 
     const features = subscription?.features as any;
     if (!features?.analytics) {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const data = predictionRequestSchema.parse(body);
 
     // Get comparable listings from the same area
-    const comparables = await prisma.listing.findMany({
+    const comparables = await withDbRetry(() => prisma.listing.findMany({
       where: {
         status: "PUBLISHED",
         region: data.region,
@@ -53,10 +53,10 @@ export async function POST(request: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
       take: 50,
-    });
+    }));
 
     // Get completed transactions for more accurate pricing
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await withDbRetry(() => prisma.transaction.findMany({
       where: {
         status: "RELEASED",
         listing: {
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
       take: 30,
-    });
+    }));
 
     // Calculate price prediction
     const prediction = calculatePricePrediction(data, comparables, transactions);
@@ -170,24 +170,24 @@ async function getMarketTrends(region: string, district: string, landType: strin
   const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
   // Get recent listings count
-  const recentListings = await prisma.listing.count({
+  const recentListings = await withDbRetry(() => prisma.listing.count({
     where: {
       region,
       district,
       landType: landType as any,
       createdAt: { gte: threeMonthsAgo },
     },
-  });
+  }));
 
   // Get older listings count for comparison
-  const olderListings = await prisma.listing.count({
+  const olderListings = await withDbRetry(() => prisma.listing.count({
     where: {
       region,
       district,
       landType: landType as any,
       createdAt: { gte: sixMonthsAgo, lt: threeMonthsAgo },
     },
-  });
+  }));
 
   // Calculate supply trend
   const supplyTrend = olderListings > 0
@@ -195,7 +195,7 @@ async function getMarketTrends(region: string, district: string, landType: strin
     : 0;
 
   // Get price trend
-  const recentPrices = await prisma.listing.aggregate({
+  const recentPrices = await withDbRetry(() => prisma.listing.aggregate({
     where: {
       region,
       district,
@@ -203,9 +203,9 @@ async function getMarketTrends(region: string, district: string, landType: strin
       createdAt: { gte: threeMonthsAgo },
     },
     _avg: { priceGhs: true },
-  });
+  }));
 
-  const olderPrices = await prisma.listing.aggregate({
+  const olderPrices = await withDbRetry(() => prisma.listing.aggregate({
     where: {
       region,
       district,
@@ -213,7 +213,7 @@ async function getMarketTrends(region: string, district: string, landType: strin
       createdAt: { gte: sixMonthsAgo, lt: threeMonthsAgo },
     },
     _avg: { priceGhs: true },
-  });
+  }));
 
   const priceTrend = olderPrices._avg.priceGhs && recentPrices._avg.priceGhs
     ? ((Number(recentPrices._avg.priceGhs) - Number(olderPrices._avg.priceGhs)) / Number(olderPrices._avg.priceGhs)) * 100

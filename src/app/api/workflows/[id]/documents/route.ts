@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const createDocumentSchema = z.object({
@@ -31,12 +31,12 @@ export async function GET(
     const category = searchParams.get("category");
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -45,20 +45,20 @@ export async function GET(
       );
     }
 
-    const documents = await prisma.workflowDocument.findMany({
+    const documents = await withDbRetry(() => prisma.workflowDocument.findMany({
       where: {
         propertyWorkflowId: id,
         ...(category && { category }),
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     // Get category counts
-    const categoryCounts = await prisma.workflowDocument.groupBy({
+    const categoryCounts = await withDbRetry(() => prisma.workflowDocument.groupBy({
       by: ["category"],
       where: { propertyWorkflowId: id },
       _count: { category: true },
-    });
+    }));
 
     const categories = categoryCounts.map((c) => ({
       id: c.category,
@@ -91,12 +91,12 @@ export async function POST(
     const validatedData = createDocumentSchema.parse(body);
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -106,16 +106,16 @@ export async function POST(
     }
 
     // Check for existing document with same type to handle versioning
-    const existingDoc = await prisma.workflowDocument.findFirst({
+    const existingDoc = await withDbRetry(() => prisma.workflowDocument.findFirst({
       where: {
         propertyWorkflowId: id,
         documentType: validatedData.documentType,
         category: validatedData.category,
       },
       orderBy: { version: "desc" },
-    });
+    }));
 
-    const document = await prisma.workflowDocument.create({
+    const document = await withDbRetry(() => prisma.workflowDocument.create({
       data: {
         propertyWorkflowId: id,
         category: validatedData.category,
@@ -134,7 +134,7 @@ export async function POST(
           ? new Date(validatedData.expiryDate)
           : null,
       },
-    });
+    }));
 
     return NextResponse.json({ document }, { status: 201 });
   } catch (error) {
@@ -174,12 +174,12 @@ export async function DELETE(
     }
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -188,12 +188,12 @@ export async function DELETE(
       );
     }
 
-    await prisma.workflowDocument.delete({
+    await withDbRetry(() => prisma.workflowDocument.delete({
       where: {
         id: documentId,
         propertyWorkflowId: id,
       },
-    });
+    }));
 
     return NextResponse.json({ success: true });
   } catch (error) {

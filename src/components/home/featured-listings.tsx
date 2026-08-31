@@ -176,7 +176,7 @@ export function FeaturedListings() {
     <section className="bg-white py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto" data-reveal>
+        <div className="text-center max-w-2xl mx-auto">
           <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
             Browse Land by Type
           </h2>

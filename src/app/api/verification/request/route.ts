@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { sendEmail, getVerificationStatusEmailHtml } from "@/lib/email";
 import { z } from "zod";
 
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const data = verificationRequestSchema.parse(body);
 
     // Verify listing ownership
-    const listing = await prisma.listing.findFirst({
+    const listing = await withDbRetry(() => prisma.listing.findFirst({
       where: {
         id: data.listingId,
         sellerId: session.user.id,
@@ -30,19 +30,19 @@ export async function POST(request: NextRequest) {
       include: {
         seller: { select: { email: true, fullName: true } },
       },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
     // Check if there's already a pending request
-    const existingRequest = await prisma.verificationRequest.findFirst({
+    const existingRequest = await withDbRetry(() => prisma.verificationRequest.findFirst({
       where: {
         listingId: data.listingId,
         status: "PENDING",
       },
-    });
+    }));
 
     if (existingRequest) {
       return NextResponse.json(
@@ -52,12 +52,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify documents exist and belong to listing
-    const documents = await prisma.document.findMany({
+    const documents = await withDbRetry(() => prisma.document.findMany({
       where: {
         id: { in: data.documentIds },
         listingId: data.listingId,
       },
-    });
+    }));
 
     if (documents.length !== data.documentIds.length) {
       return NextResponse.json(
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create verification request
-    const verificationRequest = await prisma.verificationRequest.create({
+    const verificationRequest = await withDbRetry(() => prisma.verificationRequest.create({
       data: {
         listingId: data.listingId,
         userId: session.user.id,
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         outcomeNotes: data.notes,
         checklist: { documentIds: data.documentIds },
       },
-    });
+    }));
 
     // Send confirmation email
     if (listing.seller.email) {
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       where.listingId = listingId;
     }
 
-    const requests = await prisma.verificationRequest.findMany({
+    const requests = await withDbRetry(() => prisma.verificationRequest.findMany({
       where,
       include: {
         listing: {
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     const serialized = requests.map((r) => ({
       id: r.id,

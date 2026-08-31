@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function POST(
   request: NextRequest,
@@ -16,10 +16,10 @@ export async function POST(
     const { id } = await params;
 
     // Verify permit ownership
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { applicantId: true, status: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -55,7 +55,7 @@ export async function POST(
     });
 
     // First create a Document record
-    const doc = await prisma.document.create({
+    const doc = await withDbRetry(() => prisma.document.create({
       data: {
         ownerId: session.user.id,
         type: "OTHER",
@@ -63,10 +63,10 @@ export async function POST(
         mimeType: file.type,
         fileSizeBytes: file.size,
       },
-    });
+    }));
 
     // Then create permit document linking to it
-    const permitDocument = await prisma.permitDocument.create({
+    const permitDocument = await withDbRetry(() => prisma.permitDocument.create({
       data: {
         permitApplicationId: id,
         type: docType as any,
@@ -75,7 +75,7 @@ export async function POST(
       include: {
         document: true,
       },
-    });
+    }));
 
     return NextResponse.json(permitDocument, { status: 201 });
   } catch (error) {
@@ -96,10 +96,10 @@ export async function GET(
 
     const { id } = await params;
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { applicantId: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -107,19 +107,19 @@ export async function GET(
 
     // Check authorization
     if (permit.applicantId !== session.user.id) {
-      const user = await prisma.user.findUnique({
+      const user = await withDbRetry(() => prisma.user.findUnique({
         where: { id: session.user.id },
         select: { roles: true },
-      });
+      }));
       if (!user?.roles.includes("ADMIN")) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
 
-    const documents = await prisma.permitDocument.findMany({
+    const documents = await withDbRetry(() => prisma.permitDocument.findMany({
       where: { permitApplicationId: id },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(documents);
   } catch (error) {

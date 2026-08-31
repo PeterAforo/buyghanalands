@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const createWorkflowSchema = z.object({
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const module = searchParams.get("module");
 
-    const workflows = await prisma.propertyWorkflow.findMany({
+    const workflows = await withDbRetry(() => prisma.propertyWorkflow.findMany({
       where: {
         userId: session.user.id,
         ...(status && { overallStatus: status as any }),
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { updatedAt: "desc" },
-    });
+    }));
 
     return NextResponse.json({ workflows });
   } catch (error) {
@@ -103,12 +103,12 @@ export async function POST(request: NextRequest) {
 
     // If linking to a listing, verify ownership
     if (validatedData.listingId) {
-      const listing = await prisma.listing.findFirst({
+      const listing = await withDbRetry(() => prisma.listing.findFirst({
         where: {
           id: validatedData.listingId,
           // User must be buyer in a transaction or the listing must be accessible
         },
-      });
+      }));
 
       if (!listing) {
         return NextResponse.json(
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the workflow with all sub-modules
-    const workflow = await prisma.propertyWorkflow.create({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.create({
       data: {
         userId: session.user.id,
         listingId: validatedData.listingId,
@@ -156,10 +156,10 @@ export async function POST(request: NextRequest) {
         landAcquisition: true,
         costTracker: true,
       },
-    });
+    }));
 
     // Create initial alerts
-    await prisma.workflowAlert.createMany({
+    await withDbRetry(() => prisma.workflowAlert.createMany({
       data: [
         {
           propertyWorkflowId: workflow.id,
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
           isDismissed: false,
         },
       ],
-    });
+    }));
 
     return NextResponse.json({ workflow }, { status: 201 });
   } catch (error) {

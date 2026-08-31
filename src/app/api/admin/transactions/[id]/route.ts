@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -43,7 +43,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const transaction = await prisma.transaction.findUnique({
+    const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id },
       include: {
         listing: {
@@ -78,7 +78,7 @@ export async function GET(
         disputes: true,
         milestones: true,
       },
-    });
+    }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -125,9 +125,9 @@ export async function PUT(
     const body = await request.json();
     const { action } = body;
 
-    const transaction = await prisma.transaction.findUnique({
+    const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id },
-    });
+    }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -156,15 +156,15 @@ export async function PUT(
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    const updatedTransaction = await prisma.transaction.update({
+    const updatedTransaction = await withDbRetry(() => prisma.transaction.update({
       where: { id },
       data: {
         status: newStatus,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "TRANSACTION",
         entityId: id,
@@ -173,7 +173,7 @@ export async function PUT(
         action: `TRANSACTION_${action.toUpperCase()}`,
         diff: { from: transaction.status, to: newStatus },
       },
-    });
+    }));
 
     return NextResponse.json({
       ...updatedTransaction,
@@ -204,9 +204,9 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateTransactionSchema.parse(body);
 
-    const existingTransaction = await prisma.transaction.findUnique({
+    const existingTransaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id },
-    });
+    }));
 
     if (!existingTransaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -221,13 +221,13 @@ export async function PATCH(
     }
     if (validatedData.notes) updateData.notes = validatedData.notes;
 
-    const updatedTransaction = await prisma.transaction.update({
+    const updatedTransaction = await withDbRetry(() => prisma.transaction.update({
       where: { id },
       data: updateData,
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "TRANSACTION",
         entityId: id,
@@ -236,7 +236,7 @@ export async function PATCH(
         action: "TRANSACTION_UPDATED_BY_ADMIN",
         diff: { before: existingTransaction.status, changes: validatedData },
       },
-    });
+    }));
 
     return NextResponse.json({
       ...updatedTransaction,

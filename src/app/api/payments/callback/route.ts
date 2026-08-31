@@ -1,41 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { verifyPaymentByTxRef } from "@/lib/flutterwave";
+import { prisma, withDbRetry } from "@/lib/db";
+import { verifyTransaction } from "@/lib/theteller";
 import { notifyTransactionFunded } from "@/lib/notifications";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const txRef = searchParams.get("tx_ref");
-    const status = searchParams.get("status");
     const transactionId = searchParams.get("transaction_id");
+    const code = searchParams.get("code");
+    const status = searchParams.get("status");
 
-    if (!txRef) {
+    if (!transactionId) {
       return NextResponse.redirect(
         new URL("/dashboard?payment=error", request.url)
       );
     }
 
-    // If Flutterwave says cancelled, mark as failed
-    if (status === "cancelled") {
-      await prisma.payment.updateMany({
-        where: { providerRef: txRef },
+    // If Theteller says the transaction was not successful, mark as failed
+    if (code !== "000") {
+      await withDbRetry(() => prisma.payment.updateMany({
+        where: { providerRef: transactionId },
         data: { status: "FAILED" },
-      });
+      }));
       return NextResponse.redirect(
-        new URL("/dashboard?payment=cancelled", request.url)
+        new URL(`/dashboard?payment=${status === "cancelled" ? "cancelled" : "failed"}`, request.url)
       );
     }
 
-    // Verify payment with Flutterwave
-    const verification = await verifyPaymentByTxRef(txRef);
+    // Verify payment with Theteller
+    const verification = await verifyTransaction(transactionId);
 
-    if (verification.status !== "success" || verification.data?.status !== "successful") {
+    if (verification.code !== "000") {
       // Update payment status to failed
-      await prisma.payment.updateMany({
-        where: { providerRef: txRef },
+      await withDbRetry(() => prisma.payment.updateMany({
+        where: { providerRef: transactionId },
         data: { status: "FAILED" },
-      });
+      }));
 
       return NextResponse.redirect(
         new URL("/dashboard?payment=failed", request.url)
@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Update payment status to success
-    const payment = await prisma.payment.findFirst({
-      where: { providerRef: txRef },
-    });
+    const payment = await withDbRetry(() => prisma.payment.findFirst({
+      where: { providerRef: transactionId },
+    }));
 
     if (!payment) {
       return NextResponse.redirect(
@@ -53,42 +53,43 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    await prisma.payment.update({
+    await withDbRetry(() => prisma.payment.update({
       where: { id: payment.id },
       data: {
         status: "SUCCESS",
         netAmount: payment.amount - payment.fees,
       },
-    });
+    }));
 
     // Handle post-payment logic based on payment type
     if (payment.type === "TRANSACTION_FUNDING" && payment.transactionId) {
+      const fundedTransactionId = payment.transactionId;
       // Update transaction status to FUNDED
-      const transaction = await prisma.transaction.update({
-        where: { id: payment.transactionId },
+      const transaction = await withDbRetry(() => prisma.transaction.update({
+        where: { id: fundedTransactionId },
         data: { status: "FUNDED" },
         include: {
           listing: { select: { title: true } },
         },
-      });
+      }));
 
       // Create audit log
-      await prisma.auditLog.create({
+      await withDbRetry(() => prisma.auditLog.create({
         data: {
           entityType: "TRANSACTION",
-          entityId: payment.transactionId,
+          entityId: fundedTransactionId,
           actorType: "SYSTEM",
           action: "STATUS_CHANGE",
           diff: { from: "ESCROW_REQUESTED", to: "FUNDED" },
         },
-      });
+      }));
 
       // Notify seller that escrow is funded
       notifyTransactionFunded(transaction.sellerId, transaction.listing.title, Number(payment.amount)).catch(console.error);
 
       return NextResponse.redirect(
         new URL(
-          `/dashboard/transactions/${payment.transactionId}?payment=success`,
+          `/dashboard/transactions/${fundedTransactionId}?payment=success`,
           request.url
         )
       );

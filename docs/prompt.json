@@ -35,7 +35,7 @@
       "env_management": "Vercel Environment Variables"
     },
     "integrations": {
-      "payments_primary": "Paystack",
+      "payments_primary": "Theteller (Payswitch)",
       "payments_backup": "Hubtel",
       "sms": "mNotify (primary) + optional Hubtel SMS",
       "email": "AWS SES or SendGrid",
@@ -129,7 +129,7 @@
       "module": "Payments + Escrow",
       "scope": "Listing fees, escrow funding, release, refunds",
       "key_features": [
-        "PSP integration (Paystack primary)",
+        "PSP integration (Theteller (Payswitch) primary)",
         "escrow-like ledger + milestone approvals",
         "payouts to bank/mobile money (via provider capability)",
         "refunds + reconciliation",
@@ -487,8 +487,8 @@
       "AUTH_SECRET",
       "NEXTAUTH_URL",
       "MAPBOX_ACCESS_TOKEN",
-      "PAYSTACK_SECRET_KEY",
-      "PAYSTACK_PUBLIC_KEY",
+      "THETELLER_API_KEY",
+      "THETELLER_MERCHANT_ID",
       "MNOTIFY_API_KEY",
       "EMAIL_PROVIDER_API_KEY",
       "S3_ENDPOINT",

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
@@ -15,9 +15,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Find the token
-    const verificationToken = await prisma.emailVerificationToken.findUnique({
+    const verificationToken = await withDbRetry(() => prisma.emailVerificationToken.findUnique({
       where: { token },
-    });
+    }));
 
     if (!verificationToken) {
       return NextResponse.json(
@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
 
     // Check if token is expired
     if (new Date() > verificationToken.expiresAt) {
-      await prisma.emailVerificationToken.delete({
+      await withDbRetry(() => prisma.emailVerificationToken.delete({
         where: { id: verificationToken.id },
-      });
+      }));
       return NextResponse.json(
         { error: "Verification token has expired. Please request a new one." },
         { status: 400 }
@@ -38,18 +38,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Update user's email verification status
-    await prisma.user.update({
+    await withDbRetry(() => prisma.user.update({
       where: { id: verificationToken.userId },
       data: { emailVerified: true },
-    });
+    }));
 
     // Delete the used token
-    await prisma.emailVerificationToken.delete({
+    await withDbRetry(() => prisma.emailVerificationToken.delete({
       where: { id: verificationToken.id },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: verificationToken.userId,
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         action: "EMAIL_VERIFIED",
         diff: { email: verificationToken.email },
       },
-    });
+    }));
 
     // Redirect to login with success message
     return NextResponse.redirect(

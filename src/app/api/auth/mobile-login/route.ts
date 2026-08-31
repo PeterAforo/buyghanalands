@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { compare } from "bcryptjs";
 import { SignJWT } from "jose";
 import { z } from "zod";
@@ -72,9 +72,9 @@ export async function POST(request: NextRequest) {
       const normalizedPhone = normalizePhone(phone);
 
       // Verify OTP
-      const otpRecord = await prisma.oTPVerification.findUnique({
+      const otpRecord = await withDbRetry(() => prisma.oTPVerification.findUnique({
         where: { phone: normalizedPhone },
-      });
+      }));
 
       if (!otpRecord) {
         return NextResponse.json(
@@ -85,15 +85,15 @@ export async function POST(request: NextRequest) {
 
       if (otpRecord.code !== otp) {
         // Increment attempts
-        await prisma.oTPVerification.update({
+        await withDbRetry(() => prisma.oTPVerification.update({
           where: { id: otpRecord.id },
           data: { attempts: { increment: 1 } },
-        });
+        }));
 
         if (otpRecord.attempts >= 4) {
-          await prisma.oTPVerification.delete({
+          await withDbRetry(() => prisma.oTPVerification.delete({
             where: { id: otpRecord.id },
-          });
+          }));
           return NextResponse.json(
             { error: "Too many attempts. Please request a new OTP." },
             { status: 400 }
@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (new Date() > otpRecord.expiresAt) {
-        await prisma.oTPVerification.delete({
+        await withDbRetry(() => prisma.oTPVerification.delete({
           where: { id: otpRecord.id },
-        });
+        }));
         return NextResponse.json(
           { error: "OTP has expired" },
           { status: 400 }
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       }
 
       // OTP is valid - find or create user
-      let user = await prisma.user.findFirst({
+      let user = await withDbRetry(() => prisma.user.findFirst({
         where: {
           OR: [
             { phone: normalizedPhone },
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           accountStatus: true,
           fullName: true,
         },
-      });
+      }));
 
       if (!user) {
         return NextResponse.json(
@@ -143,15 +143,15 @@ export async function POST(request: NextRequest) {
       }
 
       // Delete used OTP
-      await prisma.oTPVerification.delete({
+      await withDbRetry(() => prisma.oTPVerification.delete({
         where: { id: otpRecord.id },
-      });
+      }));
 
       // Mark phone as verified
-      await prisma.user.update({
+      await withDbRetry(() => prisma.user.update({
         where: { id: user.id },
         data: { phoneVerified: true },
-      });
+      }));
 
       // Generate tokens
       const accessToken = await generateAccessToken(user);
@@ -159,13 +159,13 @@ export async function POST(request: NextRequest) {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
 
-      await prisma.refreshToken.create({
+      await withDbRetry(() => prisma.refreshToken.create({
         data: {
           token: refreshToken,
           userId: user.id,
           expiresAt,
         },
-      });
+      }));
 
       return NextResponse.json({
         accessToken,
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       const normalizedPhone = normalizePhone(phone);
 
       // Find user
-      let user = await prisma.user.findFirst({
+      let user = await withDbRetry(() => prisma.user.findFirst({
         where: {
           OR: [
             { phone: normalizedPhone },
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
           fullName: true,
           passwordHash: true,
         },
-      });
+      }));
 
       if (!user || !user.passwordHash) {
         return NextResponse.json(
@@ -236,13 +236,13 @@ export async function POST(request: NextRequest) {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
 
-      await prisma.refreshToken.create({
+      await withDbRetry(() => prisma.refreshToken.create({
         data: {
           token: refreshToken,
           userId: user.id,
           expiresAt,
         },
-      });
+      }));
 
       return NextResponse.json({
         accessToken,

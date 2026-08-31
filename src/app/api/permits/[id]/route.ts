@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const updatePermitSchema = z.object({
   projectTitle: z.string().min(5).optional(),
@@ -26,7 +26,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       include: {
         assembly: true,
@@ -46,7 +46,7 @@ export async function GET(
           orderBy: { createdAt: "desc" },
         },
       },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -55,10 +55,10 @@ export async function GET(
     // Check authorization
     if (permit.applicantId !== session.user.id) {
       // Check if admin
-      const user = await prisma.user.findUnique({
+      const user = await withDbRetry(() => prisma.user.findUnique({
         where: { id: session.user.id },
         select: { roles: true },
-      });
+      }));
       if (!user?.roles.includes("ADMIN")) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -88,10 +88,10 @@ export async function PUT(
     const body = await request.json();
     const data = updatePermitSchema.parse(body);
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { applicantId: true, status: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -122,30 +122,30 @@ export async function PUT(
       updateData.submittedAt = new Date();
 
       // Create status history
-      await prisma.permitStatusHistory.create({
+      await withDbRetry(() => prisma.permitStatusHistory.create({
         data: {
           permitApplicationId: id,
           fromStatus: "DRAFT",
           toStatus: "SUBMITTED",
           note: "Application submitted for review",
         },
-      });
+      }));
     } else if (data.status === "CANCELLED") {
       updateData.status = "CANCELLED";
 
-      await prisma.permitStatusHistory.create({
+      await withDbRetry(() => prisma.permitStatusHistory.create({
         data: {
           permitApplicationId: id,
           toStatus: "CANCELLED",
           note: "Application cancelled by applicant",
         },
-      });
+      }));
     }
 
-    const updated = await prisma.permitApplication.update({
+    const updated = await withDbRetry(() => prisma.permitApplication.update({
       where: { id },
       data: updateData,
-    });
+    }));
 
     return NextResponse.json({
       ...updated,

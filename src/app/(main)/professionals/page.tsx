@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { ProfessionalsClient } from "./professionals-client";
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ const professionalTypes = [
 ];
 
 async function getProfessionals() {
-  const professionals = await prisma.professionalProfile.findMany({
+  const professionals = await withDbRetry(() => prisma.professionalProfile.findMany({
     where: {
       isActive: true,
     },
@@ -37,10 +37,24 @@ async function getProfessionals() {
       createdAt: "desc",
     },
     take: 20,
-  });
+  }));
 
   return professionals.map((p) => ({
-    ...p,
+    id: p.id,
+    professionalType: p.professionalType,
+    companyName: p.companyName,
+    baseLocation: p.baseLocation,
+    licenseStatus: p.licenseStatus,
+    yearsExperience: p.yearsExperience,
+    user: {
+      id: p.user.id,
+      fullName: p.user.fullName,
+      avatarUrl: p.user.avatarUrl,
+    },
+    services: p.services.map((s) => ({
+      id: s.id,
+      title: s.title,
+    })),
     avgRating:
       p.reviewsReceived.length > 0
         ? p.reviewsReceived.reduce((acc, r) => acc + r.rating, 0) /

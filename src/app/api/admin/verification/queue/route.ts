@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isVerifier(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "MODERATOR", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       where.assignedToId = session.user.id;
     }
 
-    const [requests, total] = await Promise.all([
+    const [requests, total] = await withDbRetry(() => Promise.all([
       prisma.verificationRequest.findMany({
         where,
         include: {
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.verificationRequest.count({ where }),
-    ]);
+    ]));
 
     return NextResponse.json({
       requests: requests.map((r) => ({
@@ -117,9 +117,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = assignSchema.parse(body);
 
-    const verificationRequest = await prisma.verificationRequest.findUnique({
+    const verificationRequest = await withDbRetry(() => prisma.verificationRequest.findUnique({
       where: { id: data.requestId },
-    });
+    }));
 
     if (!verificationRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -128,16 +128,16 @@ export async function POST(request: NextRequest) {
     // Assign to self if no assignToId provided
     const assignToId = data.assignToId || session.user.id;
 
-    const updated = await prisma.verificationRequest.update({
+    const updated = await withDbRetry(() => prisma.verificationRequest.update({
       where: { id: data.requestId },
       data: { assignedToId: assignToId },
       include: {
         assignedTo: { select: { id: true, fullName: true } },
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "VERIFICATION_REQUEST",
         entityId: data.requestId,
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
         action: "ASSIGN",
         diff: { assignedToId: assignToId },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: "Request assigned successfully",

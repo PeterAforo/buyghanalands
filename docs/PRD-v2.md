@@ -93,8 +93,7 @@ To become Ghana's most trusted digital platform for land transactions, reducing 
 ### External Services
 | Service | Purpose |
 |---------|---------|
-| Paystack | Payment processing |
-| Flutterwave | Alternative payment |
+| Theteller (Payswitch) | Payment processing |
 | mNotify | SMS notifications |
 | Nodemailer | Email notifications |
 | Mapbox | Maps and geocoding |
@@ -338,7 +337,7 @@ Each milestone requires:
 |----------|------|-------------|
 | **Platform Fee** | 1.5% (150 bps) | Charged on transaction value |
 | **Escrow Fee** | Included | Part of platform fee |
-| **Payment Processing** | ~1.5% | Paystack/Flutterwave fees |
+| **Payment Processing** | ~1.5% | Theteller (Payswitch) fees |
 
 ### 8.5 Dispute Resolution
 
@@ -579,7 +578,7 @@ DRAFT → SUBMITTED → UNDER_REVIEW → [QUERY_RAISED] → APPROVED/REJECTED
 | Category | Settings |
 |----------|----------|
 | **SMTP** | Host, port, user, password, from email |
-| **Payment** | Paystack keys, Flutterwave keys, Hubtel keys |
+| **Payment** | Theteller (Payswitch) keys, Hubtel keys |
 | **SMS** | mNotify API key, sender ID |
 | **Storage** | S3/R2 endpoint, bucket, credentials |
 | **Maps** | Mapbox access token |
@@ -754,14 +753,11 @@ Alert frequency: Instant, Daily, Weekly
 
 ### 18.1 Payment Providers
 
-**Paystack:**
+**Theteller (Payswitch):**
 - Card payments
 - Mobile money
 - Bank transfers
 - Webhook integration
-
-**Flutterwave:**
-- Alternative payment option
 - Multi-currency support
 
 **Hubtel:**

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Execute queries in parallel
-    const [listings, total] = await Promise.all([
+    const [listings, total] = await withDbRetry(() => Promise.all([
       prisma.listing.findMany({
         where,
         include: {
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.listing.count({ where }),
-    ]);
+    ]));
 
     // Calculate distances if proximity search
     let serializedListings = listings.map((listing) => {

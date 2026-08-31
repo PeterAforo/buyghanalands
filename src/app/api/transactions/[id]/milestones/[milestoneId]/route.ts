@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function PUT(
   request: NextRequest,
@@ -15,9 +15,9 @@ export async function PUT(
     const { id: transactionId, milestoneId } = await params;
     const body = await request.json();
 
-    const transaction = await prisma.transaction.findUnique({
+    const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id: transactionId },
-    });
+    }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -30,9 +30,9 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const milestone = await prisma.escrowMilestone.findUnique({
+    const milestone = await withDbRetry(() => prisma.escrowMilestone.findUnique({
       where: { id: milestoneId },
-    });
+    }));
 
     if (!milestone || milestone.transactionId !== transactionId) {
       return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
@@ -53,26 +53,26 @@ export async function PUT(
         return NextResponse.json({ error: "Already approved" }, { status: 400 });
       }
 
-      const updatedMilestone = await prisma.escrowMilestone.update({
+      const updatedMilestone = await withDbRetry(() => prisma.escrowMilestone.update({
         where: { id: milestoneId },
         data: updateData,
-      });
+      }));
 
       // Check if both parties approved
       const buyerApproved = updatedMilestone.buyerApprovedAt || (isBuyer ? new Date() : null);
       const sellerApproved = updatedMilestone.sellerApprovedAt || (isSeller ? new Date() : null);
 
       if (buyerApproved && sellerApproved && !updatedMilestone.completedAt) {
-        await prisma.escrowMilestone.update({
+        await withDbRetry(() => prisma.escrowMilestone.update({
           where: { id: milestoneId },
           data: { completedAt: new Date() },
-        });
+        }));
       }
 
       // Check if all milestones are completed
-      const allMilestones = await prisma.escrowMilestone.findMany({
+      const allMilestones = await withDbRetry(() => prisma.escrowMilestone.findMany({
         where: { transactionId },
-      });
+      }));
 
       const allCompleted = allMilestones.every((m) => {
         if (m.id === milestoneId) {
@@ -82,12 +82,12 @@ export async function PUT(
       });
 
       if (allCompleted && transaction.status === "VERIFICATION_PERIOD") {
-        await prisma.transaction.update({
+        await withDbRetry(() => prisma.transaction.update({
           where: { id: transactionId },
           data: { status: "READY_TO_RELEASE" },
-        });
+        }));
 
-        await prisma.auditLog.create({
+        await withDbRetry(() => prisma.auditLog.create({
           data: {
             entityType: "TRANSACTION",
             entityId: transactionId,
@@ -95,12 +95,12 @@ export async function PUT(
             action: "STATUS_CHANGE",
             diff: { from: "VERIFICATION_PERIOD", to: "READY_TO_RELEASE" },
           },
-        });
+        }));
       }
 
-      const finalMilestone = await prisma.escrowMilestone.findUnique({
+      const finalMilestone = await withDbRetry(() => prisma.escrowMilestone.findUnique({
         where: { id: milestoneId },
-      });
+      }));
 
       return NextResponse.json({
         ...finalMilestone,

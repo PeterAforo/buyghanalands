@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const where: any = { userId: session.user.id };
     if (status) where.status = status;
 
-    const tickets = await prisma.supportTicket.findMany({
+    const tickets = await withDbRetry(() => prisma.supportTicket.findMany({
       where,
       include: {
         transaction: {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(tickets);
   } catch (error) {
@@ -65,10 +65,10 @@ export async function POST(request: NextRequest) {
 
     // Verify transaction access if provided
     if (data.transactionId) {
-      const transaction = await prisma.transaction.findUnique({
+      const transaction = await withDbRetry(() => prisma.transaction.findUnique({
         where: { id: data.transactionId },
         select: { buyerId: true, sellerId: true },
-      });
+      }));
 
       if (!transaction) {
         return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -83,12 +83,12 @@ export async function POST(request: NextRequest) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const ticketCount = await prisma.supportTicket.count({
+    const ticketCount = await withDbRetry(() => prisma.supportTicket.count({
       where: {
         userId: session.user.id,
         createdAt: { gte: today },
       },
-    });
+    }));
 
     if (ticketCount >= 5) {
       return NextResponse.json(
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ticket = await prisma.supportTicket.create({
+    const ticket = await withDbRetry(() => prisma.supportTicket.create({
       data: {
         userId: session.user.id,
         transactionId: data.transactionId,
@@ -105,10 +105,10 @@ export async function POST(request: NextRequest) {
         body: data.body,
         status: "OPEN",
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "SUPPORT_TICKET" as any,
         entityId: ticket.id,
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
         action: "CREATE",
         diff: { subject: data.subject, category: data.category },
       },
-    });
+    }));
 
     return NextResponse.json(ticket, { status: 201 });
   } catch (error) {

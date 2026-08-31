@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { uploadImage } from "@/lib/cloudinary";
 
 export async function POST(request: NextRequest) {
@@ -23,12 +23,12 @@ export async function POST(request: NextRequest) {
 
     // If listingId provided, verify ownership
     if (listingId) {
-      const listing = await prisma.listing.findFirst({
+      const listing = await withDbRetry(() => prisma.listing.findFirst({
         where: {
           id: listingId,
           sellerId: session.user.id,
         },
-      });
+      }));
 
       if (!listing) {
         return NextResponse.json({ error: "Listing not found or unauthorized" }, { status: 404 });
@@ -41,10 +41,10 @@ export async function POST(request: NextRequest) {
     // Get current max sort order for listing
     let sortOrder = 0;
     if (listingId) {
-      const maxSort = await prisma.listingMedia.aggregate({
+      const maxSort = await withDbRetry(() => prisma.listingMedia.aggregate({
         where: { listingId },
         _max: { sortOrder: true },
-      });
+      }));
       sortOrder = (maxSort._max.sortOrder || 0) + 1;
     }
 
@@ -75,14 +75,14 @@ export async function POST(request: NextRequest) {
 
       // If listingId, create database record
       if (listingId) {
-        const mediaRecord = await prisma.listingMedia.create({
+        const mediaRecord = await withDbRetry(() => prisma.listingMedia.create({
           data: {
             listingId,
             type: "PHOTO",
-            url: result.url,
+            url: result.url!,
             sortOrder: sortOrder + i,
           },
-        });
+        }));
 
         uploadedImages.push({
           id: mediaRecord.id,
@@ -128,21 +128,21 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Find and verify ownership
-    const media = await prisma.listingMedia.findFirst({
+    const media = await withDbRetry(() => prisma.listingMedia.findFirst({
       where: { id: mediaId },
       include: {
         listing: {
           select: { sellerId: true },
         },
       },
-    });
+    }));
 
     if (!media || media.listing.sellerId !== session.user.id) {
       return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 });
     }
 
     // Delete from database
-    await prisma.listingMedia.delete({ where: { id: mediaId } });
+    await withDbRetry(() => prisma.listingMedia.delete({ where: { id: mediaId } }));
 
     // Note: Cloudinary deletion would require storing publicId
     // For now, we just remove from database

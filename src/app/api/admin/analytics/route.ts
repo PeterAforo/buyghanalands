@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "FINANCE"].includes(role)) || false;
 }
 
@@ -54,22 +54,22 @@ export async function GET(request: NextRequest) {
       recentUsers,
       recentListings,
       topRegions,
-    ] = await Promise.all([
+    ] = await withDbRetry(() => Promise.all([
       // User statistics
       prisma.user.aggregate({
         _count: true,
         where: { createdAt: { gte: startDate } },
       }).then(async (newUsers) => ({
-        total: await prisma.user.count(),
+        total: await withDbRetry(() => prisma.user.count()),
         newInPeriod: newUsers._count,
-        byRole: await prisma.user.groupBy({
+        byRole: await withDbRetry(() => prisma.user.groupBy({
           by: ["roles"],
           _count: true,
-        }),
-        byKycTier: await prisma.user.groupBy({
+        })),
+        byKycTier: await withDbRetry(() => prisma.user.groupBy({
           by: ["kycTier"],
           _count: true,
-        }),
+        })),
       })),
 
       // Listing statistics
@@ -77,17 +77,17 @@ export async function GET(request: NextRequest) {
         _count: true,
         where: { createdAt: { gte: startDate } },
       }).then(async (newListings) => ({
-        total: await prisma.listing.count(),
+        total: await withDbRetry(() => prisma.listing.count()),
         newInPeriod: newListings._count,
-        byStatus: await prisma.listing.groupBy({
+        byStatus: await withDbRetry(() => prisma.listing.groupBy({
           by: ["status"],
           _count: true,
-        }),
-        byLandType: await prisma.listing.groupBy({
+        })),
+        byLandType: await withDbRetry(() => prisma.listing.groupBy({
           by: ["landType"],
           _count: true,
-        }),
-        published: await prisma.listing.count({ where: { status: "PUBLISHED" } }),
+        })),
+        published: await withDbRetry(() => prisma.listing.count({ where: { status: "PUBLISHED" } })),
       })),
 
       // Transaction statistics
@@ -100,15 +100,15 @@ export async function GET(request: NextRequest) {
         const completedGmv = completed.reduce((sum, t) => sum + Number(t.agreedPriceGhs), 0);
 
         return {
-          total: await prisma.transaction.count(),
+          total: await withDbRetry(() => prisma.transaction.count()),
           inPeriod: transactions.length,
           gmvInPeriod: gmv,
           completedInPeriod: completed.length,
           completedGmvInPeriod: completedGmv,
-          byStatus: await prisma.transaction.groupBy({
+          byStatus: await withDbRetry(() => prisma.transaction.groupBy({
             by: ["status"],
             _count: true,
-          }),
+          })),
         };
       }),
 
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
         orderBy: { _count: { region: "desc" } },
         take: 10,
       }),
-    ]);
+    ]));
 
     return NextResponse.json({
       period,

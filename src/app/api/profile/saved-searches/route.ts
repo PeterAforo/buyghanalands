@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -10,10 +10,10 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const savedSearches = await prisma.savedSearch.findMany({
+    const savedSearches = await withDbRetry(() => prisma.savedSearch.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(savedSearches);
   } catch (error) {
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
     const data = createSavedSearchSchema.parse(body);
 
     // Limit saved searches per user
-    const count = await prisma.savedSearch.count({
+    const count = await withDbRetry(() => prisma.savedSearch.count({
       where: { userId: session.user.id },
-    });
+    }));
 
     if (count >= 20) {
       return NextResponse.json(
@@ -61,14 +61,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const savedSearch = await prisma.savedSearch.create({
+    const savedSearch = await withDbRetry(() => prisma.savedSearch.create({
       data: {
         userId: session.user.id,
         name: data.name,
         filters: data.filters,
         alertEnabled: data.alertEnabled,
       },
-    });
+    }));
 
     return NextResponse.json(savedSearch, { status: 201 });
   } catch (error) {
@@ -98,10 +98,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const savedSearch = await prisma.savedSearch.findUnique({
+    const savedSearch = await withDbRetry(() => prisma.savedSearch.findUnique({
       where: { id },
       select: { userId: true },
-    });
+    }));
 
     if (!savedSearch) {
       return NextResponse.json({ error: "Saved search not found" }, { status: 404 });
@@ -111,7 +111,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.savedSearch.delete({ where: { id } });
+    await withDbRetry(() => prisma.savedSearch.delete({ where: { id } }));
 
     return NextResponse.json({ message: "Saved search deleted" });
   } catch (error) {

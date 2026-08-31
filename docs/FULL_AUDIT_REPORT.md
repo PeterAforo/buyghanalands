@@ -40,7 +40,7 @@ The project is built on a modern Next.js 16 stack with TypeScript, Prisma ORM, N
 | **UI Components** | Radix UI, Lucide Icons | - |
 | **Forms** | React Hook Form + Zod | 7.71.1 / 4.3.5 |
 | **Maps** | Mapbox GL, Leaflet, React Map GL | 3.18.0 |
-| **Payments** | Flutterwave, Paystack | - |
+| **Payments** | Theteller (Payswitch) | - |
 | **File Storage** | Cloudinary, Vercel Blob | - |
 | **Email** | Nodemailer (SMTP) | 7.0.12 |
 | **SMS** | mNotify, Hubtel | - |
@@ -53,8 +53,7 @@ The project is built on a modern Next.js 16 stack with TypeScript, Prisma ORM, N
 |---------|---------|--------|
 | **NeonDB** | PostgreSQL database | ✅ Configured |
 | **Cloudinary** | Image/video storage | ✅ Configured |
-| **Flutterwave** | Payment gateway | ⚠️ Partial |
-| **Paystack** | Payment gateway | ⚠️ Partial |
+| **Theteller (Payswitch)** | Payment gateway | ⚠️ Partial |
 | **mNotify** | SMS notifications | ✅ Configured |
 | **Hubtel** | SMS notifications (backup) | ⚠️ Partial |
 | **Mapbox** | Maps & geocoding | ⚠️ Needs token |
@@ -66,7 +65,7 @@ The project is built on a modern Next.js 16 stack with TypeScript, Prisma ORM, N
 DATABASE_URL, DIRECT_URL          # NeonDB
 AUTH_SECRET, NEXTAUTH_URL         # Auth.js
 CLOUDINARY_*                      # Image storage
-FLUTTERWAVE_*, PAYSTACK_*         # Payments
+THETELLER_*                      # Payments
 MNOTIFY_API_KEY                   # SMS
 SMTP_*                            # Email
 MAPBOX_ACCESS_TOKEN               # Maps
@@ -188,7 +187,7 @@ User Input → React Components → API Routes → Prisma → NeonDB
 | Counter Offer | Transactions | PARTIAL | 50% | Basic flow implemented |
 | Transaction Creation | Transactions | COMPLETE | 75% | From accepted offer |
 | Escrow Milestones | Transactions | PARTIAL | 40% | Schema ready, UI partial |
-| Payment Processing | Payments | PARTIAL | 45% | Flutterwave/Paystack stubs |
+| Payment Processing | Payments | PARTIAL | 45% | Theteller (Payswitch) stubs |
 | Dispute Management | Disputes | PARTIAL | 55% | Create/view disputes |
 | Messaging | Communication | COMPLETE | 75% | Real-time needs WebSocket |
 | Favorites | User | COMPLETE | 90% | Add/remove favorites |
@@ -341,7 +340,7 @@ User Input → React Components → API Routes → Prisma → NeonDB
 
 | ID | Severity | Issue | Location | Recommendation |
 |----|----------|-------|----------|----------------|
-| FUNC-01 | **HIGH** | Payment gateway not fully integrated | Payments | Complete Flutterwave/Paystack integration |
+| FUNC-01 | **HIGH** | Payment gateway not fully integrated | Payments | Complete Theteller (Payswitch) integration |
 | FUNC-02 | **HIGH** | Escrow release logic incomplete | Transactions | Implement milestone-based release |
 | FUNC-03 | **MEDIUM** | Real-time messaging not implemented | Messages | Add WebSocket or polling |
 | FUNC-04 | **MEDIUM** | Map token not configured | Mapbox | Add valid Mapbox token |
@@ -485,7 +484,7 @@ BuyGhanaLands is a trust-first SaaS platform for secure land transactions in Gha
 - **Backend:** Next.js API Routes, Prisma ORM
 - **Database:** NeonDB (PostgreSQL + PostGIS)
 - **Auth:** Auth.js (NextAuth v5) with phone OTP
-- **Payments:** Flutterwave, Paystack
+- **Payments:** Theteller (Payswitch)
 - **Storage:** Cloudinary
 - **Notifications:** Email (SMTP), SMS (mNotify)
 
@@ -501,7 +500,7 @@ BuyGhanaLands is a trust-first SaaS platform for secure land transactions in Gha
 |------|----------|--------|
 | Implement rate limiting on all auth endpoints | P0 | 2d |
 | Add Zod validation to all API routes | P0 | 3d |
-| Complete Flutterwave payment integration | P0 | 3d |
+| Complete Theteller (Payswitch) payment integration | P0 | 3d |
 | Add CSRF protection | P0 | 1d |
 | Remove console.log statements | P0 | 0.5d |
 | Security audit and fix | P0 | 2d |

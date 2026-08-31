@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -34,10 +34,10 @@ export async function POST(
     const body = await request.json();
     const data = suspendSchema.parse(body);
 
-    const targetUser = await prisma.user.findUnique({
+    const targetUser = await withDbRetry(() => prisma.user.findUnique({
       where: { id },
       select: { id: true, accountStatus: true, roles: true },
-    });
+    }));
 
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -45,10 +45,10 @@ export async function POST(
 
     // Prevent suspending other admins unless you're SUPER_ADMIN
     if (targetUser.roles.includes("ADMIN")) {
-      const actorUser = await prisma.user.findUnique({
+      const actorUser = await withDbRetry(() => prisma.user.findUnique({
         where: { id: session.user.id },
         select: { roles: true },
-      });
+      }));
       if (!actorUser?.roles.includes("ADMIN")) {
         return NextResponse.json({ error: "Cannot modify admin accounts" }, { status: 403 });
       }
@@ -67,7 +67,7 @@ export async function POST(
         break;
     }
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await withDbRetry(() => prisma.user.update({
       where: { id },
       data: { accountStatus: newStatus },
       select: {
@@ -78,10 +78,10 @@ export async function POST(
         accountStatus: true,
         roles: true,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: id,
@@ -94,7 +94,7 @@ export async function POST(
           reason: data.reason,
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: `User account ${data.action}ed successfully`,

@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function canAccessDocument(userId: string, document: any): Promise<boolean> {
   // Owner always has access
   if (document.ownerId === userId) return true;
 
   // Check user roles
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
 
   const isAdmin = user?.roles.some((r) => ["ADMIN", "MODERATOR", "COMPLIANCE"].includes(r));
   if (isAdmin) return true;
@@ -23,27 +23,27 @@ async function canAccessDocument(userId: string, document: any): Promise<boolean
       return true; // Will return redacted version
     case "TRANSACTION_PARTIES":
       if (document.transactionId) {
-        const transaction = await prisma.transaction.findUnique({
+        const transaction = await withDbRetry(() => prisma.transaction.findUnique({
           where: { id: document.transactionId },
           select: { buyerId: true, sellerId: true },
-        });
+        }));
         return transaction?.buyerId === userId || transaction?.sellerId === userId;
       }
       if (document.listingId) {
-        const listing = await prisma.listing.findUnique({
+        const listing = await withDbRetry(() => prisma.listing.findUnique({
           where: { id: document.listingId },
           select: { sellerId: true },
-        });
+        }));
         if (listing?.sellerId === userId) return true;
         
         // Check if buyer has active transaction
-        const hasTransaction = await prisma.transaction.findFirst({
+        const hasTransaction = await withDbRetry(() => prisma.transaction.findFirst({
           where: {
             listingId: document.listingId,
             buyerId: userId,
             status: { notIn: ["CLOSED", "REFUNDED"] },
           },
-        });
+        }));
         return !!hasTransaction;
       }
       return false;
@@ -65,14 +65,14 @@ export async function GET(
 
     const { id } = await params;
 
-    const document = await prisma.document.findUnique({
+    const document = await withDbRetry(() => prisma.document.findUnique({
       where: { id },
       include: {
         owner: { select: { id: true, fullName: true } },
         listing: { select: { id: true, title: true } },
         transaction: { select: { id: true } },
       },
-    });
+    }));
 
     if (!document) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
@@ -84,7 +84,7 @@ export async function GET(
     }
 
     // Log access
-    await prisma.documentAccessLog.create({
+    await withDbRetry(() => prisma.documentAccessLog.create({
       data: {
         documentId: id,
         userId: session.user.id,
@@ -92,7 +92,7 @@ export async function GET(
         ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined,
         userAgent: request.headers.get("user-agent") || undefined,
       },
-    });
+    }));
 
     // Return redacted URL if applicable
     const useRedacted = document.accessPolicy === "LOGGED_IN_REDACTED" && 
@@ -123,10 +123,10 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const document = await prisma.document.findUnique({
+    const document = await withDbRetry(() => prisma.document.findUnique({
       where: { id },
       select: { id: true, ownerId: true, type: true },
-    });
+    }));
 
     if (!document) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
@@ -134,19 +134,19 @@ export async function DELETE(
 
     if (document.ownerId !== session.user.id) {
       // Check if admin
-      const user = await prisma.user.findUnique({
+      const user = await withDbRetry(() => prisma.user.findUnique({
         where: { id: session.user.id },
         select: { roles: true },
-      });
+      }));
       if (!user?.roles.includes("ADMIN")) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
 
-    await prisma.document.delete({ where: { id } });
+    await withDbRetry(() => prisma.document.delete({ where: { id } }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "DOCUMENT",
         entityId: id,
@@ -155,7 +155,7 @@ export async function DELETE(
         action: "DELETE",
         diff: { type: document.type },
       },
-    });
+    }));
 
     return NextResponse.json({ message: "Document deleted" });
   } catch (error) {

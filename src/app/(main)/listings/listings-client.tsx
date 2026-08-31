@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useEffect, Suspense, useCallback } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   MapPin,
   Ruler,
   CheckCircle,
-  Grid,
-  List,
   ChevronRight,
   Loader2,
   Search,
@@ -26,30 +23,20 @@ import {
   Layers,
   SlidersHorizontal,
   Heart,
-  Share2,
-  Eye,
-  TrendingUp,
   Shield,
   Clock,
   Filter,
   X,
   ChevronDown,
-  Sparkles,
-  Map,
+  Grid,
+  List,
   LayoutGrid,
-  ArrowUpDown,
-  Bookmark,
-  Phone,
-  MessageCircle,
 } from "lucide-react";
 
 function formatPrice(price: string | number) {
   const num = typeof price === "string" ? parseFloat(price) : price;
-  if (num >= 1000000) {
-    return `GH₵${(num / 1000000).toFixed(1)}M`;
-  } else if (num >= 1000) {
-    return `GH₵${(num / 1000).toFixed(0)}K`;
-  }
+  if (num >= 1000000) return `GH₵${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `GH₵${(num / 1000).toFixed(0)}K`;
   return `GH₵${num.toLocaleString()}`;
 }
 
@@ -87,33 +74,62 @@ interface ListingsClientProps {
   landTypes: string[];
 }
 
+const HERO_IMAGE = "/images/african-nature-scenery-with-road-trees.jpg";
+
+// Demo bare-land imagery used when a listing has no uploaded media
+const DEMO_LAND_IMAGES = Array.from(
+  { length: 15 },
+  (_, i) => `/images/listings/land-${i + 1}.jpg`
+);
+
+// Deterministic pick so each listing keeps a stable demo image
+function demoLandImage(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return DEMO_LAND_IMAGES[hash % DEMO_LAND_IMAGES.length];
+}
+
 function getVerificationBadge(level: string) {
   switch (level) {
     case "LEVEL_3_OFFICIAL_VERIFIED":
-      return { label: "Verified", variant: "success" as const, icon: Shield };
+      return { label: "Verified", icon: Shield, verified: true };
     case "LEVEL_2_PLATFORM_REVIEWED":
-      return { label: "Reviewed", variant: "default" as const, icon: CheckCircle };
+      return { label: "Reviewed", icon: CheckCircle, verified: false };
     case "LEVEL_1_DOCS_UPLOADED":
-      return { label: "Docs Uploaded", variant: "secondary" as const, icon: Clock };
+      return { label: "Docs Uploaded", icon: Clock, verified: false };
     default:
-      return { label: "Unverified", variant: "outline" as const, icon: Clock };
+      return { label: "Unverified", icon: Clock, verified: false };
   }
 }
 
-const landTypeConfig: Record<string, { icon: any; color: string; bgColor: string }> = {
-  RESIDENTIAL: { icon: Home, color: "text-blue-600", bgColor: "bg-blue-50" },
-  COMMERCIAL: { icon: Building2, color: "text-purple-600", bgColor: "bg-purple-50" },
-  INDUSTRIAL: { icon: Factory, color: "text-orange-600", bgColor: "bg-orange-50" },
-  AGRICULTURAL: { icon: Tractor, color: "text-green-600", bgColor: "bg-green-50" },
-  MIXED: { icon: Layers, color: "text-amber-600", bgColor: "bg-amber-50" },
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const landTypeIcons: Record<string, any> = {
+  RESIDENTIAL: Home,
+  COMMERCIAL: Building2,
+  INDUSTRIAL: Factory,
+  AGRICULTURAL: Tractor,
+  MIXED: Layers,
 };
+
+function landTypeLabel(type: string) {
+  return type.charAt(0) + type.slice(1).toLowerCase().replace("_", " ");
+}
+
+// Editorial eyebrow label
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+      <span className="h-px w-6 bg-amber-400" />
+      {children}
+    </span>
+  );
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08 },
-  },
+  visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
 };
 
 const itemVariants = {
@@ -140,7 +156,6 @@ function ListingsClientInner({
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [savedListings, setSavedListings] = useState<Set<string>>(new Set());
-  const [hoveredListing, setHoveredListing] = useState<string | null>(null);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
@@ -156,28 +171,27 @@ function ListingsClientInner({
   const [verifiedOnly, setVerifiedOnly] = useState(searchParams.get("verified") === "true");
   const [sortBy, setSortBy] = useState(searchParams.get("sortBy") || "newest");
 
-  // Filter constituencies and districts based on selected region
-  const filteredConstituencies = selectedRegion
-    ? constituencies.filter((c) => c.startsWith(selectedRegion))
-    : constituencies;
   const filteredDistricts = selectedRegion
     ? districts.filter((d) => d.startsWith(selectedRegion))
     : districts;
 
-  // Get user location
+  // Refs for infinite scroll (avoid stale closures inside the observer)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const isLoadingRef = useRef(isLoading);
+  const hasMoreRef = useRef(hasMore);
+  const fetchMoreRef = useRef<() => void>(() => {});
+  isLoadingRef.current = isLoading;
+  hasMoreRef.current = hasMore;
+
   const getUserLocation = () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser");
       return;
     }
-
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
+        setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
         setIsLocating(false);
         fetchListingsNearby(position.coords.latitude, position.coords.longitude);
       },
@@ -197,7 +211,6 @@ function ListingsClientInner({
       params.set("lng", lng.toString());
       params.set("radius", "50");
       params.set("limit", "20");
-
       const res = await fetch(`/api/listings?${params.toString()}`);
       const data = await res.json();
       setListings(data.listings || []);
@@ -283,11 +296,8 @@ function ListingsClientInner({
     e.stopPropagation();
     setSavedListings((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
       return newSet;
     });
   };
@@ -307,66 +317,78 @@ function ListingsClientInner({
     userLocation,
   ].filter(Boolean).length;
 
-  // Stats for the header
   const totalListings = listings.length;
   const verifiedCount = listings.filter(
     (l) => l.verificationLevel === "LEVEL_3_OFFICIAL_VERIFIED"
   ).length;
 
+  // Keep the ref pointing at the latest fetch closure
+  fetchMoreRef.current = () => {
+    if (!isLoadingRef.current && hasMoreRef.current) fetchListings(false);
+  };
+
+  // Auto-load more when the sentinel scrolls into view
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) fetchMoreRef.current();
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-green-900">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }}
+    <div className="min-h-screen bg-[#faf8f2]">
+      {/* ============================================================
+          EDITORIAL HERO HEADER
+          ============================================================ */}
+      <section className="relative overflow-hidden bg-black">
+        <div className="absolute inset-0">
+          <Image
+            src={HERO_IMAGE}
+            alt="Ghana landscape"
+            fill
+            priority
+            className="object-cover scale-105"
           />
         </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#faf8f2] via-transparent to-black/30" />
 
-        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-5 w-5 text-yellow-400" />
-              <span className="text-emerald-200 text-sm font-medium">
-                {totalListings}+ Properties Available
-              </span>
-            </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
-              Find Your Perfect
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-300">
-                Land in Ghana
-              </span>
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-28 pb-20 lg:pt-32 lg:pb-28">
+          <div className="max-w-3xl">
+            <Eyebrow>{totalListings}+ verified plots available</Eyebrow>
+            <h1 className="font-display mt-6 text-4xl font-semibold leading-[1.05] tracking-tight text-white text-shadow-hero sm:text-5xl lg:text-6xl">
+              Find your perfect
+              <br />
+              land in <span className="italic text-amber-300">Ghana</span>
             </h1>
-            <p className="text-lg text-emerald-100 max-w-2xl mb-8">
-              Discover verified land listings across all 16 regions. From residential plots to
-              commercial properties, find exactly what you&apos;re looking for.
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/85 text-shadow-soft">
+              Discover verified land listings across all 16 regions — from residential
+              plots to commercial and agricultural parcels.
             </p>
 
-            {/* Search Bar */}
-            <div className="flex flex-col sm:flex-row gap-3 max-w-3xl">
+            {/* Search console */}
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search by location, title, or keyword..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/95 backdrop-blur-sm shadow-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all"
+                  className="w-full rounded-xl bg-white/95 py-4 pl-12 pr-4 text-gray-900 shadow-xl backdrop-blur-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 />
               </div>
-              <Button
+              <button
                 onClick={getUserLocation}
                 disabled={isLocating}
-                className="px-6 py-4 h-auto bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-2xl backdrop-blur-sm flex items-center gap-2 transition-all"
+                className="flex items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-6 py-4 font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
               >
                 {isLocating ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -374,87 +396,95 @@ function ListingsClientInner({
                   <Navigation className="h-5 w-5" />
                 )}
                 {isLocating ? "Locating..." : "Near Me"}
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={applyFilters}
-                className="px-8 py-4 h-auto bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-2xl shadow-lg transition-all"
+                className="flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-8 py-4 font-semibold text-emerald-950 shadow-lg shadow-amber-400/25 transition-all hover:bg-amber-300"
               >
-                <Search className="h-5 w-5 mr-2" />
+                <Search className="h-5 w-5" />
                 Search
-              </Button>
+              </button>
             </div>
 
             {userLocation && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-4 text-emerald-300 text-sm flex items-center gap-2"
-              >
+              <p className="mt-4 flex items-center gap-2 text-sm text-amber-200 text-shadow-soft">
                 <CheckCircle className="h-4 w-4" />
                 Showing lands near your location
-              </motion.p>
+              </p>
             )}
-          </motion.div>
+          </div>
         </div>
+      </section>
 
-        {/* Wave Divider */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z"
-              fill="#f9fafb"
-            />
-          </svg>
-        </div>
-      </div>
-
-      {/* Quick Stats Bar */}
-      <div className="bg-white border-b shadow-sm -mt-1">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
+      {/* ============================================================
+          STICKY TOOLBAR
+          ============================================================ */}
+      <div className="sticky top-0 z-30 border-b border-emerald-950/10 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-5">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-emerald-100 rounded-lg">
-                  <LayoutGrid className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{totalListings}</p>
-                  <p className="text-xs text-gray-500">Total Listings</p>
-                </div>
+                <LayoutGrid className="h-5 w-5 text-emerald-700" />
+                <span className="text-sm text-gray-600">
+                  <span className="font-display text-lg font-semibold text-emerald-950">
+                    {totalListings}
+                  </span>{" "}
+                  results
+                </span>
               </div>
-              <div className="h-10 w-px bg-gray-200" />
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Shield className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{verifiedCount}</p>
-                  <p className="text-xs text-gray-500">Verified</p>
-                </div>
+              <div className="hidden h-6 w-px bg-gray-200 sm:block" />
+              <div className="hidden items-center gap-2 sm:flex">
+                <Shield className="h-5 w-5 text-emerald-700" />
+                <span className="text-sm text-gray-600">
+                  <span className="font-display text-lg font-semibold text-emerald-950">
+                    {verifiedCount}
+                  </span>{" "}
+                  verified
+                </span>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className={`${showFilters ? "bg-emerald-50 border-emerald-200 text-emerald-700" : ""}`}
+              {/* Sort */}
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  applyFilters();
+                }}
+                className="hidden rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 sm:block"
               >
-                <Filter className="h-4 w-4 mr-2" />
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="price_low">Price: Low to High</option>
+                <option value="price_high">Price: High to Low</option>
+                <option value="size_low">Size: Small to Large</option>
+                <option value="size_high">Size: Large to Small</option>
+              </select>
+
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                  showFilters
+                    ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-emerald-300"
+                }`}
+              >
+                <Filter className="h-4 w-4" />
                 Filters
                 {activeFilterCount > 0 && (
-                  <span className="ml-2 px-2 py-0.5 bg-emerald-600 text-white text-xs rounded-full">
+                  <span className="ml-1 rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white">
                     {activeFilterCount}
                   </span>
                 )}
-              </Button>
+              </button>
 
-              <div className="flex border rounded-xl overflow-hidden">
+              <div className="flex overflow-hidden rounded-xl border border-gray-200">
                 <button
                   onClick={() => setViewMode("grid")}
                   className={`p-2.5 transition-colors ${
                     viewMode === "grid"
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-emerald-700 text-white"
                       : "bg-white text-gray-400 hover:text-gray-600"
                   }`}
                 >
@@ -464,7 +494,7 @@ function ListingsClientInner({
                   onClick={() => setViewMode("list")}
                   className={`p-2.5 transition-colors ${
                     viewMode === "list"
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-emerald-700 text-white"
                       : "bg-white text-gray-400 hover:text-gray-600"
                   }`}
                 >
@@ -476,7 +506,9 @@ function ListingsClientInner({
         </div>
       </div>
 
-      {/* Filters Panel */}
+      {/* ============================================================
+          FILTERS PANEL
+          ============================================================ */}
       <AnimatePresence>
         {showFilters && (
           <motion.div
@@ -484,21 +516,21 @@ function ListingsClientInner({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-white border-b overflow-hidden"
+            className="overflow-hidden border-b border-emerald-950/10 bg-white"
           >
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-              {/* Land Type Quick Filters */}
+              {/* Land Type quick filters */}
               <div className="mb-6">
-                <p className="text-sm font-medium text-gray-700 mb-3">Property Type</p>
+                <p className="mb-3 text-sm font-medium text-gray-700">Property type</p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => {
                       setSelectedLandType("");
                       applyFilters();
                     }}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                       !selectedLandType
-                        ? "bg-emerald-600 text-white shadow-md"
+                        ? "bg-emerald-700 text-white shadow-md"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
@@ -506,12 +538,7 @@ function ListingsClientInner({
                     All Types
                   </button>
                   {landTypes.map((type) => {
-                    const config = landTypeConfig[type] || {
-                      icon: Layers,
-                      color: "text-gray-600",
-                      bgColor: "bg-gray-50",
-                    };
-                    const Icon = config.icon;
+                    const Icon = landTypeIcons[type] || Layers;
                     return (
                       <button
                         key={type}
@@ -519,25 +546,24 @@ function ListingsClientInner({
                           setSelectedLandType(type);
                           applyFilters();
                         }}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+                        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                           selectedLandType === type
-                            ? "bg-emerald-600 text-white shadow-md"
-                            : `${config.bgColor} ${config.color} hover:shadow-md`
+                            ? "bg-emerald-700 text-white shadow-md"
+                            : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
                         }`}
                       >
                         <Icon className="h-4 w-4" />
-                        {type.charAt(0) + type.slice(1).toLowerCase().replace("_", " ")}
+                        {landTypeLabel(type)}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Filter Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Region */}
+              {/* Filter grid */}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Region</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Region</label>
                   <select
                     value={selectedRegion}
                     onChange={(e) => {
@@ -545,7 +571,7 @@ function ListingsClientInner({
                       setSelectedConstituency("");
                       setSelectedDistrict("");
                     }}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition-all"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="">All Regions</option>
                     {regions.map((region) => (
@@ -556,13 +582,12 @@ function ListingsClientInner({
                   </select>
                 </div>
 
-                {/* District */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">District</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">District</label>
                   <select
                     value={selectedDistrict}
                     onChange={(e) => setSelectedDistrict(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition-all"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="">All Districts</option>
                     {filteredDistricts.map((district) => (
@@ -573,15 +598,12 @@ function ListingsClientInner({
                   </select>
                 </div>
 
-                {/* Tenure Type */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Tenure Type
-                  </label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Tenure type</label>
                   <select
                     value={tenureType}
                     onChange={(e) => setTenureType(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition-all"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="">All Types</option>
                     <option value="FREEHOLD">Freehold</option>
@@ -590,13 +612,12 @@ function ListingsClientInner({
                   </select>
                 </div>
 
-                {/* Sort By */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Sort By</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Sort by</label>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition-all"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm transition-all focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
@@ -608,13 +629,13 @@ function ListingsClientInner({
                 </div>
               </div>
 
-              {/* Price & Size Range */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {/* Price & size range */}
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Price Range (GH₵)
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Price range (GH₵)
                   </label>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex items-center gap-2">
                     <Input
                       type="number"
                       placeholder="Min"
@@ -634,10 +655,8 @@ function ListingsClientInner({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Size (Acres)
-                  </label>
-                  <div className="flex gap-2 items-center">
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Size (acres)</label>
+                  <div className="flex items-center gap-2">
                     <Input
                       type="number"
                       placeholder="Min"
@@ -657,32 +676,39 @@ function ListingsClientInner({
                 </div>
               </div>
 
-              {/* Action Row */}
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-4 pt-4 border-t">
-                <label className="flex items-center gap-3 cursor-pointer group">
+              {/* Action row */}
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-4">
+                <label className="group flex cursor-pointer items-center gap-3">
                   <div className="relative">
                     <input
                       type="checkbox"
                       checked={verifiedOnly}
                       onChange={(e) => setVerifiedOnly(e.target.checked)}
-                      className="sr-only peer"
+                      className="peer sr-only"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-4 peer-focus:ring-emerald-300"></div>
                   </div>
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-emerald-600 transition-colors">
+                  <span className="text-sm font-medium text-gray-700 transition-colors group-hover:text-emerald-700">
                     Verified listings only
                   </span>
                 </label>
 
                 <div className="flex items-center gap-3">
                   {activeFilterCount > 0 && (
-                    <Button variant="ghost" onClick={clearFilters} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                      <X className="h-4 w-4 mr-2" />
+                    <Button
+                      variant="ghost"
+                      onClick={clearFilters}
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <X className="mr-2 h-4 w-4" />
                       Clear all ({activeFilterCount})
                     </Button>
                   )}
-                  <Button onClick={applyFilters} className="bg-emerald-600 hover:bg-emerald-700 rounded-xl px-6">
-                    <SlidersHorizontal className="h-4 w-4 mr-2" />
+                  <Button
+                    onClick={applyFilters}
+                    className="rounded-xl bg-emerald-700 px-6 hover:bg-emerald-800"
+                  >
+                    <SlidersHorizontal className="mr-2 h-4 w-4" />
                     Apply Filters
                   </Button>
                 </div>
@@ -692,38 +718,35 @@ function ListingsClientInner({
         )}
       </AnimatePresence>
 
-      {/* Listings */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      {/* ============================================================
+          LISTINGS
+          ============================================================ */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
         {listings.length === 0 && !isLoading ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16"
-          >
-            <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6">
-              <MapPin className="h-10 w-10 text-gray-400" />
+          <div className="py-16 text-center">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50">
+              <MapPin className="h-10 w-10 text-emerald-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No listings found</h3>
-            <p className="text-gray-600 max-w-md mx-auto mb-6">
+            <h3 className="font-display text-2xl font-semibold text-emerald-950">No listings found</h3>
+            <p className="mx-auto mt-2 max-w-md text-gray-600">
               {activeFilterCount > 0
-                ? "Try adjusting your filters to see more results"
-                : "Be the first to list your land on Buy Ghana Lands"}
+                ? "Try adjusting your filters to see more results."
+                : "Be the first to list your land on Buy Ghana Lands."}
             </p>
-            {activeFilterCount > 0 ? (
-              <Button onClick={clearFilters} variant="outline" className="rounded-xl">
-                Clear Filters
-              </Button>
-            ) : (
-              <Link href="/listings/create">
-                <Button className="bg-emerald-600 hover:bg-emerald-700 rounded-xl">
-                  List Your Land
+            <div className="mt-6">
+              {activeFilterCount > 0 ? (
+                <Button onClick={clearFilters} variant="outline" className="rounded-xl">
+                  Clear Filters
                 </Button>
-              </Link>
-            )}
-          </motion.div>
+              ) : (
+                <Link href="/listings/create">
+                  <Button className="rounded-xl bg-emerald-700 hover:bg-emerald-800">List Your Land</Button>
+                </Link>
+              )}
+            </div>
+          </div>
         ) : (
           <>
-            {/* Grid View */}
             {viewMode === "grid" ? (
               <motion.div
                 variants={containerVariants}
@@ -737,14 +760,11 @@ function ListingsClientInner({
                       listing={listing}
                       isSaved={savedListings.has(listing.id)}
                       onToggleSave={toggleSaveListing}
-                      isHovered={hoveredListing === listing.id}
-                      onHover={setHoveredListing}
                     />
                   </motion.div>
                 ))}
               </motion.div>
             ) : (
-              /* List View */
               <motion.div
                 variants={containerVariants}
                 initial="hidden"
@@ -763,29 +783,32 @@ function ListingsClientInner({
               </motion.div>
             )}
 
-            {/* Load More */}
+            {/* Infinite-scroll sentinel */}
             {hasMore && (
-              <div className="mt-12 text-center">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => fetchListings(false)}
-                  disabled={isLoading}
-                  className="rounded-xl px-8"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      Load More Listings
-                      <ChevronDown className="ml-2 h-5 w-5" />
-                    </>
-                  )}
-                </Button>
+              <div ref={loadMoreRef} className="mt-12 flex justify-center">
+                {isLoading ? (
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="text-sm font-medium">Loading more listings...</span>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => fetchListings(false)}
+                    className="rounded-xl border-emerald-200 px-8 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    Load More Listings
+                    <ChevronDown className="ml-2 h-5 w-5" />
+                  </Button>
+                )}
               </div>
+            )}
+
+            {!hasMore && listings.length > 0 && (
+              <p className="mt-12 text-center text-sm text-gray-400">
+                You&apos;ve reached the end of the results.
+              </p>
             )}
           </>
         )}
@@ -798,108 +821,92 @@ function ListingCard({
   listing,
   isSaved,
   onToggleSave,
-  isHovered,
-  onHover,
 }: {
   listing: Listing;
   isSaved: boolean;
   onToggleSave: (id: string, e: React.MouseEvent) => void;
-  isHovered: boolean;
-  onHover: (id: string | null) => void;
 }) {
   const badge = getVerificationBadge(listing.verificationLevel);
   const BadgeIcon = badge.icon;
-  const imageUrl = listing.media[0]?.url || "/placeholder-land.svg";
-  const landConfig = landTypeConfig[listing.landType] || {
-    icon: Layers,
-    color: "text-gray-600",
-    bgColor: "bg-gray-50",
-  };
-  const LandIcon = landConfig.icon;
+  const imageUrl = listing.media[0]?.url || demoLandImage(listing.id);
+  const LandIcon = landTypeIcons[listing.landType] || Layers;
 
   return (
     <Link href={`/listings/${listing.id}`}>
-      <Card
-        className="group overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer h-full border-0 shadow-md rounded-2xl"
-        onMouseEnter={() => onHover(listing.id)}
-        onMouseLeave={() => onHover(null)}
-      >
-        <div className="relative h-52 bg-gray-200 overflow-hidden">
+      <div className="group h-full overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+        <div className="relative aspect-[16/11] overflow-hidden bg-gray-100">
           <Image
             src={imageUrl}
             alt={listing.title}
             fill
-            className="object-cover group-hover:scale-110 transition-transform duration-500"
+            className="object-cover transition-transform duration-700 group-hover:scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-          {/* Top Badges */}
-          <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
-            <Badge
-              variant={badge.variant}
-              className="flex items-center gap-1 backdrop-blur-sm bg-white/90"
-            >
-              <BadgeIcon className="h-3 w-3" />
-              {badge.label}
-            </Badge>
-            <button
-              onClick={(e) => onToggleSave(listing.id, e)}
-              className={`p-2 rounded-full backdrop-blur-sm transition-all ${
-                isSaved
-                  ? "bg-red-500 text-white"
-                  : "bg-white/90 text-gray-600 hover:bg-white hover:text-red-500"
-              }`}
-            >
-              <Heart className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`} />
-            </button>
+          {/* Verification badge */}
+          <div
+            className={`absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm ${
+              badge.verified
+                ? "bg-amber-400 text-emerald-950"
+                : "bg-white/95 text-emerald-700"
+            }`}
+          >
+            <BadgeIcon className="h-3.5 w-3.5" />
+            {badge.label}
           </div>
 
-          {/* Land Type Badge */}
-          <div className="absolute bottom-3 left-3">
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm ${landConfig.bgColor} ${landConfig.color}`}
-            >
-              <LandIcon className="h-3.5 w-3.5" />
-              {listing.landType.charAt(0) + listing.landType.slice(1).toLowerCase()}
-            </div>
+          {/* Save */}
+          <button
+            onClick={(e) => onToggleSave(listing.id, e)}
+            className={`absolute right-4 top-4 rounded-full p-2 backdrop-blur-sm transition-all ${
+              isSaved ? "bg-red-500 text-white" : "bg-white/90 text-gray-600 hover:text-red-500"
+            }`}
+          >
+            <Heart className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`} />
+          </button>
+
+          {/* Land type pill */}
+          <div className="absolute bottom-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-emerald-800 backdrop-blur-sm">
+            <LandIcon className="h-3.5 w-3.5" />
+            {landTypeLabel(listing.landType)}
           </div>
 
           {listing.negotiable && (
-            <div className="absolute bottom-3 right-3">
-              <Badge variant="secondary" className="backdrop-blur-sm bg-white/90">
-                Negotiable
-              </Badge>
+            <div className="absolute bottom-4 right-4 rounded-full bg-emerald-950/70 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+              Negotiable
             </div>
           )}
         </div>
 
-        <CardContent className="p-4">
-          <div className="mb-3">
-            <h3 className="font-semibold text-gray-900 line-clamp-1 group-hover:text-emerald-600 transition-colors">
-              {listing.title}
-            </h3>
-            <div className="flex items-center mt-1.5 text-sm text-gray-500">
-              <MapPin className="h-4 w-4 mr-1 text-emerald-500" />
+        <div className="p-5">
+          <div className="flex items-center gap-1.5 text-sm text-gray-500">
+            <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="truncate">
               {listing.town ? `${listing.town}, ` : ""}
               {listing.district}
-            </div>
+            </span>
           </div>
+          <h3 className="font-display mt-1.5 line-clamp-1 text-lg font-semibold text-emerald-950 transition-colors group-hover:text-emerald-700">
+            {listing.title}
+          </h3>
 
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <div className="mt-4 flex items-end justify-between border-t border-gray-100 pt-4">
             <div>
-              <p className="text-2xl font-bold text-emerald-600">{formatPrice(listing.priceGhs)}</p>
-              <p className="text-xs text-gray-500">{formatPriceFull(listing.priceGhs)}</p>
+              <p className="font-display text-2xl font-semibold text-emerald-700">
+                {formatPrice(listing.priceGhs)}
+              </p>
+              <p className="text-xs text-gray-400">{formatPriceFull(listing.priceGhs)}</p>
             </div>
             <div className="text-right">
-              <div className="flex items-center text-sm font-medium text-gray-700">
-                <Ruler className="h-4 w-4 mr-1 text-gray-400" />
-                {Number(listing.sizeAcres).toFixed(2)} acres
+              <div className="flex items-center gap-1 text-sm font-medium text-emerald-950">
+                <Ruler className="h-4 w-4 text-gray-400" />
+                {Number(listing.sizeAcres).toFixed(2)} ac
               </div>
-              <p className="text-xs text-gray-500 capitalize">{listing.tenureType.toLowerCase()}</p>
+              <p className="text-xs capitalize text-gray-400">{listing.tenureType.toLowerCase()}</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 }
@@ -915,106 +922,88 @@ function ListingListItem({
 }) {
   const badge = getVerificationBadge(listing.verificationLevel);
   const BadgeIcon = badge.icon;
-  const imageUrl = listing.media[0]?.url || "/placeholder-land.svg";
-  const landConfig = landTypeConfig[listing.landType] || {
-    icon: Layers,
-    color: "text-gray-600",
-    bgColor: "bg-gray-50",
-  };
-  const LandIcon = landConfig.icon;
+  const imageUrl = listing.media[0]?.url || demoLandImage(listing.id);
+  const LandIcon = landTypeIcons[listing.landType] || Layers;
 
   return (
     <Link href={`/listings/${listing.id}`}>
-      <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-md rounded-2xl">
+      <div className="group overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:shadow-2xl">
         <div className="flex flex-col sm:flex-row">
-          <div className="relative w-full sm:w-72 h-48 sm:h-auto bg-gray-200 overflow-hidden flex-shrink-0">
+          <div className="relative h-52 w-full flex-shrink-0 overflow-hidden bg-gray-100 sm:h-auto sm:w-80">
             <Image
               src={imageUrl}
               alt={listing.title}
               fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20 sm:bg-gradient-to-t sm:from-black/40 sm:via-transparent sm:to-transparent" />
-
-            {/* Save Button */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
             <button
               onClick={(e) => onToggleSave(listing.id, e)}
-              className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-sm transition-all ${
-                isSaved
-                  ? "bg-red-500 text-white"
-                  : "bg-white/90 text-gray-600 hover:bg-white hover:text-red-500"
+              className={`absolute right-3 top-3 rounded-full p-2 backdrop-blur-sm transition-all ${
+                isSaved ? "bg-red-500 text-white" : "bg-white/90 text-gray-600 hover:text-red-500"
               }`}
             >
               <Heart className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`} />
             </button>
-
-            {/* Land Type Badge */}
-            <div className="absolute bottom-3 left-3">
-              <div
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm ${landConfig.bgColor} ${landConfig.color}`}
-              >
-                <LandIcon className="h-3.5 w-3.5" />
-                {listing.landType.charAt(0) + listing.landType.slice(1).toLowerCase()}
-              </div>
+            <div className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-emerald-800 backdrop-blur-sm">
+              <LandIcon className="h-3.5 w-3.5" />
+              {landTypeLabel(listing.landType)}
             </div>
           </div>
 
-          <CardContent className="flex-1 p-5">
-            <div className="flex flex-col h-full">
-              <div className="flex items-start justify-between gap-4 mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge
-                      variant={badge.variant}
-                      className="flex items-center gap-1"
-                    >
-                      <BadgeIcon className="h-3 w-3" />
-                      {badge.label}
-                    </Badge>
-                    {listing.negotiable && <Badge variant="secondary">Negotiable</Badge>}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors line-clamp-1">
-                    {listing.title}
-                  </h3>
-                  <div className="flex items-center mt-1 text-sm text-gray-500">
-                    <MapPin className="h-4 w-4 mr-1 text-emerald-500" />
-                    {listing.town ? `${listing.town}, ` : ""}
-                    {listing.district}, {listing.region}
-                  </div>
+          <div className="flex flex-1 flex-col p-6">
+            <div className="mb-3 flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      badge.verified
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    <BadgeIcon className="h-3 w-3" />
+                    {badge.label}
+                  </span>
+                  {listing.negotiable && (
+                    <Badge variant="secondary">Negotiable</Badge>
+                  )}
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-emerald-600">{formatPrice(listing.priceGhs)}</p>
-                  <p className="text-xs text-gray-500">{formatPriceFull(listing.priceGhs)}</p>
+                <h3 className="font-display line-clamp-1 text-xl font-semibold text-emerald-950 transition-colors group-hover:text-emerald-700">
+                  {listing.title}
+                </h3>
+                <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
+                  <MapPin className="h-4 w-4 text-emerald-600" />
+                  {listing.town ? `${listing.town}, ` : ""}
+                  {listing.district}, {listing.region}
                 </div>
               </div>
-
-              <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">
-                {listing.description}
-              </p>
-
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Ruler className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium">{Number(listing.sizeAcres).toFixed(2)} acres</span>
-                  </div>
-                  <div className="flex items-center gap-1 capitalize">
-                    <span>{listing.tenureType.toLowerCase()}</span>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                >
-                  View Details
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
+              <div className="text-right">
+                <p className="font-display text-2xl font-semibold text-emerald-700">
+                  {formatPrice(listing.priceGhs)}
+                </p>
+                <p className="text-xs text-gray-400">{formatPriceFull(listing.priceGhs)}</p>
               </div>
             </div>
-          </CardContent>
+
+            <p className="mb-4 line-clamp-2 flex-1 text-sm text-gray-600">{listing.description}</p>
+
+            <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  <Ruler className="h-4 w-4 text-gray-400" />
+                  <span className="font-medium">{Number(listing.sizeAcres).toFixed(2)} acres</span>
+                </div>
+                <span className="capitalize">{listing.tenureType.toLowerCase()}</span>
+              </div>
+              <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700">
+                View details
+                <ChevronRight className="h-4 w-4" />
+              </span>
+            </div>
+          </div>
         </div>
-      </Card>
+      </div>
     </Link>
   );
 }
@@ -1029,12 +1018,12 @@ export function ListingsClient({
   return (
     <Suspense
       fallback={
-        <div className="bg-gray-50 min-h-screen">
-          <div className="bg-emerald-900 h-64" />
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <div className="min-h-screen bg-[#faf8f2]">
+          <div className="h-72 bg-emerald-950" />
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {[...Array(8)].map((_, i) => (
-                <div key={i} className="h-80 bg-gray-200 animate-pulse rounded-2xl" />
+                <div key={i} className="h-80 animate-pulse rounded-3xl bg-gray-200" />
               ))}
             </div>
           </div>
@@ -1051,4 +1040,3 @@ export function ListingsClient({
     </Suspense>
   );
 }
-

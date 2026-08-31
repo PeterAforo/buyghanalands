@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
@@ -57,12 +57,12 @@ export async function POST(request: NextRequest) {
 
     // If listingId provided, verify ownership
     if (listingId) {
-      const listing = await prisma.listing.findFirst({
+      const listing = await withDbRetry(() => prisma.listing.findFirst({
         where: {
           id: listingId,
           sellerId: session.user.id,
         },
-      });
+      }));
 
       if (!listing) {
         return NextResponse.json(
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
     // Get current max sort order for listing media
     let sortOrder = 0;
     if (listingId && type === "image") {
-      const maxSort = await prisma.listingMedia.aggregate({
+      const maxSort = await withDbRetry(() => prisma.listingMedia.aggregate({
         where: { listingId },
         _max: { sortOrder: true },
-      });
+      }));
       sortOrder = (maxSort._max.sortOrder || 0) + 1;
     }
 
@@ -116,14 +116,14 @@ export async function POST(request: NextRequest) {
 
         // Save to database if it's a listing image
         if (listingId && type === "image") {
-          const media = await prisma.listingMedia.create({
+          const media = await withDbRetry(() => prisma.listingMedia.create({
             data: {
               listingId,
               type: "PHOTO",
               url: uploadResult.secure_url,
               sortOrder: sortOrder++,
             },
-          });
+          }));
 
           uploadedFiles.push({
             id: media.id,

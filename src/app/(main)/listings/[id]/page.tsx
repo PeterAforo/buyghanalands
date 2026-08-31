@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
@@ -23,53 +23,55 @@ import { ListingMapWrapper } from "./listing-map-wrapper";
 
 async function getListing(id: string) {
   try {
-    const listing = await prisma.listing.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        region: true,
-        district: true,
-        town: true,
-        latitude: true,
-        longitude: true,
-        landType: true,
-        tenureType: true,
-        leaseDurationYears: true,
-        sizeAcres: true,
-        totalPlots: true,
-        priceGhs: true,
-        negotiable: true,
-        verificationLevel: true,
-        publishedAt: true,
-        seller: {
-          select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            kycTier: true,
-            createdAt: true,
+    const listing = await withDbRetry(() =>
+      prisma.listing.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          region: true,
+          district: true,
+          town: true,
+          latitude: true,
+          longitude: true,
+          landType: true,
+          tenureType: true,
+          leaseDurationYears: true,
+          sizeAcres: true,
+          totalPlots: true,
+          priceGhs: true,
+          negotiable: true,
+          verificationLevel: true,
+          publishedAt: true,
+          seller: {
+            select: {
+              id: true,
+              fullName: true,
+              phone: true,
+              kycTier: true,
+              createdAt: true,
+            },
+          },
+          media: {
+            orderBy: { sortOrder: "asc" },
+            select: {
+              id: true,
+              url: true,
+            },
+          },
+          documents: {
+            where: {
+              accessPolicy: { in: ["PUBLIC", "LOGGED_IN_REDACTED"] },
+            },
+            select: {
+              id: true,
+              type: true,
+            },
           },
         },
-        media: {
-          orderBy: { sortOrder: "asc" },
-          select: {
-            id: true,
-            url: true,
-          },
-        },
-        documents: {
-          where: {
-            accessPolicy: { in: ["PUBLIC", "LOGGED_IN_REDACTED"] },
-          },
-          select: {
-            id: true,
-            type: true,
-          },
-        },
-      },
-    });
+      })
+    );
 
     if (!listing) return null;
 

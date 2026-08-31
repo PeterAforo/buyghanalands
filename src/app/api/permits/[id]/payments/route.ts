@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -15,29 +15,29 @@ export async function GET(
 
     const { id } = await params;
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { applicantId: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
     }
 
     if (permit.applicantId !== session.user.id) {
-      const user = await prisma.user.findUnique({
+      const user = await withDbRetry(() => prisma.user.findUnique({
         where: { id: session.user.id },
         select: { roles: true },
-      });
+      }));
       if (!user?.roles.some((r) => ["ADMIN", "FINANCE"].includes(r))) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
 
-    const payments = await prisma.permitFeePayment.findMany({
+    const payments = await withDbRetry(() => prisma.permitFeePayment.findMany({
       where: { permitApplicationId: id },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(
       payments.map((p) => ({
@@ -70,10 +70,10 @@ export async function POST(
     const body = await request.json();
     const data = initiatePaymentSchema.parse(body);
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { applicantId: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -84,13 +84,13 @@ export async function POST(
     }
 
     // Check for existing pending payment of same type
-    const existingPayment = await prisma.permitFeePayment.findFirst({
+    const existingPayment = await withDbRetry(() => prisma.permitFeePayment.findFirst({
       where: {
         permitApplicationId: id,
         feeType: data.feeType,
         status: { in: ["INITIATED", "PENDING"] },
       },
-    });
+    }));
 
     if (existingPayment) {
       return NextResponse.json(
@@ -99,14 +99,14 @@ export async function POST(
       );
     }
 
-    const payment = await prisma.permitFeePayment.create({
+    const payment = await withDbRetry(() => prisma.permitFeePayment.create({
       data: {
         permitApplicationId: id,
         feeType: data.feeType,
         amount: BigInt(data.amount),
         status: "INITIATED",
       },
-    });
+    }));
 
     // In production, this would initiate payment with PSP
     // For now, return payment reference

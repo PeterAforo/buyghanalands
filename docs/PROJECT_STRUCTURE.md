@@ -159,11 +159,10 @@ src/components/
 | `subscriptions.ts` | Subscription plans & pricing |
 | `fees.ts` | Transaction fee calculations |
 | `permissions.ts` | Role-based access control |
-| `email.ts` | Email sending (Resend) |
+| `email.ts` | Email sending (Nodemailer/SMTP) |
 | `sms.ts` | SMS sending (Hubtel) |
 | `cloudinary.ts` | Image upload handling |
-| `paystack.ts` | Paystack payment integration |
-| `flutterwave.ts` | Flutterwave payment integration |
+| `theteller.ts` | Theteller (Payswitch) payment integration |
 | `ghana-locations.ts` | Ghana regions/districts data |
 | `notifications.ts` | In-app notifications |
 | `validations.ts` | Zod validation schemas |
@@ -178,7 +177,7 @@ src/components/
 | `User` | User accounts with roles, KYC status |
 | `Listing` | Land listings with location, price, media |
 | `Transaction` | Escrow transactions between buyer/seller |
-| `Payment` | Payment records (Paystack/Flutterwave) |
+| `Payment` | Payment records (Theteller/Payswitch) |
 | `Offer` | Offers made on listings |
 | `Message` | User-to-user messages |
 | `Dispute` | Transaction disputes |
@@ -221,7 +220,7 @@ src/components/
 See `.env.example` for required environment variables:
 - Database connection (PostgreSQL)
 - NextAuth secret
-- Payment gateways (Paystack, Flutterwave)
-- Email service (Resend)
+- Payment gateways (Theteller/Payswitch)
+- Email service (Nodemailer/SMTP)
 - SMS service (Hubtel)
 - Cloud storage (Cloudinary)

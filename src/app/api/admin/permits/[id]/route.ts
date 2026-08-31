@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const updatePermitSchema = z.object({
   status: z.enum(["UNDER_REVIEW", "QUERY_RAISED", "APPROVED", "REJECTED"]),
@@ -19,10 +19,10 @@ export async function PUT(
     }
 
     // Check admin role
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     if (!user?.roles.includes("ADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -32,10 +32,10 @@ export async function PUT(
     const body = await request.json();
     const data = updatePermitSchema.parse(body);
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { status: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -64,13 +64,13 @@ export async function PUT(
       updateData.decidedAt = new Date();
     }
 
-    const updated = await prisma.permitApplication.update({
+    const updated = await withDbRetry(() => prisma.permitApplication.update({
       where: { id },
       data: updateData,
-    });
+    }));
 
     // Create status history
-    await prisma.permitStatusHistory.create({
+    await withDbRetry(() => prisma.permitStatusHistory.create({
       data: {
         permitApplicationId: id,
         fromStatus: permit.status,
@@ -78,7 +78,7 @@ export async function PUT(
         changedById: session.user.id,
         note: data.note || `Status changed to ${data.status}`,
       },
-    });
+    }));
 
     return NextResponse.json({
       ...updated,

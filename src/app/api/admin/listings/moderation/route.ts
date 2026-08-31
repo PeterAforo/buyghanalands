@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
+import { notifyListingModerated } from "@/lib/notifications";
 
 async function isModeratorOrAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "MODERATOR", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    const [listings, total] = await Promise.all([
+    const [listings, total] = await withDbRetry(() => Promise.all([
       prisma.listing.findMany({
         where,
         include: {
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.listing.count({ where }),
-    ]);
+    ]));
 
     return NextResponse.json({
       listings: listings.map((l) => ({
@@ -115,10 +116,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = moderateSchema.parse(body);
 
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id: data.listingId },
       select: { id: true, status: true, sellerId: true, title: true },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -142,16 +143,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    const updatedListing = await prisma.listing.update({
+    const updatedListing = await withDbRetry(() => prisma.listing.update({
       where: { id: data.listingId },
       data: {
         status: newStatus as any,
         publishedAt: newStatus === "PUBLISHED" ? new Date() : undefined,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "LISTING",
         entityId: data.listingId,
@@ -165,9 +166,18 @@ export async function POST(request: NextRequest) {
           notes: data.notes,
         },
       },
-    });
+    }));
 
-    // TODO: Send notification to seller about moderation decision
+    // Send notification to seller about moderation decision
+    const decisionMap: Record<string, "approved" | "rejected" | "suspended"> = {
+      approve: "approved",
+      reject: "rejected",
+      suspend: "suspended",
+    };
+    const decision = decisionMap[data.action];
+    if (decision) {
+      notifyListingModerated(listing.sellerId, listing.title, decision, data.reason).catch(console.error);
+    }
 
     return NextResponse.json({
       message: `Listing ${data.action}ed successfully`,

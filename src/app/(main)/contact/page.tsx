@@ -1,71 +1,125 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, Clock } from "lucide-react";
+import { Metadata } from "next";
+import Link from "next/link";
+import { PageHero, Eyebrow } from "@/components/marketing/page-hero";
+import { ContactForm } from "@/components/marketing/contact-form";
+import { Mail, Phone, MapPin, Clock, MessageCircle } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Contact Us | Buy Ghana Lands",
+  description:
+    "Get in touch with Buy Ghana Lands. We're here to help with any questions about secure land transactions in Ghana.",
+};
+
+const channels = [
+  {
+    icon: Mail,
+    title: "Email us",
+    value: "support@buyghanalands.com",
+    note: "We respond within 24 hours",
+    href: "mailto:support@buyghanalands.com",
+  },
+  {
+    icon: Phone,
+    title: "Call us",
+    value: "+233 30 000 0000",
+    note: "Mon–Fri, 9am–5pm GMT",
+    href: "tel:+233300000000",
+  },
+  {
+    icon: MapPin,
+    title: "Visit us",
+    value: "Accra, Ghana",
+    note: "By appointment only",
+    href: null,
+  },
+  {
+    icon: Clock,
+    title: "Business hours",
+    value: "Monday – Friday",
+    note: "9:00 AM – 5:00 PM GMT",
+    href: null,
+  },
+];
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl px-4 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
-          <p className="text-xl text-gray-600">
-            We&apos;re here to help with any questions about land transactions
-          </p>
+    <div className="min-h-screen bg-[#faf8f2]">
+      <PageHero
+        image="/images/cheerful-woman-with-laptop-grass.jpg"
+        eyebrow="We're here to help"
+        title={
+          <>
+            Let&apos;s talk about
+            <br />
+            your <span className="italic text-amber-300">land journey</span>
+          </>
+        }
+        subtitle="Whether you're buying, selling, or verifying — our team is ready to guide you through every step."
+      />
+
+      <section className="py-20 lg:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-5 lg:gap-14">
+            {/* Contact channels */}
+            <div className="lg:col-span-2">
+              <Eyebrow tone="green">Reach us</Eyebrow>
+              <h2 className="font-display mt-4 text-3xl font-semibold text-emerald-950">
+                Get in touch
+              </h2>
+              <p className="mt-3 text-gray-600">
+                Pick whichever channel works best for you — we&apos;re quick to respond.
+              </p>
+
+              <div className="mt-8 space-y-4">
+                {channels.map(({ icon: Icon, title, value, note, href }) => {
+                  const inner = (
+                    <div className="flex items-start gap-4 rounded-2xl border border-emerald-950/10 bg-white p-5 transition-all hover:border-emerald-600/40 hover:shadow-lg">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">{title}</p>
+                        <p className="font-semibold text-emerald-950">{value}</p>
+                        <p className="mt-0.5 text-sm text-gray-500">{note}</p>
+                      </div>
+                    </div>
+                  );
+                  return href ? (
+                    <Link key={title} href={href} className="block">
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div key={title}>{inner}</div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex items-center gap-3 rounded-2xl bg-emerald-700 p-5 text-white">
+                <MessageCircle className="h-6 w-6 flex-shrink-0 text-amber-300" />
+                <div>
+                  <p className="font-semibold">Prefer instant answers?</p>
+                  <p className="text-sm text-emerald-100">
+                    Browse our{" "}
+                    <Link href="/support" className="font-medium text-amber-300 underline">
+                      Support Center
+                    </Link>{" "}
+                    for common questions.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact form */}
+            <div className="lg:col-span-3">
+              <Eyebrow tone="green">Send a message</Eyebrow>
+              <h2 className="font-display mb-6 mt-4 text-3xl font-semibold text-emerald-950">
+                Drop us a line
+              </h2>
+              <ContactForm />
+            </div>
+          </div>
         </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <Mail className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Email</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">support@buyghanalands.com</p>
-              <p className="text-sm text-gray-500 mt-2">We respond within 24 hours</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <Phone className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Phone</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">+233 XX XXX XXXX</p>
-              <p className="text-sm text-gray-500 mt-2">Mon-Fri, 9am-5pm GMT</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <MapPin className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Office</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">Accra, Ghana</p>
-              <p className="text-sm text-gray-500 mt-2">By appointment only</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <Clock className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Business Hours</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">Monday - Friday</p>
-              <p className="text-sm text-gray-500 mt-2">9:00 AM - 5:00 PM GMT</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 import { randomBytes } from "crypto";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { sendVerificationEmail } from "@/lib/email";
 import { checkRateLimit, getClientIP, createRateLimitHeaders, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -48,14 +48,14 @@ export async function POST(request: NextRequest) {
     const data = registerSchema.parse(body);
 
     // Check if user already exists
-    const existingUser = await prisma.user.findFirst({
+    const existingUser = await withDbRetry(() => prisma.user.findFirst({
       where: {
         OR: [
           { phone: data.phone },
           ...(data.email ? [{ email: data.email }] : []),
         ],
       },
-    });
+    }));
 
     if (existingUser) {
       return NextResponse.json(
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     const role = ACCOUNT_TYPE_TO_ROLE[data.accountType] as any;
 
     // Create user
-    const user = await prisma.user.create({
+    const user = await withDbRetry(() => prisma.user.create({
       data: {
         fullName: data.fullName,
         email: data.email,
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         phone: true,
         roles: true,
       },
-    });
+    }));
 
     // Create free subscription for Buyer/Seller
     if (FREE_SUBSCRIPTION_TYPES.includes(data.accountType)) {
@@ -128,21 +128,21 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      await prisma.subscription.create({ data: subscriptionData });
+      await withDbRetry(() => prisma.subscription.create({ data: subscriptionData }));
     }
 
     // Generate email verification token
     const token = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    await prisma.emailVerificationToken.create({
+    await withDbRetry(() => prisma.emailVerificationToken.create({
       data: {
         email: data.email,
         token,
         userId: user.id,
         expiresAt,
       },
-    });
+    }));
 
     // Send verification email
     const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify-email?token=${token}`;

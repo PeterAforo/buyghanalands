@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createAlertSchema = z.object({
   name: z.string().min(2),
@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const alerts = await prisma.listingAlert.findMany({
+    const alerts = await withDbRetry(() => prisma.listingAlert.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(alerts);
   } catch (error) {
@@ -47,20 +47,20 @@ export async function POST(request: NextRequest) {
     const data = createAlertSchema.parse(body);
 
     // Check subscription limits
-    const subscription = await prisma.subscription.findFirst({
+    const subscription = await withDbRetry(() => prisma.subscription.findFirst({
       where: {
         userId: session.user.id,
         status: "ACTIVE",
       },
-    });
+    }));
 
     const features = subscription?.features as any;
     const alertLimit = features?.instantAlerts || 3; // Default 3 for free users
 
     if (alertLimit !== -1) {
-      const existingCount = await prisma.listingAlert.count({
+      const existingCount = await withDbRetry(() => prisma.listingAlert.count({
         where: { userId: session.user.id, isActive: true },
-      });
+      }));
 
       if (existingCount >= alertLimit) {
         return NextResponse.json({
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const alert = await prisma.listingAlert.create({
+    const alert = await withDbRetry(() => prisma.listingAlert.create({
       data: {
         userId: session.user.id,
         name: data.name,
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         frequency: data.frequency,
         isActive: true,
       },
-    });
+    }));
 
     return NextResponse.json(alert, { status: 201 });
   } catch (error) {

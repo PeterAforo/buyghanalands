@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Shield,
-  CheckCircle,
   ArrowRight,
+  ArrowUpRight,
   Star,
   Globe,
   Scale,
@@ -33,60 +31,60 @@ import {
   ClipboardList,
   ChevronRight,
   Heart,
+  Quote,
 } from "lucide-react";
 import { HeroSearch } from "@/components/search/hero-search";
-import { Badge } from "@/components/ui/badge";
-
-// Register GSAP plugins
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
 
 const stats = [
-  { value: 1000, label: "Active Listings", suffix: "+", icon: MapPin },
-  { value: 500, label: "Verified Sellers", suffix: "+", icon: ShieldCheck },
-  { value: 50, label: "GHS Transacted", prefix: "₵", suffix: "M+", icon: Banknote },
-  { value: 2500, label: "Happy Users", suffix: "+", icon: Users },
+  { value: 1000, label: "Verified listings", suffix: "+", icon: MapPin },
+  { value: 500, label: "Trusted sellers", suffix: "+", icon: ShieldCheck },
+  { value: 50, label: "Transacted safely", prefix: "₵", suffix: "M+", icon: Banknote },
+  { value: 2500, label: "Buyers served", suffix: "+", icon: Users },
 ];
 
 const steps = [
   {
     icon: Search,
-    title: "Browse & Search",
-    description: "Explore verified land listings across all 16 regions of Ghana with detailed information.",
+    title: "Browse & search",
+    description: "Explore verified listings across all 16 regions with maps, documents, and history.",
   },
   {
     icon: FileCheck,
-    title: "Verify Documents",
-    description: "Review land documents, verification status, and request professional verification.",
+    title: "Verify documents",
+    description: "Review title status and commission professional verification before you commit.",
   },
   {
     icon: Handshake,
-    title: "Make an Offer",
-    description: "Negotiate directly with sellers through our secure messaging platform.",
+    title: "Make an offer",
+    description: "Negotiate directly with sellers through secure, recorded messaging.",
   },
   {
     icon: ShieldCheck,
-    title: "Secure Escrow",
-    description: "Complete your transaction safely with escrow protection and milestone payments.",
+    title: "Close in escrow",
+    description: "Funds stay protected until milestones are met — release only when you're satisfied.",
   },
 ];
 
 const landTypes = [
-  { type: "RESIDENTIAL", label: "Residential", icon: HomeIcon, color: "bg-blue-50 text-blue-600 border-blue-100", count: 342 },
-  { type: "COMMERCIAL", label: "Commercial", icon: Building2, color: "bg-purple-50 text-purple-600 border-purple-100", count: 156 },
-  { type: "INDUSTRIAL", label: "Industrial", icon: Factory, color: "bg-orange-50 text-orange-600 border-orange-100", count: 89 },
-  { type: "AGRICULTURAL", label: "Agricultural", icon: Wheat, color: "bg-green-50 text-green-600 border-green-100", count: 234 },
-  { type: "MIXED", label: "Mixed Use", icon: Layers, color: "bg-amber-50 text-amber-600 border-amber-100", count: 78 },
+  { type: "RESIDENTIAL", label: "Residential", icon: HomeIcon, count: 342 },
+  { type: "COMMERCIAL", label: "Commercial", icon: Building2, count: 156 },
+  { type: "INDUSTRIAL", label: "Industrial", icon: Factory, count: 89 },
+  { type: "AGRICULTURAL", label: "Agricultural", icon: Wheat, count: 234 },
+  { type: "MIXED", label: "Mixed use", icon: Layers, count: 78 },
 ];
 
 const professionals = [
-  { type: "SURVEYOR", label: "Surveyors", icon: Compass, description: "Land surveys & boundary demarcation" },
-  { type: "LAWYER", label: "Lawyers", icon: Scale, description: "Legal documentation & title search" },
+  { type: "SURVEYOR", label: "Surveyors", icon: Compass, description: "Boundary surveys & site plans" },
+  { type: "LAWYER", label: "Lawyers", icon: Scale, description: "Title search & legal transfer" },
   { type: "ARCHITECT", label: "Architects", icon: PenTool, description: "Building design & planning" },
   { type: "ENGINEER", label: "Engineers", icon: HardHat, description: "Structural assessment" },
-  { type: "VALUER", label: "Valuers", icon: Calculator, description: "Property valuation" },
+  { type: "VALUER", label: "Valuers", icon: Calculator, description: "Independent valuation" },
   { type: "PLANNER", label: "Planners", icon: ClipboardList, description: "Town planning consultation" },
+];
+
+const regionImages = [
+  "/images/african-nature-scenery-with-road-trees.jpg",
+  "/images/nature-moldova-vale-with-flowing-river-slopes-with-sparse-vegetation.jpg",
 ];
 
 const regions = [
@@ -97,38 +95,38 @@ const regions = [
   { name: "Eastern", count: 112 },
   { name: "Northern", count: 67 },
   { name: "Volta", count: 78 },
-  { name: "Brong-Ahafo", count: 56 },
+  { name: "Bono", count: 56 },
 ];
 
 const testimonials = [
   {
     name: "Kwame Asante",
-    role: "Diaspora Buyer",
-    country: "UK",
-    quote: "The escrow process gave me peace of mind and reduced my fear of land fraud.",
+    role: "Diaspora buyer",
+    country: "United Kingdom",
+    quote: "The escrow process gave me peace of mind. Buying land from London finally felt safe.",
     rating: 5,
   },
   {
     name: "Ama Serwaa",
-    role: "Developer",
+    role: "Property developer",
     country: "Ghana",
-    quote: "Verification and documentation workflow made transactions transparent and faster.",
+    quote: "Verification and documentation made every transaction transparent — and far faster.",
     rating: 5,
   },
   {
     name: "Kofi Mensah",
-    role: "First-time Buyer",
-    country: "USA",
-    quote: "As someone buying from abroad, the professional network connected me with trusted lawyers.",
+    role: "First-time buyer",
+    country: "United States",
+    quote: "The professional network connected me with a trusted lawyer within a day.",
     rating: 5,
   },
 ];
 
 const trustBarItems = [
-  { icon: BadgeCheck, label: "Lands Commission Verified" },
-  { icon: Shield, label: "Escrow-Protected Payments" },
-  { icon: Globe, label: "Diaspora-Friendly" },
-  { icon: Scale, label: "Legal & Professional Network" },
+  { icon: BadgeCheck, label: "Lands Commission verified" },
+  { icon: Shield, label: "Escrow-protected payments" },
+  { icon: Globe, label: "Diaspora-friendly" },
+  { icon: Scale, label: "Legal & professional network" },
 ];
 
 const featuredListings = [
@@ -139,7 +137,6 @@ const featuredListings = [
     location: "East Legon, Greater Accra",
     size: 0.5,
     image: "/images/african-nature-scenery-with-road-trees.jpg",
-    verificationLevel: "LEVEL_2_PLATFORM_REVIEWED",
   },
   {
     id: "2",
@@ -148,7 +145,6 @@ const featuredListings = [
     location: "Tema, Greater Accra",
     size: 1.2,
     image: "/images/nature-moldova-vale-with-flowing-river-slopes-with-sparse-vegetation.jpg",
-    verificationLevel: "LEVEL_2_PLATFORM_REVIEWED",
   },
   {
     id: "3",
@@ -157,7 +153,6 @@ const featuredListings = [
     location: "Ho, Volta Region",
     size: 5.0,
     image: "/images/african-nature-scenery-with-road-trees.jpg",
-    verificationLevel: "LEVEL_1_DOCS_UPLOADED",
   },
 ];
 
@@ -166,684 +161,501 @@ const heroBackgroundImages = [
   "/images/nature-moldova-vale-with-flowing-river-slopes-with-sparse-vegetation.jpg",
 ];
 
-// Stats Counter Component
-function StatCounter({ 
-  value, 
-  prefix = "", 
-  suffix = "", 
-  label,
-  isZeroHighlight = false,
-}: { 
-  value: number; 
-  prefix?: string; 
-  suffix?: string; 
-  label: string;
-  isZeroHighlight?: boolean;
-}) {
-  const countRef = useRef<HTMLSpanElement>(null);
-  const hasAnimated = useRef(false);
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    
-    if (prefersReducedMotion || !countRef.current || isZeroHighlight) {
-      if (countRef.current) {
-        countRef.current.textContent = `${prefix}${value.toLocaleString()}${suffix}`;
-      }
-      return;
-    }
-
-    const el = countRef.current;
-    const obj = { value: 0 };
-
-    const tween = gsap.to(obj, {
-      value: value,
-      duration: 0.8,
-      ease: "power2.out",
-      scrollTrigger: {
-        trigger: el,
-        start: "top 85%",
-        toggleActions: "play none none none",
-        onEnter: () => {
-          if (!hasAnimated.current) {
-            hasAnimated.current = true;
-          }
-        },
-      },
-      onUpdate: () => {
-        el.textContent = `${prefix}${Math.round(obj.value).toLocaleString()}${suffix}`;
-      },
-    });
-
-    return () => {
-      tween.kill();
-    };
-  }, [value, prefix, suffix, isZeroHighlight]);
-
+// Small reusable eyebrow label
+function Eyebrow({ children, tone = "gold" }: { children: React.ReactNode; tone?: "gold" | "green" }) {
   return (
-    <div 
-      className={`text-center p-6 rounded-2xl border transition-shadow ${
-        isZeroHighlight 
-          ? "bg-emerald-50 border-emerald-200 shadow-sm" 
-          : "bg-white border-gray-100 shadow-sm"
+    <span
+      className={`inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] ${
+        tone === "gold" ? "text-amber-500" : "text-emerald-700"
       }`}
-      data-card-hover
     >
-      <p className={`text-4xl md:text-5xl font-bold ${isZeroHighlight ? "text-emerald-600" : "text-emerald-600"}`}>
-        <span ref={countRef} data-countup>{prefix}{value}{suffix}</span>
-      </p>
-      <p className="mt-3 text-sm text-gray-600 leading-relaxed">{label}</p>
-    </div>
+      <span className={`h-px w-6 ${tone === "gold" ? "bg-amber-400" : "bg-emerald-500"}`} />
+      {children}
+    </span>
   );
 }
 
 export default function Home() {
-  const mainRef = useRef<HTMLDivElement>(null);
-  const heroVisualRef = useRef<HTMLDivElement>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Hero background image carousel
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % heroBackgroundImages.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    
-    if (prefersReducedMotion || !mainRef.current) {
-      // Make all elements visible immediately for reduced motion
-      const allAnimatedElements = mainRef.current?.querySelectorAll(
-        "[data-reveal], [data-hero-headline], [data-hero-sub], [data-hero-ctas] > *, [data-trust-item], [data-how-step], [data-reveal-group] > *"
-      );
-      allAnimatedElements?.forEach((el) => {
-        (el as HTMLElement).style.opacity = "1";
-      });
-      return;
-    }
-
-    const ctx = gsap.context(() => {
-      // Hero entrance animations
-      const heroHeadline = document.querySelector("[data-hero-headline]");
-      if (heroHeadline) {
-        gsap.fromTo(
-          heroHeadline,
-          { y: 16, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.9, ease: "expo.out" }
-        );
-      }
-
-      const heroSub = document.querySelector("[data-hero-sub]");
-      if (heroSub) {
-        gsap.fromTo(
-          heroSub,
-          { y: 12, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.7, ease: "power2.out", delay: 0.12 }
-        );
-      }
-
-      const heroCtas = document.querySelectorAll("[data-hero-ctas] > *");
-      if (heroCtas.length > 0) {
-        gsap.fromTo(
-          heroCtas,
-          { y: 10, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", stagger: 0.09, delay: 0.22 }
-        );
-      }
-
-      const trustItems = document.querySelectorAll("[data-trust-item]");
-      if (trustItems.length > 0) {
-        gsap.fromTo(
-          trustItems,
-          { y: 10, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", stagger: 0.08, delay: 0.34 }
-        );
-      }
-
-      // Only animate if element exists
-      const assuranceEl = document.querySelector("[data-assurance]");
-      if (assuranceEl) {
-        gsap.fromTo(
-          assuranceEl,
-          { y: 8, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.52, ease: "power2.out", delay: 0.44 }
-        );
-      }
-
-      // Hero visual pulse animation
-      if (heroVisualRef.current) {
-        const pin = heroVisualRef.current.querySelector("[data-pin]");
-        const scan = heroVisualRef.current.querySelector("[data-scan]");
-
-        if (pin) {
-          gsap.to(pin, {
-            scale: 1.04,
-            opacity: 1,
-            duration: 0.9,
-            ease: "power2.out",
-            yoyo: true,
-            repeat: -1,
-          });
-        }
-
-        if (scan) {
-          gsap.fromTo(
-            scan,
-            { xPercent: -120, opacity: 0 },
-            { xPercent: 120, opacity: 0.22, duration: 2.2, ease: "power1.inOut", repeat: -1 }
-          );
-        }
-      }
-
-      // Section reveal animations
-      const revealElements = mainRef.current?.querySelectorAll("[data-reveal]");
-      revealElements?.forEach((el) => {
-        gsap.fromTo(
-          el,
-          { y: 18, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.7,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: el,
-              start: "top 85%",
-              toggleActions: "play none none none",
-            },
-          }
-        );
-      });
-
-      // How It Works line draw
-      const howLine = document.querySelector("[data-how-line]");
-      if (howLine) {
-        gsap.fromTo(
-          howLine,
-          { scaleX: 0 },
-          {
-            scaleX: 1,
-            duration: 0.9,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: howLine,
-              start: "top 80%",
-              toggleActions: "play none none none",
-            },
-          }
-        );
-      }
-
-      // How It Works steps
-      const howSteps = document.querySelectorAll("[data-how-step]");
-      if (howSteps.length > 0) {
-        gsap.fromTo(
-          howSteps,
-          { y: 12, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.65,
-            ease: "power2.out",
-            stagger: 0.14,
-            scrollTrigger: {
-              trigger: howSteps[0],
-              start: "top 82%",
-              toggleActions: "play none none none",
-            },
-          }
-        );
-      }
-
-      // Grouped elements with stagger
-      const groups = mainRef.current?.querySelectorAll("[data-reveal-group]");
-      const groupMap = new Map<string, Element[]>();
-
-      groups?.forEach((el) => {
-        const groupName = el.getAttribute("data-reveal-group");
-        if (groupName) {
-          if (!groupMap.has(groupName)) {
-            groupMap.set(groupName, []);
-          }
-          groupMap.get(groupName)!.push(el);
-        }
-      });
-
-      groupMap.forEach((elements) => {
-        gsap.fromTo(
-          elements,
-          { y: 14, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.6,
-            ease: "power2.out",
-            stagger: 0.11,
-            scrollTrigger: {
-              trigger: elements[0],
-              start: "top 85%",
-              toggleActions: "play none none none",
-            },
-          }
-        );
-      });
-    }, mainRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
-    <div ref={mainRef} className="flex flex-col">
-      {/* Hero Section - Modern Design */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-green-900 via-green-800 to-green-900 min-h-[600px] lg:min-h-[700px]">
-        {/* Background Image with Overlay */}
+    <div className="flex flex-col bg-[#faf8f2]">
+      {/* ============================================================
+          HERO
+          ============================================================ */}
+      <section className="relative overflow-hidden bg-black">
+        {/* Cinematic background carousel */}
         <div className="absolute inset-0">
           {heroBackgroundImages.map((image, index) => (
             <div
               key={image}
-              className={`absolute inset-0 transition-opacity duration-1000 ${
-                index === currentImageIndex ? 'opacity-30' : 'opacity-0'
+              className={`absolute inset-0 transition-opacity duration-[1500ms] ${
+                index === currentImageIndex ? "opacity-100" : "opacity-0"
               }`}
             >
               <Image
                 src={image}
                 alt="Ghana landscape"
                 fill
-                className="object-cover"
+                className="object-cover scale-105"
                 priority={index === 0}
               />
             </div>
           ))}
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-green-900/50 via-green-900/70 to-green-900/90" />
-        
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 pb-16 lg:pt-32 lg:pb-24">
-          {/* Hero Content */}
-          <div className="text-center max-w-4xl mx-auto">
-            <div data-hero-headline>
-              <Badge className="mb-6 bg-green-500/20 text-green-100 border-green-400/30 px-4 py-1.5">
-                🇬🇭 Ghana&apos;s Trusted Land Marketplace
-              </Badge>
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-                Buy Verified Land in Ghana{" "}
-                <span className="text-amber-400">With Confidence</span>
-              </h1>
+        {/* Readability overlays: darker on the left where text lives */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/35 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-28 pb-16 lg:pt-36 lg:pb-24">
+          <div className="max-w-6xl">
+            <Eyebrow>Ghana&apos;s trusted land marketplace</Eyebrow>
+
+            <h1 className="font-display mt-6 text-4xl font-semibold leading-[1.05] tracking-tight text-white text-shadow-hero sm:text-5xl lg:text-6xl xl:text-7xl">
+              Own Ghanaian land
+              <br />
+              without the{" "}
+              <span className="italic text-amber-300">fear of fraud</span>.
+            </h1>
+
+            <p className="mt-6 max-w-[54rem] text-lg leading-relaxed text-emerald-50/90 text-shadow-soft lg:text-xl">
+              Verified titles, escrow-protected payments, and a network of trusted
+              surveyors and lawyers — whether you&apos;re buying from Accra or abroad.
+            </p>
+
+            {/* Advanced search console */}
+            <div className="mt-10 max-w-6xl">
+              <HeroSearch />
             </div>
-            <p 
-              data-hero-sub
-              className="mt-6 text-lg lg:text-xl text-green-100/80 max-w-2xl mx-auto"
-            >
-              Secure escrow payments, document verification, and trusted professionals — 
-              whether you&apos;re in Ghana or abroad.
-            </p>
-          </div>
 
-          {/* Search Box */}
-          <div className="mt-10 max-w-4xl mx-auto" data-hero-ctas>
-            <HeroSearch />
-          </div>
-
-          {/* Trust Badges */}
-          <div className="mt-12 flex flex-wrap justify-center gap-6">
-            {trustBarItems.map((item) => (
-              <div 
-                key={item.label}
-                data-trust-item
-                className="flex items-center gap-2 text-green-100/70"
-              >
-                <item.icon className="h-5 w-5 text-amber-400" />
-                <span className="text-sm font-medium">{item.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Quick Stats */}
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            {stats.map((stat) => (
-              <div 
-                key={stat.label}
-                className="text-center p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10"
-              >
-                <stat.icon className="h-6 w-6 text-amber-400 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">
-                  {stat.prefix}{stat.value.toLocaleString()}{stat.suffix}
-                </p>
-                <p className="text-xs text-green-100/60 mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Land Type Categories */}
-      <section className="py-16 lg:py-20 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12" data-reveal>
-            <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-              Browse by Land Type
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Find the perfect land for your needs
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {landTypes.map(({ type, label, icon: Icon, color, count }) => (
-              <Link
-                key={type}
-                href={`/listings?landType=${type}`}
-                className={`group flex flex-col items-center p-6 rounded-2xl border-2 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${color}`}
-                data-reveal-group="land-types"
-              >
-                <div className="p-4 rounded-xl bg-white shadow-sm group-hover:shadow-md transition-shadow">
-                  <Icon className="h-8 w-8" />
-                </div>
-                <h3 className="mt-4 font-semibold text-gray-900">{label}</h3>
-                <p className="text-sm text-gray-500 mt-1">{count} listings</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Listings */}
-      <section className="py-16 lg:py-20 bg-gray-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between mb-10" data-reveal>
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-                Featured Listings
-              </h2>
-              <p className="mt-2 text-lg text-gray-600">
-                Hand-picked verified properties
-              </p>
-            </div>
-            <Link 
-              href="/listings" 
-              className="hidden md:flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
-            >
-              View All <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            {featuredListings.map((listing) => (
-              <Link
-                key={listing.id}
-                href={`/listings/${listing.id}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300"
-                data-reveal-group="featured"
-              >
-                <div className="relative aspect-[16/10] overflow-hidden">
-                  <Image
-                    src={listing.image}
-                    alt={listing.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 bg-amber-500 text-white text-xs font-semibold rounded-full">
-                    <Star className="h-3 w-3 fill-current" />
-                    Featured
-                  </div>
-                  <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 bg-white/90 backdrop-blur-sm text-green-700 text-xs font-medium rounded-full">
-                    <ShieldCheck className="h-3 w-3" />
-                    Verified
-                  </div>
-                  <button className="absolute bottom-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full text-gray-600 hover:text-red-500 transition-colors">
-                    <Heart className="h-5 w-5" />
-                  </button>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold text-gray-900 line-clamp-1 group-hover:text-green-600 transition-colors">
-                    {listing.title}
-                  </h3>
-                  <div className="flex items-center gap-1 mt-2 text-sm text-gray-500">
-                    <MapPin className="h-3.5 w-3.5" />
-                    <span>{listing.location}</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-xl font-bold text-green-600">
-                      GHS {listing.price.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-500">{listing.size} acres</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-          
-          <div className="mt-8 text-center md:hidden">
-            <Link 
-              href="/listings" 
-              className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors"
-            >
-              View All Listings <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Browse by Region */}
-      <section className="py-16 lg:py-20 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12" data-reveal>
-            <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-              Browse by Region
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Explore land across all 16 regions of Ghana
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {regions.map((region) => (
-              <Link
-                key={region.name}
-                href={`/listings?region=${encodeURIComponent(region.name)}`}
-                className="group relative overflow-hidden rounded-2xl aspect-[4/3] bg-gradient-to-br from-green-600 to-green-800"
-                data-reveal-group="regions"
-              >
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
-                <div className="absolute inset-0 p-4 flex flex-col justify-end">
-                  <div className="flex items-center gap-2 text-white/80 text-sm mb-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>{region.count} listings</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition-colors">
-                    {region.name}
-                  </h3>
-                </div>
-                <div className="absolute top-4 right-4 p-2 bg-white/10 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ArrowRight className="h-4 w-4 text-white" />
-                </div>
-              </Link>
-            ))}
-          </div>
-          
-          <div className="mt-8 text-center">
-            <Link 
-              href="/listings" 
-              className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
-            >
-              View All Regions <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-16 lg:py-24 bg-gray-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12" data-reveal>
-            <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-              How It Works
-            </h2>
-            <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-              Buy land in Ghana with confidence using our secure, transparent process
-            </p>
-          </div>
-
-          <div className="relative">
-            {/* Connection Line (Desktop) */}
-            <div className="hidden md:block absolute top-16 left-[12.5%] right-[12.5%] h-0.5 bg-gradient-to-r from-green-200 via-green-400 to-green-200" data-how-line />
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              {steps.map((step, index) => (
-                <div key={index} className="relative text-center" data-how-step>
-                  <div className="relative z-10 inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-green-50 to-green-100 mb-6">
-                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-600 text-white text-sm font-bold flex items-center justify-center">
-                      {index + 1}
-                    </div>
-                    <step.icon className="h-12 w-12 text-green-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {step.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">
-                    {step.description}
-                  </p>
+            {/* Trust ribbon */}
+            <div className="mt-8 flex flex-wrap gap-x-7 gap-y-3">
+              {trustBarItems.map((item) => (
+                <div key={item.label} className="flex items-center gap-2 text-emerald-50/85">
+                  <item.icon className="h-4.5 w-4.5 text-amber-300" />
+                  <span className="text-sm font-medium text-shadow-soft">{item.label}</span>
                 </div>
               ))}
             </div>
           </div>
+        </div>
 
-          <div className="text-center mt-12">
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors"
-            >
-              Get Started Today
-              <ArrowRight className="h-5 w-5" />
-            </Link>
+        {/* Stats band */}
+        <div className="relative border-t border-white/10 bg-black/60 backdrop-blur-md">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+              {stats.map((stat) => (
+                <div key={stat.label} className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white/10">
+                    <stat.icon className="h-5 w-5 text-amber-300" />
+                  </div>
+                  <div>
+                    <p className="font-display text-2xl font-semibold text-white lg:text-3xl">
+                      {stat.prefix}
+                      {stat.value.toLocaleString()}
+                      {stat.suffix}
+                    </p>
+                    <p className="text-xs text-emerald-100/70">{stat.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Professional Services */}
-      <section className="py-16 lg:py-20 bg-white">
+      {/* ============================================================
+          BROWSE BY LAND TYPE
+          ============================================================ */}
+      <section className="py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12" data-reveal>
+          <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-                Professional Services
+              <Eyebrow tone="green">Explore</Eyebrow>
+              <h2 className="font-display mt-4 text-3xl font-semibold text-emerald-950 sm:text-4xl">
+                Find land built for your plans
               </h2>
-              <p className="mt-4 text-lg text-gray-600 max-w-xl">
-                Connect with verified professionals to help with your land transaction
-              </p>
             </div>
-            <Link
-              href="/professionals"
-              className="mt-4 md:mt-0 inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
-            >
-              View All Professionals
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <p className="max-w-sm text-gray-600 md:text-right">
+              From family homes to farmland and factories — start with what you&apos;re building toward.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {professionals.map(({ type, label, icon: Icon, description }) => (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+            {landTypes.map(({ type, label, icon: Icon, count }) => (
               <Link
                 key={type}
-                href={`/professionals?type=${type}`}
-                className="group bg-gray-50 rounded-xl p-5 border border-gray-100 hover:border-green-200 hover:shadow-lg transition-all duration-300"
-                data-reveal-group="professionals"
+                href={`/listings?landType=${type}`}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-emerald-950/10 bg-white p-6 transition-all duration-300 hover:border-emerald-600/40 hover:shadow-xl hover:shadow-emerald-950/5"
               >
-                <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
-                  <Icon className="h-6 w-6 text-green-600" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
+                  <Icon className="h-6 w-6" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-1">{label}</h3>
-                <p className="text-xs text-gray-500 line-clamp-2">{description}</p>
+                <div className="mt-8">
+                  <h3 className="font-semibold text-emerald-950">{label}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{count} listings</p>
+                </div>
+                <ArrowUpRight className="absolute right-5 top-5 h-5 w-5 text-gray-300 transition-colors group-hover:text-emerald-600" />
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="relative py-20 lg:py-24 overflow-hidden bg-gradient-to-br from-green-900 to-green-800">
-        <div className="absolute inset-0 opacity-10">
-          <Image
-            src="/images/african-nature-scenery-with-road-trees.jpg"
-            alt="Background"
-            fill
-            className="object-cover"
-          />
-        </div>
-        
-        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12" data-reveal>
-            <h2 className="text-3xl font-bold text-white sm:text-4xl">
-              What Our Users Say
-            </h2>
-            <p className="mt-4 text-lg text-green-100/80">
-              Trusted by Ghanaians at home and abroad
-            </p>
+      {/* ============================================================
+          FEATURED LISTINGS
+          ============================================================ */}
+      <section className="bg-emerald-950 py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-12 flex items-end justify-between">
+            <div>
+              <Eyebrow>Hand-picked</Eyebrow>
+              <h2 className="font-display mt-4 text-3xl font-semibold text-white sm:text-4xl">
+                Featured verified listings
+              </h2>
+            </div>
+            <Link
+              href="/listings"
+              className="hidden items-center gap-2 font-medium text-amber-300 transition-colors hover:text-amber-200 md:flex"
+            >
+              View all <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
-          
+
           <div className="grid gap-6 md:grid-cols-3">
-            {testimonials.map((testimonial) => (
-              <div
-                key={testimonial.name}
-                className="bg-white rounded-2xl p-6 shadow-xl"
-                data-reveal-group="testimonials"
+            {featuredListings.map((listing) => (
+              <Link
+                key={listing.id}
+                href={`/listings/${listing.id}`}
+                className="group overflow-hidden rounded-3xl bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
               >
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-amber-400 text-amber-400" />
-                  ))}
+                <div className="relative aspect-[16/11] overflow-hidden">
+                  <Image
+                    src={listing.image}
+                    alt={listing.title}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-emerald-950">
+                    <Star className="h-3 w-3 fill-current" />
+                    Featured
+                  </div>
+                  <div className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-emerald-700 backdrop-blur-sm">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Verified
+                  </div>
+                  <button className="absolute bottom-4 right-4 rounded-full bg-white/90 p-2 text-gray-600 backdrop-blur-sm transition-colors hover:text-red-500">
+                    <Heart className="h-5 w-5" />
+                  </button>
                 </div>
-                <p className="text-gray-700 leading-relaxed">
-                  &quot;{testimonial.quote}&quot;
-                </p>
-                <div className="mt-6 pt-4 border-t border-gray-100">
-                  <p className="font-semibold text-gray-900">{testimonial.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className="text-xs">
-                      {testimonial.role}
-                    </Badge>
-                    <span className="text-sm flex items-center gap-1 text-gray-500">
-                      <Globe className="h-3.5 w-3.5" />
-                      {testimonial.country}
-                    </span>
+                <div className="p-6">
+                  <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span>{listing.location}</span>
+                  </div>
+                  <h3 className="font-display mt-2 text-xl font-semibold text-emerald-950 transition-colors group-hover:text-emerald-700">
+                    {listing.title}
+                  </h3>
+                  <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-5">
+                    <div>
+                      <p className="text-xs text-gray-400">Price</p>
+                      <p className="font-display text-2xl font-semibold text-emerald-700">
+                        ₵{listing.price.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">Size</p>
+                      <p className="font-medium text-emerald-950">{listing.size} acres</p>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-10 text-center md:hidden">
+            <Link
+              href="/listings"
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 font-medium text-emerald-950"
+            >
+              View all listings <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          BROWSE BY REGION
+          ============================================================ */}
+      <section className="py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <Eyebrow tone="green">All 16 regions</Eyebrow>
+            <h2 className="font-display mt-4 text-3xl font-semibold text-emerald-950 sm:text-4xl">
+              Browse land across Ghana
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {regions.map((region, index) => (
+              <Link
+                key={region.name}
+                href={`/listings?region=${encodeURIComponent(region.name)}`}
+                className="group relative aspect-[4/5] overflow-hidden rounded-2xl md:aspect-[4/3]"
+              >
+                <Image
+                  src={regionImages[index % regionImages.length]}
+                  alt={region.name}
+                  fill
+                  className="object-cover transition-transform duration-700 group-hover:scale-110"
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-950/30 to-transparent" />
+                <div className="absolute inset-0 flex flex-col justify-end p-5">
+                  <h3 className="font-display text-xl font-semibold text-white text-shadow-soft transition-colors group-hover:text-amber-300">
+                    {region.name}
+                  </h3>
+                  <div className="mt-1 flex items-center gap-1.5 text-sm text-white/80">
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span>{region.count} listings</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-10 text-center">
+            <Link
+              href="/listings"
+              className="inline-flex items-center gap-2 font-medium text-emerald-700 transition-colors hover:text-emerald-800"
+            >
+              View all regions <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          HOW IT WORKS
+          ============================================================ */}
+      <section className="bg-white py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-16 text-center">
+            <Eyebrow tone="green">A safer path to ownership</Eyebrow>
+            <h2 className="font-display mx-auto mt-4 max-w-2xl text-3xl font-semibold text-emerald-950 sm:text-4xl">
+              Four steps between you and secure land
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-x-8 gap-y-12 md:grid-cols-4">
+            {steps.map((step, index) => (
+              <div key={index} className="relative">
+                <div className="flex items-center gap-4">
+                  <span className="font-display text-5xl font-semibold text-emerald-100">
+                    {(index + 1).toString().padStart(2, "0")}
+                  </span>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                    <step.icon className="h-6 w-6" />
+                  </div>
+                </div>
+                <h3 className="mt-6 text-lg font-semibold text-emerald-950">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600">{step.description}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-16 text-center">
+            <Link href="/auth/register">
+              <Button
+                size="lg"
+                className="h-13 gap-2 rounded-xl bg-emerald-700 px-8 text-base font-semibold text-white hover:bg-emerald-800"
+              >
+                Start your search today
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          PROFESSIONAL SERVICES
+          ============================================================ */}
+      <section className="py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+            {/* Editorial image */}
+            <div className="relative order-last aspect-[4/3] overflow-hidden rounded-3xl lg:order-first">
+              <Image
+                src="/images/african-american-woman-looking-map.jpg"
+                alt="A professional reviewing land documents"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/50 to-transparent" />
+              <div className="absolute bottom-6 left-6 right-6 rounded-2xl bg-white/95 p-5 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                    <BadgeCheck className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-emerald-950">Every professional is vetted</p>
+                    <p className="text-sm text-gray-500">Licences and credentials confirmed before listing</p>
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Content + cards */}
+            <div>
+              <Eyebrow tone="green">Expert network</Eyebrow>
+              <h2 className="font-display mt-4 text-3xl font-semibold text-emerald-950 sm:text-4xl">
+                Trusted professionals for every step
+              </h2>
+              <p className="mt-4 text-lg text-gray-600">
+                Don&apos;t navigate documents, surveys, or contracts alone. Connect with verified
+                specialists who protect your interests.
+              </p>
+
+              <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {professionals.map(({ type, label, icon: Icon, description }) => (
+                  <Link
+                    key={type}
+                    href={`/professionals?type=${type}`}
+                    className="group rounded-2xl border border-emerald-950/10 bg-white p-4 transition-all hover:border-emerald-600/40 hover:shadow-lg"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="mt-3 font-semibold text-emerald-950">{label}</h3>
+                    <p className="mt-0.5 text-xs leading-snug text-gray-500">{description}</p>
+                  </Link>
+                ))}
+              </div>
+
+              <Link
+                href="/professionals"
+                className="mt-8 inline-flex items-center gap-2 font-medium text-emerald-700 transition-colors hover:text-emerald-800"
+              >
+                Explore all professionals <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          TESTIMONIALS
+          ============================================================ */}
+      <section className="relative overflow-hidden bg-black py-20 lg:py-28">
+        <div className="absolute inset-0">
+          <Image
+            src="/images/nature-moldova-vale-with-flowing-river-slopes-with-sparse-vegetation.jpg"
+            alt=""
+            fill
+            className="object-cover opacity-60"
+          />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/22 via-black/20 to-black/25" />
+
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-14 text-center">
+            <Eyebrow>Trusted at home and abroad</Eyebrow>
+            <h2 className="font-display mx-auto mt-4 max-w-2xl text-3xl font-semibold text-white sm:text-4xl">
+              Buyers who slept easier at closing
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {testimonials.map((testimonial) => (
+              <figure
+                key={testimonial.name}
+                className="flex flex-col rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm"
+              >
+                <Quote className="h-8 w-8 text-amber-300/70" />
+                <blockquote className="font-display mt-5 flex-1 text-lg italic leading-relaxed text-white">
+                  &ldquo;{testimonial.quote}&rdquo;
+                </blockquote>
+                <div className="mt-6 flex gap-1">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-amber-300 text-amber-300" />
+                  ))}
+                </div>
+                <figcaption className="mt-4 border-t border-white/10 pt-4">
+                  <p className="font-semibold text-white">{testimonial.name}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-sm text-emerald-100/70">
+                    {testimonial.role}
+                    <span className="text-emerald-100/40">•</span>
+                    <Globe className="h-3.5 w-3.5" />
+                    {testimonial.country}
+                  </p>
+                </figcaption>
+              </figure>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section className="py-20 lg:py-24 bg-white">
+      {/* ============================================================
+          FINAL CTA — with background image
+          ============================================================ */}
+      <section className="py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-green-600 to-green-700 p-8 md:p-12 lg:p-16">
-            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-            <div className="relative z-10 text-center max-w-3xl mx-auto" data-reveal>
-              <h2 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-                Ready to Secure Your Land?
-              </h2>
-              <p className="mt-6 text-lg text-green-100/90 leading-relaxed">
-                Join thousands of buyers who use verified listings and escrow protection 
-                for fraud-free land transactions in Ghana.
-              </p>
-              <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/auth/signup">
-                  <Button size="lg" className="px-8 h-12 bg-white text-green-700 hover:bg-green-50 font-semibold">
-                    Get Started Free
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href="/listings">
-                  <Button size="lg" variant="outline" className="px-8 h-12 border-2 border-white text-white hover:bg-white/10">
-                    Browse Listings
-                  </Button>
-                </Link>
-              </div>
-              <div className="mt-8 flex items-center justify-center gap-2 text-green-100/80">
-                <Shield className="h-5 w-5" />
-                <span className="text-sm">Escrow protection included on all eligible transactions</span>
+          <div className="relative overflow-hidden rounded-[2rem]">
+            <Image
+              src="/images/cheerful-woman-with-laptop-grass.jpg"
+              alt=""
+              fill
+              className="object-cover"
+              sizes="100vw"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/95 via-emerald-950/85 to-emerald-950/55" />
+
+            <div className="relative z-10 px-8 py-16 md:px-16 md:py-24">
+              <div className="max-w-2xl">
+                <Eyebrow>Your land, secured</Eyebrow>
+                <h2 className="font-display mt-5 text-3xl font-semibold leading-tight text-white text-shadow-soft sm:text-4xl lg:text-5xl">
+                  Ready to buy land the safe way?
+                </h2>
+                <p className="mt-5 text-lg leading-relaxed text-emerald-50/90 text-shadow-soft">
+                  Join thousands of buyers using verified listings and escrow protection for
+                  fraud-free land transactions across Ghana.
+                </p>
+                <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+                  <Link href="/auth/register">
+                    <Button
+                      size="lg"
+                      className="h-13 w-full gap-2 rounded-xl bg-amber-400 px-8 font-semibold text-emerald-950 hover:bg-amber-300 sm:w-auto"
+                    >
+                      Get started free
+                      <ArrowRight className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <Link href="/listings">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="h-13 w-full rounded-xl border-2 border-white/40 bg-white/5 px-8 font-semibold text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto"
+                    >
+                      Browse listings
+                    </Button>
+                  </Link>
+                </div>
+                <div className="mt-8 flex items-center gap-2 text-emerald-50/80">
+                  <Shield className="h-5 w-5 text-amber-300" />
+                  <span className="text-sm text-shadow-soft">
+                    Escrow protection included on all eligible transactions
+                  </span>
+                </div>
               </div>
             </div>
           </div>

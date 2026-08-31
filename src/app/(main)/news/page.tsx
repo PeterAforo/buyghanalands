@@ -1,62 +1,75 @@
 import { Metadata } from "next";
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, ArrowRight, Clock } from "lucide-react";
+import Image from "next/image";
+import { PageHero, Eyebrow } from "@/components/marketing/page-hero";
+import { NewsletterForm } from "@/components/marketing/newsletter-form";
+import { Calendar, ArrowRight, Clock, ArrowUpRight } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "News & Updates | Buy Ghana Lands",
-  description: "Stay updated with the latest news, market insights, and updates from Buy Ghana Lands.",
+  description:
+    "Stay updated with the latest news, market insights, and updates from Buy Ghana Lands.",
 };
 
 const newsArticles = [
   {
     id: 1,
     title: "New Verification Partnership with Ghana Lands Commission",
-    excerpt: "We're excited to announce our official partnership with the Ghana Lands Commission to provide faster and more reliable land verification services.",
+    excerpt:
+      "We're excited to announce our official partnership with the Ghana Lands Commission to provide faster and more reliable land verification services.",
     date: "2026-01-20",
     category: "Partnership",
     readTime: "3 min read",
+    image: "/images/african-american-woman-looking-map.jpg",
   },
   {
     id: 2,
     title: "Land Prices in Greater Accra: 2026 Market Report",
-    excerpt: "Our comprehensive analysis of land prices across Greater Accra reveals interesting trends for buyers and investors.",
+    excerpt:
+      "Our comprehensive analysis of land prices across Greater Accra reveals interesting trends for buyers and investors.",
     date: "2026-01-15",
     category: "Market Insights",
     readTime: "5 min read",
+    image: "/images/listings/land-3.jpg",
   },
   {
     id: 3,
     title: "How to Avoid Land Fraud: A Complete Guide",
-    excerpt: "Learn the essential steps to protect yourself from land fraud when buying property in Ghana.",
+    excerpt:
+      "Learn the essential steps to protect yourself from land fraud when buying property in Ghana.",
     date: "2026-01-10",
     category: "Guide",
     readTime: "7 min read",
+    image: "/images/listings/land-11.jpg",
   },
   {
     id: 4,
     title: "Escrow Protection Now Available for All Transactions",
-    excerpt: "We've expanded our escrow protection service to cover all land transactions on our platform.",
+    excerpt:
+      "We've expanded our escrow protection service to cover all land transactions on our platform.",
     date: "2026-01-05",
     category: "Product Update",
     readTime: "2 min read",
+    image: "/images/listings/land-6.jpg",
   },
   {
     id: 5,
     title: "Top 5 Regions for Land Investment in 2026",
-    excerpt: "Discover which regions in Ghana offer the best opportunities for land investment this year.",
+    excerpt:
+      "Discover which regions in Ghana offer the best opportunities for land investment this year.",
     date: "2025-12-28",
     category: "Market Insights",
     readTime: "6 min read",
+    image: "/images/listings/land-14.jpg",
   },
   {
     id: 6,
     title: "Understanding Customary Land Tenure in Ghana",
-    excerpt: "A detailed explanation of customary land tenure and what it means for land buyers.",
+    excerpt:
+      "A detailed explanation of customary land tenure and what it means for land buyers.",
     date: "2025-12-20",
     category: "Education",
     readTime: "8 min read",
+    image: "/images/listings/land-8.jpg",
   },
 ];
 
@@ -69,64 +82,158 @@ function formatDate(dateString: string) {
 }
 
 export default function NewsPage() {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="relative bg-emerald-900 py-16">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-900 to-emerald-700" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white">
-            News & Updates
-          </h1>
-          <p className="mt-4 text-xl text-emerald-100 max-w-2xl">
-            Stay informed with the latest news, market insights, and platform updates from Buy Ghana Lands.
-          </p>
-        </div>
-      </div>
+  const [featured, ...rest] = newsArticles;
 
-      {/* News Grid */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {newsArticles.map((article) => (
-            <Card key={article.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant="secondary">{article.category}</Badge>
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
+  return (
+    <div className="min-h-screen bg-[#faf8f2]">
+      <PageHero
+        image="/images/nature-moldova-vale-with-flowing-river-slopes-with-sparse-vegetation.jpg"
+        eyebrow="News & insights"
+        title={
+          <>
+            Stories from Ghana&apos;s
+            <br />
+            <span className="italic text-amber-300">land market</span>
+          </>
+        }
+        subtitle="Market reports, buyer guides, and platform updates to help you make smarter land decisions."
+      />
+
+      {/* Featured article */}
+      <section className="py-16 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="group grid cursor-pointer overflow-hidden rounded-3xl bg-white shadow-md transition-all hover:shadow-2xl lg:grid-cols-2">
+            <div className="relative aspect-[16/10] overflow-hidden lg:aspect-auto">
+              <Image
+                src={featured.image}
+                alt={featured.title}
+                fill
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+              <div className="absolute left-5 top-5 rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-emerald-950">
+                Featured
+              </div>
+            </div>
+            <div className="flex flex-col justify-center p-8 lg:p-12">
+              <div className="flex items-center gap-3 text-sm text-gray-500">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                  {featured.category}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  {featured.readTime}
+                </span>
+              </div>
+              <h2 className="font-display mt-4 text-2xl font-semibold text-emerald-950 transition-colors group-hover:text-emerald-700 sm:text-3xl">
+                {featured.title}
+              </h2>
+              <p className="mt-4 leading-relaxed text-gray-600">{featured.excerpt}</p>
+              <div className="mt-6 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                  <Calendar className="h-4 w-4" />
+                  {formatDate(featured.date)}
+                </span>
+                <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                  Read article
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Article grid */}
+      <section className="pb-20 lg:pb-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10">
+            <Eyebrow tone="green">Latest articles</Eyebrow>
+            <h2 className="font-display mt-4 text-3xl font-semibold text-emerald-950">
+              More from the blog
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {rest.map((article) => (
+              <article
+                key={article.id}
+                className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+              >
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  <Image
+                    src={article.image}
+                    alt={article.title}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <div className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-emerald-700 backdrop-blur-sm">
+                    {article.category}
+                  </div>
+                  <div className="absolute right-4 top-4 rounded-full bg-white/90 p-2 text-gray-600 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="flex flex-1 flex-col p-6">
+                  <span className="flex items-center gap-1 text-xs text-gray-400">
                     <Clock className="h-3 w-3" />
                     {article.readTime}
                   </span>
+                  <h3 className="font-display mt-2 text-lg font-semibold leading-snug text-emerald-950 transition-colors group-hover:text-emerald-700">
+                    {article.title}
+                  </h3>
+                  <p className="mt-2 line-clamp-3 flex-1 text-sm text-gray-600">
+                    {article.excerpt}
+                  </p>
+                  <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-4">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {formatDate(article.date)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700">
+                      Read more
+                      <ArrowRight className="h-4 w-4" />
+                    </span>
+                  </div>
                 </div>
-                <CardTitle className="text-lg leading-tight hover:text-emerald-600 transition-colors">
-                  {article.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                  {article.excerpt}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {formatDate(article.date)}
-                  </span>
-                  <span className="text-emerald-600 text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all">
-                    Read more
-                    <ArrowRight className="h-4 w-4" />
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              </article>
+            ))}
+          </div>
         </div>
+      </section>
 
-        {/* Load More */}
-        <div className="mt-12 text-center">
-          <p className="text-gray-500">
-            More articles coming soon. Subscribe to our newsletter to stay updated!
-          </p>
+      {/* Newsletter */}
+      <section className="pb-20 lg:pb-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden rounded-[2rem] bg-emerald-950">
+            <div className="absolute inset-0">
+              <Image
+                src="/images/african-nature-scenery-with-road-trees.jpg"
+                alt=""
+                fill
+                className="object-cover opacity-25"
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/50" />
+            <div className="relative z-10 px-8 py-14 md:px-16 md:py-16">
+              <div className="max-w-2xl">
+                <Eyebrow>Stay in the loop</Eyebrow>
+                <h2 className="font-display mt-5 text-3xl font-semibold text-white text-shadow-soft sm:text-4xl">
+                  Get market insights in your inbox
+                </h2>
+                <p className="mt-4 text-lg text-white/85 text-shadow-soft">
+                  Subscribe for monthly reports, buyer guides, and the newest verified listings.
+                </p>
+                <div className="mt-8 max-w-lg">
+                  <NewsletterForm variant="dark" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

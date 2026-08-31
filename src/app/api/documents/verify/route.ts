@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const verifyDocumentSchema = z.object({
   documentId: z.string(),
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const data = verifyDocumentSchema.parse(body);
 
     // Get document
-    const document = await prisma.document.findUnique({
+    const document = await withDbRetry(() => prisma.document.findUnique({
       where: { id: data.documentId },
       select: {
         id: true,
@@ -28,14 +28,14 @@ export async function POST(request: NextRequest) {
         ownerId: true,
         sha256: true,
       },
-    });
+    }));
 
     if (!document) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
     // Create verification request
-    const verification = await prisma.documentVerification.create({
+    const verification = await withDbRetry(() => prisma.documentVerification.create({
       data: {
         documentId: data.documentId,
         requestedById: session.user.id,
@@ -49,20 +49,20 @@ export async function POST(request: NextRequest) {
           aiAnalysis: null,
         },
       },
-    });
+    }));
 
     // Perform automated checks
     const checks = await performAutomatedChecks(document);
 
     // Update verification with results
-    const updated = await prisma.documentVerification.update({
+    const updated = await withDbRetry(() => prisma.documentVerification.update({
       where: { id: verification.id },
       data: {
         checks,
         status: checks.overallScore >= 70 ? "PASSED" : checks.overallScore >= 40 ? "REVIEW_NEEDED" : "FAILED",
         completedAt: new Date(),
       },
-    });
+    }));
 
     return NextResponse.json({
       verification: updated,
@@ -90,12 +90,12 @@ async function performAutomatedChecks(document: any) {
 
   // Check for duplicate documents by hash
   if (document.sha256) {
-    const duplicates = await prisma.document.count({
+    const duplicates = await withDbRetry(() => prisma.document.count({
       where: {
         sha256: document.sha256,
         id: { not: document.id },
       },
-    });
+    }));
     checks.duplicateCheck = duplicates === 0;
     if (duplicates > 0) {
       checks.duplicateWarning = `Found ${duplicates} document(s) with identical content`;
@@ -179,19 +179,19 @@ export async function GET(request: NextRequest) {
     const documentId = searchParams.get("documentId");
 
     if (documentId) {
-      const verification = await prisma.documentVerification.findFirst({
+      const verification = await withDbRetry(() => prisma.documentVerification.findFirst({
         where: { documentId },
         orderBy: { createdAt: "desc" },
-      });
+      }));
       return NextResponse.json(verification);
     }
 
     // Get all verifications for user's documents
-    const verifications = await prisma.documentVerification.findMany({
+    const verifications = await withDbRetry(() => prisma.documentVerification.findMany({
       where: { requestedById: session.user.id },
       orderBy: { createdAt: "desc" },
       take: 20,
-    });
+    }));
 
     return NextResponse.json(verifications);
   } catch (error) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const updateWorkflowSchema = z.object({
@@ -39,7 +39,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
@@ -94,7 +94,7 @@ export async function GET(
         },
         costTracker: true,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -128,12 +128,12 @@ export async function PATCH(
     const validatedData = updateWorkflowSchema.parse(body);
 
     // Verify ownership
-    const existingWorkflow = await prisma.propertyWorkflow.findFirst({
+    const existingWorkflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (!existingWorkflow) {
       return NextResponse.json(
@@ -143,7 +143,7 @@ export async function PATCH(
     }
 
     // Update workflow
-    const workflow = await prisma.propertyWorkflow.update({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.update({
       where: { id },
       data: {
         ...validatedData,
@@ -161,7 +161,7 @@ export async function PATCH(
         buildingPermit: true,
         construction: true,
       },
-    });
+    }));
 
     return NextResponse.json({ workflow });
   } catch (error) {
@@ -192,12 +192,12 @@ export async function DELETE(
     const { id } = await params;
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -207,9 +207,9 @@ export async function DELETE(
     }
 
     // Delete workflow (cascades to all related records)
-    await prisma.propertyWorkflow.delete({
+    await withDbRetry(() => prisma.propertyWorkflow.delete({
       where: { id },
-    });
+    }));
 
     return NextResponse.json({ success: true });
   } catch (error) {

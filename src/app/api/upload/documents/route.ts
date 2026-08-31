@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { uploadImage } from "@/lib/cloudinary";
 
 export async function POST(request: NextRequest) {
@@ -23,12 +23,12 @@ export async function POST(request: NextRequest) {
 
     // If listingId provided, verify ownership
     if (listingId) {
-      const listing = await prisma.listing.findFirst({
+      const listing = await withDbRetry(() => prisma.listing.findFirst({
         where: {
           id: listingId,
           sellerId: session.user.id,
         },
-      });
+      }));
 
       if (!listing) {
         return NextResponse.json({ error: "Listing not found or unauthorized" }, { status: 404 });
@@ -72,14 +72,14 @@ export async function POST(request: NextRequest) {
           docType = "SEARCH_REPORT";
         }
 
-        const docRecord = await prisma.document.create({
+        const docRecord = await withDbRetry(() => prisma.document.create({
           data: {
             listingId,
             type: docType as any,
-            url: result.url,
+            url: result.url!,
             accessPolicy: "LOGGED_IN_REDACTED",
           },
-        });
+        }));
 
         uploadedDocs.push({
           id: docRecord.id,
@@ -129,21 +129,21 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Find and verify ownership
-    const doc = await prisma.document.findFirst({
+    const doc = await withDbRetry(() => prisma.document.findFirst({
       where: { id: docId },
       include: {
         listing: {
           select: { sellerId: true },
         },
       },
-    });
+    }));
 
     if (!doc || !doc.listing || doc.listing.sellerId !== session.user.id) {
       return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 });
     }
 
     // Delete from database
-    await prisma.document.delete({ where: { id: docId } });
+    await withDbRetry(() => prisma.document.delete({ where: { id: docId } }));
 
     return NextResponse.json({ success: true });
   } catch (error) {

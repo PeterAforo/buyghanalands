@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { SignJWT, jwtVerify } from "jose";
 import { z } from "zod";
 import crypto from "crypto";
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const { refreshToken } = refreshSchema.parse(body);
 
     // Find the refresh token in database
-    const storedToken = await prisma.refreshToken.findUnique({
+    const storedToken = await withDbRetry(() => prisma.refreshToken.findUnique({
       where: { token: refreshToken },
       include: {
         user: {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    });
+    }));
 
     if (!storedToken) {
       return NextResponse.json(
@@ -84,9 +84,9 @@ export async function POST(request: NextRequest) {
     // Check if token is expired
     if (new Date() > storedToken.expiresAt) {
       // Clean up expired token
-      await prisma.refreshToken.delete({
+      await withDbRetry(() => prisma.refreshToken.delete({
         where: { id: storedToken.id },
-      });
+      }));
       return NextResponse.json(
         { error: "Refresh token has expired" },
         { status: 401 }
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     newExpiresAt.setDate(newExpiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
 
     // Revoke old token and create new one in a transaction
-    await prisma.$transaction([
+    await withDbRetry(() => prisma.$transaction([
       prisma.refreshToken.update({
         where: { id: storedToken.id },
         data: { revokedAt: new Date() },
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
           expiresAt: newExpiresAt,
         },
       }),
-    ]);
+    ]));
 
     return NextResponse.json({
       accessToken: newAccessToken,

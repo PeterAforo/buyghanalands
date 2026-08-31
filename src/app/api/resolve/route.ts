@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
     switch (resourceType) {
       case "listings":
         if (resourceId) {
-          const listing = await prisma.listing.findUnique({
+          const listing = await withDbRetry(() => prisma.listing.findUnique({
             where: { id: resourceId },
             select: { id: true, title: true, status: true },
-          });
+          }));
           
           if (!listing) {
             return NextResponse.json(
@@ -75,10 +75,10 @@ export async function GET(request: NextRequest) {
 
       case "offers":
         if (resourceId) {
-          const offer = await prisma.offer.findUnique({
+          const offer = await withDbRetry(() => prisma.offer.findUnique({
             where: { id: resourceId },
             select: { id: true, status: true, listingId: true },
-          });
+          }));
           
           if (!offer) {
             return NextResponse.json(
@@ -102,10 +102,10 @@ export async function GET(request: NextRequest) {
 
       case "transactions":
         if (resourceId) {
-          const transaction = await prisma.transaction.findUnique({
+          const transaction = await withDbRetry(() => prisma.transaction.findUnique({
             where: { id: resourceId },
             select: { id: true, status: true },
-          });
+          }));
           
           if (!transaction) {
             return NextResponse.json(

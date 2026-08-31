@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,10 +19,10 @@ export async function GET(request: NextRequest) {
 
     if (listingId) {
       // Check if user has access to listing documents
-      const listing = await prisma.listing.findUnique({
+      const listing = await withDbRetry(() => prisma.listing.findUnique({
         where: { id: listingId },
         select: { sellerId: true },
-      });
+      }));
 
       if (!listing) {
         return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -30,13 +30,13 @@ export async function GET(request: NextRequest) {
 
       // Check if user is seller or has an active transaction
       const hasAccess = listing.sellerId === session.user.id ||
-        await prisma.transaction.findFirst({
+        await withDbRetry(() => prisma.transaction.findFirst({
           where: {
             listingId,
             buyerId: session.user.id,
             status: { notIn: ["CLOSED", "REFUNDED"] },
           },
-        });
+        }));
 
       if (!hasAccess) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
       where.listingId = listingId;
     } else if (transactionId) {
       // Check if user is party to transaction
-      const transaction = await prisma.transaction.findUnique({
+      const transaction = await withDbRetry(() => prisma.transaction.findUnique({
         where: { id: transactionId },
         select: { buyerId: true, sellerId: true },
-      });
+      }));
 
       if (!transaction) {
         return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -68,19 +68,19 @@ export async function GET(request: NextRequest) {
       where.type = type;
     }
 
-    const documents = await prisma.document.findMany({
+    const documents = await withDbRetry(() => prisma.document.findMany({
       where,
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     // Log access
-    await prisma.documentAccessLog.createMany({
+    await withDbRetry(() => prisma.documentAccessLog.createMany({
       data: documents.map((doc) => ({
         documentId: doc.id,
         userId: session.user.id,
         action: "VIEW_LIST",
       })),
-    });
+    }));
 
     return NextResponse.json(documents);
   } catch (error) {
@@ -123,26 +123,26 @@ export async function POST(request: NextRequest) {
 
     // Verify ownership/access for linked entities
     if (data.listingId) {
-      const listing = await prisma.listing.findUnique({
+      const listing = await withDbRetry(() => prisma.listing.findUnique({
         where: { id: data.listingId },
         select: { sellerId: true },
-      });
+      }));
       if (!listing || listing.sellerId !== session.user.id) {
         return NextResponse.json({ error: "Cannot add document to this listing" }, { status: 403 });
       }
     }
 
     if (data.transactionId) {
-      const transaction = await prisma.transaction.findUnique({
+      const transaction = await withDbRetry(() => prisma.transaction.findUnique({
         where: { id: data.transactionId },
         select: { buyerId: true, sellerId: true },
-      });
+      }));
       if (!transaction || (transaction.buyerId !== session.user.id && transaction.sellerId !== session.user.id)) {
         return NextResponse.json({ error: "Cannot add document to this transaction" }, { status: 403 });
       }
     }
 
-    const document = await prisma.document.create({
+    const document = await withDbRetry(() => prisma.document.create({
       data: {
         ownerId: session.user.id,
         listingId: data.listingId,
@@ -157,10 +157,10 @@ export async function POST(request: NextRequest) {
         exifStripped: true,
         watermarked: false,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "DOCUMENT",
         entityId: document.id,
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
         action: "UPLOAD",
         diff: { type: data.type, listingId: data.listingId, transactionId: data.transactionId },
       },
-    });
+    }));
 
     return NextResponse.json(document, { status: 201 });
   } catch (error) {

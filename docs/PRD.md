@@ -218,7 +218,7 @@ Invalid transitions must be blocked at API level.
 
 **Phase 1 = Transaction Protection (Milestone Holding)**
 
-* Payments handled via Paystack / Hubtel
+* Payments handled via Theteller (Payswitch) / Hubtel
 * Funds held pending milestones
 * Admin approval required for:
 
@@ -355,7 +355,7 @@ Clarification:
 | Hosting    | Vercel                 |
 | Database   | NeonDB                 |
 | Storage    | Cloudflare R2 / AWS S3 |
-| Payments   | Paystack, Hubtel       |
+| Payments   | Theteller (Payswitch), Hubtel       |
 | SMS        | Hubtel / mNotify       |
 | Email      | AWS SES                |
 | Maps       | Mapbox                 |
@@ -587,7 +587,7 @@ Below is the **complete module breakdown** for the **Buy Ghana Lands SaaS**, ali
 * Refunds
 * Fee breakdowns
 * Receipts & references
-* PSP reconciliation (Paystack / Hubtel)
+* PSP reconciliation (Theteller (Payswitch) / Hubtel)
 
 **Primary Users:** Buyers, Sellers, Finance/Admin
 **Phase:** 1 (core)

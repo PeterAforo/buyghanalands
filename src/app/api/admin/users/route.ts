@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const users = await prisma.user.findMany({
+    const users = await withDbRetry(() => prisma.user.findMany({
       where,
       select: {
         id: true,
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
       take: 100,
-    });
+    }));
 
     return NextResponse.json(users);
   } catch (error) {
@@ -117,9 +117,9 @@ export async function POST(request: NextRequest) {
     const validatedData = createUserSchema.parse(body);
 
     // Check if phone already exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await withDbRetry(() => prisma.user.findUnique({
       where: { phone: validatedData.phone },
-    });
+    }));
 
     if (existingUser) {
       return NextResponse.json({ error: "Phone number already registered" }, { status: 400 });
@@ -127,9 +127,9 @@ export async function POST(request: NextRequest) {
 
     // Check if email already exists
     if (validatedData.email) {
-      const existingEmail = await prisma.user.findUnique({
-        where: { email: validatedData.email },
-      });
+      const existingEmail = await withDbRetry(() => prisma.user.findUnique({
+        where: { email: validatedData.email ?? undefined },
+      }));
       if (existingEmail) {
         return NextResponse.json({ error: "Email already registered" }, { status: 400 });
       }
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 12);
 
-    const newUser = await prisma.user.create({
+    const newUser = await withDbRetry(() => prisma.user.create({
       data: {
         fullName: validatedData.fullName,
         email: validatedData.email,
@@ -157,10 +157,10 @@ export async function POST(request: NextRequest) {
         accountStatus: true,
         createdAt: true,
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: newUser.id,
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
         action: "USER_CREATED_BY_ADMIN",
         diff: { created: newUser },
       },
-    });
+    }));
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (error) {
@@ -205,14 +205,14 @@ export async function PUT(request: NextRequest) {
 
     if (action === "delete") {
       // Soft delete or hard delete based on your preference
-      result = await prisma.user.updateMany({
+      result = await withDbRetry(() => prisma.user.updateMany({
         where: { id: { in: userIds } },
         data: { accountStatus: "DEACTIVATED" },
-      });
+      }));
 
       // Create audit logs
       for (const userId of userIds) {
-        await prisma.auditLog.create({
+        await withDbRetry(() => prisma.auditLog.create({
           data: {
             entityType: "USER",
             entityId: userId,
@@ -221,7 +221,7 @@ export async function PUT(request: NextRequest) {
             action: "USER_DELETED_BY_ADMIN",
             diff: { action: "deactivated" },
           },
-        });
+        }));
       }
     } else {
       const statusMap: Record<string, string> = {
@@ -230,14 +230,14 @@ export async function PUT(request: NextRequest) {
         deactivate: "DEACTIVATED",
       };
 
-      result = await prisma.user.updateMany({
+      result = await withDbRetry(() => prisma.user.updateMany({
         where: { id: { in: userIds } },
         data: { accountStatus: statusMap[action] as any },
-      });
+      }));
 
       // Create audit logs
       for (const userId of userIds) {
-        await prisma.auditLog.create({
+        await withDbRetry(() => prisma.auditLog.create({
           data: {
             entityType: "USER",
             entityId: userId,
@@ -246,7 +246,7 @@ export async function PUT(request: NextRequest) {
             action: `USER_BULK_${action.toUpperCase()}`,
             diff: { newStatus: statusMap[action] },
           },
-        });
+        }));
       }
     }
 

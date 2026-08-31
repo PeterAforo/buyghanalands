@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,13 +11,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Users can only see their own reports
-    const reports = await prisma.report.findMany({
+    const reports = await withDbRetry(() => prisma.report.findMany({
       where: { reporterId: session.user.id },
       include: {
         listing: { select: { id: true, title: true } },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(reports);
   } catch (error) {
@@ -58,10 +58,10 @@ export async function POST(request: NextRequest) {
 
     switch (data.targetType) {
       case "LISTING":
-        const listing = await prisma.listing.findUnique({
+        const listing = await withDbRetry(() => prisma.listing.findUnique({
           where: { id: data.targetId },
           select: { id: true, sellerId: true },
-        });
+        }));
         if (!listing) {
           return NextResponse.json({ error: "Listing not found" }, { status: 404 });
         }
@@ -72,10 +72,10 @@ export async function POST(request: NextRequest) {
         break;
 
       case "USER":
-        const user = await prisma.user.findUnique({
+        const user = await withDbRetry(() => prisma.user.findUnique({
           where: { id: data.targetId },
           select: { id: true },
-        });
+        }));
         if (!user) {
           return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
         break;
 
       case "MESSAGE":
-        const message = await prisma.message.findUnique({
+        const message = await withDbRetry(() => prisma.message.findUnique({
           where: { id: data.targetId },
           select: { id: true, senderId: true, receiverId: true },
-        });
+        }));
         if (!message) {
           return NextResponse.json({ error: "Message not found" }, { status: 404 });
         }
@@ -98,10 +98,10 @@ export async function POST(request: NextRequest) {
         break;
 
       case "TRANSACTION":
-        const transaction = await prisma.transaction.findUnique({
+        const transaction = await withDbRetry(() => prisma.transaction.findUnique({
           where: { id: data.targetId },
           select: { id: true, buyerId: true, sellerId: true },
-        });
+        }));
         if (!transaction) {
           return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
         }
@@ -112,14 +112,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for duplicate reports
-    const existingReport = await prisma.report.findFirst({
+    const existingReport = await withDbRetry(() => prisma.report.findFirst({
       where: {
         reporterId: session.user.id,
         targetType: data.targetType,
         targetId: data.targetId,
         status: { in: ["OPEN", "IN_REVIEW"] },
       },
-    });
+    }));
 
     if (existingReport) {
       return NextResponse.json(
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const report = await prisma.report.create({
+    const report = await withDbRetry(() => prisma.report.create({
       data: {
         reporterId: session.user.id,
         targetType: data.targetType,
@@ -138,20 +138,20 @@ export async function POST(request: NextRequest) {
         details: data.details,
         status: "OPEN",
       },
-    });
+    }));
 
     // Auto-flag if multiple reports on same target
-    const reportCount = await prisma.report.count({
+    const reportCount = await withDbRetry(() => prisma.report.count({
       where: {
         targetType: data.targetType,
         targetId: data.targetId,
         status: { in: ["OPEN", "IN_REVIEW"] },
       },
-    });
+    }));
 
     if (reportCount >= 3) {
       // Create fraud case for investigation
-      await prisma.fraudCase.create({
+      await withDbRetry(() => prisma.fraudCase.create({
         data: {
           openedById: session.user.id,
           listingId: data.targetType === "LISTING" ? data.targetId : null,
@@ -160,11 +160,11 @@ export async function POST(request: NextRequest) {
           summary: `Auto-flagged: ${reportCount} reports received for ${data.targetType} ${data.targetId}`,
           evidence: { reportIds: [report.id], reportCount },
         },
-      });
+      }));
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "REPORT",
         entityId: report.id,
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
         action: "CREATE",
         diff: { targetType: data.targetType, targetId: data.targetId, reason: data.reason },
       },
-    });
+    }));
 
     return NextResponse.json(report, { status: 201 });
   } catch (error) {

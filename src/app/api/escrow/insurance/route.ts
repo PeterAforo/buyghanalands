@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const purchaseInsuranceSchema = z.object({
   transactionId: z.string(),
@@ -45,12 +45,12 @@ export async function GET(request: NextRequest) {
 
     if (transactionId) {
       // Get insurance for specific transaction
-      const insurance = await prisma.escrowInsurance.findUnique({
+      const insurance = await withDbRetry(() => prisma.escrowInsurance.findUnique({
         where: { transactionId },
         include: {
           claims: true,
         },
-      });
+      }));
 
       return NextResponse.json({
         insurance,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all user's insurance policies
-    const insurances = await prisma.escrowInsurance.findMany({
+    const insurances = await withDbRetry(() => prisma.escrowInsurance.findMany({
       where: {
         transaction: {
           OR: [
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json({
       insurances,
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const data = purchaseInsuranceSchema.parse(body);
 
     // Get transaction
-    const transaction = await prisma.transaction.findUnique({
+    const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id: data.transactionId },
       select: {
         id: true,
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         agreedPriceGhs: true,
         status: true,
       },
-    });
+    }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -122,9 +122,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if insurance already exists
-    const existing = await prisma.escrowInsurance.findUnique({
+    const existing = await withDbRetry(() => prisma.escrowInsurance.findUnique({
       where: { transactionId: data.transactionId },
-    });
+    }));
 
     if (existing) {
       return NextResponse.json({ error: "Insurance already purchased for this transaction" }, { status: 400 });
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       coverage.maxCoverageGhs
     );
 
-    const insurance = await prisma.escrowInsurance.create({
+    const insurance = await withDbRetry(() => prisma.escrowInsurance.create({
       data: {
         transactionId: data.transactionId,
         buyerId: session.user.id,
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
         features: coverage.features,
         expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
       },
-    });
+    }));
 
     return NextResponse.json({
       insurance,

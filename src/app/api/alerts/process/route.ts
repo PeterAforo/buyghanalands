@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { sendSMS } from "@/lib/sms";
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const frequency = frequencyParam as "INSTANT" | "DAILY" | "WEEKLY";
 
     // Get active alerts for this frequency
-    const alerts = await prisma.listingAlert.findMany({
+    const alerts = await withDbRetry(() => prisma.listingAlert.findMany({
       where: {
         isActive: true,
         frequency: frequency,
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    });
+    }));
 
     let processed = 0;
     let notificationsSent = 0;
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Find matching listings
-      const matchingListings = await prisma.listing.findMany({
+      const matchingListings = await withDbRetry(() => prisma.listing.findMany({
         where,
         select: {
           id: true,
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
         },
         take: 10,
         orderBy: { createdAt: "desc" },
-      });
+      }));
 
       if (matchingListings.length > 0) {
         // Send notifications
@@ -112,10 +112,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Update last triggered time
-        await prisma.listingAlert.update({
+        await withDbRetry(() => prisma.listingAlert.update({
           where: { id: alert.id },
           data: { lastTriggeredAt: new Date() },
-        });
+        }));
       }
 
       processed++;

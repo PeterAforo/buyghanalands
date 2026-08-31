@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { AdminLayoutClient } from "@/components/admin/admin-layout-client";
 import {
   LayoutDashboard,
@@ -25,10 +25,10 @@ import {
 } from "lucide-react";
 
 async function checkAdminAccess(userId: string) {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true, fullName: true, email: true },
-  });
+  }));
   return {
     isAdmin: user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false,
     name: user?.fullName || "Admin",

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isModerator(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "MODERATOR", "SUPPORT", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       where.targetType = targetType;
     }
 
-    const [reports, total] = await Promise.all([
+    const [reports, total] = await withDbRetry(() => Promise.all([
       prisma.report.findMany({
         where,
         include: {
@@ -62,16 +62,16 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.report.count({ where }),
-    ]);
+    ]));
 
     // Get report counts by target for prioritization
-    const reportCounts = await prisma.report.groupBy({
+    const reportCounts = await withDbRetry(() => prisma.report.groupBy({
       by: ["targetType", "targetId"],
       where: { status: { in: ["OPEN", "IN_REVIEW"] } },
       _count: true,
       orderBy: { _count: { targetId: "desc" } },
       take: 10,
-    });
+    }));
 
     return NextResponse.json({
       reports,
@@ -110,9 +110,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = actionSchema.parse(body);
 
-    const report = await prisma.report.findUnique({
+    const report = await withDbRetry(() => prisma.report.findUnique({
       where: { id: data.reportId },
-    });
+    }));
 
     if (!report) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
@@ -131,28 +131,28 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    await prisma.report.update({
+    await withDbRetry(() => prisma.report.update({
       where: { id: data.reportId },
       data: { status: newStatus },
-    });
+    }));
 
     // If actioning and suspendTarget is true, suspend the target
     if (data.action === "action" && data.suspendTarget) {
       if (report.targetType === "LISTING") {
-        await prisma.listing.update({
+        await withDbRetry(() => prisma.listing.update({
           where: { id: report.targetId },
           data: { status: "SUSPENDED" },
-        });
+        }));
       } else if (report.targetType === "USER") {
-        await prisma.user.update({
+        await withDbRetry(() => prisma.user.update({
           where: { id: report.targetId },
           data: { accountStatus: "SUSPENDED" },
-        });
+        }));
       }
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "REPORT",
         entityId: data.reportId,
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
           suspendTarget: data.suspendTarget,
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: `Report ${data.action}ed`,

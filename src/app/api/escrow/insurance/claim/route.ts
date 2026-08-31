@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createClaimSchema = z.object({
   insuranceId: z.string(),
@@ -21,12 +21,12 @@ export async function POST(request: NextRequest) {
     const data = createClaimSchema.parse(body);
 
     // Get insurance
-    const insurance = await prisma.escrowInsurance.findUnique({
+    const insurance = await withDbRetry(() => prisma.escrowInsurance.findUnique({
       where: { id: data.insuranceId },
       include: {
         transaction: true,
       },
-    });
+    }));
 
     if (!insurance) {
       return NextResponse.json({ error: "Insurance not found" }, { status: 404 });
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create claim
-    const claim = await prisma.insuranceClaim.create({
+    const claim = await withDbRetry(() => prisma.insuranceClaim.create({
       data: {
         insuranceId: data.insuranceId,
         claimantId: session.user.id,
@@ -58,13 +58,13 @@ export async function POST(request: NextRequest) {
         status: "SUBMITTED",
         claimAmountGhs: insurance.coverageAmountGhs,
       },
-    });
+    }));
 
     // Update insurance status
-    await prisma.escrowInsurance.update({
+    await withDbRetry(() => prisma.escrowInsurance.update({
       where: { id: data.insuranceId },
       data: { status: "CLAIM_FILED" },
-    });
+    }));
 
     return NextResponse.json(claim, { status: 201 });
   } catch (error) {
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const claims = await prisma.insuranceClaim.findMany({
+    const claims = await withDbRetry(() => prisma.insuranceClaim.findMany({
       where: { claimantId: session.user.id },
       include: {
         insurance: {
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(claims);
   } catch (error) {

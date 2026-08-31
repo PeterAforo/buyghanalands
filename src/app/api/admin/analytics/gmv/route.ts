@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "FINANCE"].includes(role)) || false;
 }
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
 
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await withDbRetry(() => prisma.transaction.findMany({
       where: {
         status: { in: ["RELEASED", "CLOSED"] },
         closedAt: {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
           select: { region: true, landType: true },
         },
       },
-    });
+    }));
 
     // Group by time period
     const gmvByPeriod: Record<string, number> = {};

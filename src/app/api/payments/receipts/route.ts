@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     let payment;
 
     if (paymentId) {
-      payment = await prisma.payment.findUnique({
+      payment = await withDbRetry(() => prisma.payment.findUnique({
         where: { id: paymentId },
         include: {
           transaction: {
@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
           payerUser: { select: { id: true, fullName: true } },
           payeeUser: { select: { id: true, fullName: true } },
         },
-      });
+      }));
     } else {
       // Get all payments for a transaction
-      const payments = await prisma.payment.findMany({
+      const payments = await withDbRetry(() => prisma.payment.findMany({
         where: { transactionId: transactionId! },
         include: {
           transaction: {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
           payeeUser: { select: { id: true, fullName: true } },
         },
         orderBy: { createdAt: "desc" },
-      });
+      }));
 
       if (payments.length === 0) {
         return NextResponse.json({ error: "No payments found" }, { status: 404 });
@@ -60,10 +60,10 @@ export async function GET(request: NextRequest) {
       // Check authorization
       const tx = payments[0].transaction;
       if (tx && tx.buyerId !== session.user.id && tx.sellerId !== session.user.id) {
-        const user = await prisma.user.findUnique({
+        const user = await withDbRetry(() => prisma.user.findUnique({
           where: { id: session.user.id },
           select: { roles: true },
-        });
+        }));
         if (!user?.roles.some((r) => ["ADMIN", "FINANCE"].includes(r))) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -85,10 +85,10 @@ export async function GET(request: NextRequest) {
                     payment.transaction?.sellerId === session.user.id;
 
     if (!isParty) {
-      const user = await prisma.user.findUnique({
+      const user = await withDbRetry(() => prisma.user.findUnique({
         where: { id: session.user.id },
         select: { roles: true },
-      });
+      }));
       if (!user?.roles.some((r) => ["ADMIN", "FINANCE"].includes(r))) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }

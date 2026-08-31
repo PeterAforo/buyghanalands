@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,12 +24,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify ownership
-    const listing = await prisma.listing.findFirst({
+    const listing = await withDbRetry(() => prisma.listing.findFirst({
       where: {
         id: listingId,
         sellerId: session.user.id,
       },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found or unauthorized" }, { status: 404 });
@@ -60,14 +60,14 @@ export async function POST(request: NextRequest) {
       });
 
       // Create database record - ListingMedia only supports PHOTO and VIDEO
-      const mediaRecord = await prisma.listingMedia.create({
+      const mediaRecord = await withDbRetry(() => prisma.listingMedia.create({
         data: {
           listingId,
           type: "PHOTO",
           url: blob.url,
           sortOrder: uploadedFiles.length,
         },
-      });
+      }));
 
       uploadedFiles.push({
         id: mediaRecord.id,

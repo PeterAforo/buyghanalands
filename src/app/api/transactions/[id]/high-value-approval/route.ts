@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 // High-value transaction threshold (GH₵500,000)
 const HIGH_VALUE_THRESHOLD = 500000;
 
 async function isFinanceOrAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "FINANCE"].includes(role)) || false;
 }
 
@@ -26,7 +26,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const transaction = await prisma.transaction.findUnique({
+    const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id },
       select: {
         id: true,
@@ -43,7 +43,7 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -92,13 +92,13 @@ export async function POST(
     const body = await request.json();
     const data = approvalSchema.parse(body);
 
-    const transaction = await prisma.transaction.findUnique({
+    const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id },
       include: {
         milestones: true,
         listing: { select: { title: true } },
       },
-    });
+    }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -117,10 +117,10 @@ export async function POST(
       }
 
       if (data.action === "approve") {
-        await prisma.escrowMilestone.update({
+        await withDbRetry(() => prisma.escrowMilestone.update({
           where: { id: data.milestoneId },
           data: { adminApprovedAt: new Date() },
-        });
+        }));
       }
     } else {
       // Approve/reject entire transaction release
@@ -130,41 +130,41 @@ export async function POST(
 
       if (data.action === "approve") {
         // Approve all pending milestones
-        await prisma.escrowMilestone.updateMany({
+        await withDbRetry(() => prisma.escrowMilestone.updateMany({
           where: {
             transactionId: id,
             requiresAdminApproval: true,
             adminApprovedAt: null,
           },
           data: { adminApprovedAt: new Date() },
-        });
+        }));
 
         // Update transaction status
-        await prisma.transaction.update({
+        await withDbRetry(() => prisma.transaction.update({
           where: { id },
           data: { status: "RELEASED", closedAt: new Date() },
-        });
+        }));
       } else {
         // Reject - move back to disputed
-        await prisma.transaction.update({
+        await withDbRetry(() => prisma.transaction.update({
           where: { id },
           data: { status: "DISPUTED" },
-        });
+        }));
 
         // Create dispute record
-        await prisma.dispute.create({
+        await withDbRetry(() => prisma.dispute.create({
           data: {
             transactionId: id,
             raisedById: session.user.id,
             status: "OPEN",
             summary: `High-value transaction release rejected by admin: ${data.notes || "No reason provided"}`,
           },
-        });
+        }));
       }
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "TRANSACTION",
         entityId: id,
@@ -177,7 +177,7 @@ export async function POST(
           notes: data.notes,
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: `High-value transaction ${data.action}ed`,

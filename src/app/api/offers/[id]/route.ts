@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { notifyOfferAccepted, notifyOfferCountered } from "@/lib/notifications";
 
 export async function GET(
@@ -15,7 +15,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const offer = await prisma.offer.findUnique({
+    const offer = await withDbRetry(() => prisma.offer.findUnique({
       where: { id },
       include: {
         listing: {
@@ -25,7 +25,7 @@ export async function GET(
         },
         buyer: { select: { id: true, fullName: true, phone: true } },
       },
-    });
+    }));
 
     if (!offer) {
       return NextResponse.json({ error: "Offer not found" }, { status: 404 });
@@ -59,13 +59,13 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const offer = await prisma.offer.findUnique({
+    const offer = await withDbRetry(() => prisma.offer.findUnique({
       where: { id },
       include: {
         listing: { select: { sellerId: true, title: true } },
         buyer: { select: { id: true, fullName: true, email: true } },
       },
-    });
+    }));
 
     if (!offer) {
       return NextResponse.json({ error: "Offer not found" }, { status: 404 });
@@ -100,7 +100,7 @@ export async function PUT(
 
     if (status === "ACCEPTED") {
       // Create a transaction when offer is accepted
-      await prisma.transaction.create({
+      await withDbRetry(() => prisma.transaction.create({
         data: {
           offerId: offer.id,
           listingId: offer.listingId,
@@ -109,7 +109,7 @@ export async function PUT(
           agreedPriceGhs: offer.amountGhs,
           status: "CREATED",
         },
-      });
+      }));
 
       // Notify buyer that offer was accepted
       notifyOfferAccepted(offer.buyerId, offer.listing.title, Number(offer.amountGhs)).catch(console.error);
@@ -120,10 +120,10 @@ export async function PUT(
       notifyOfferCountered(offer.buyerId, offer.listing.title, counterAmount).catch(console.error);
     }
 
-    const updatedOffer = await prisma.offer.update({
+    const updatedOffer = await withDbRetry(() => prisma.offer.update({
       where: { id },
       data: updateData,
-    });
+    }));
 
     return NextResponse.json({
       ...updatedOffer,

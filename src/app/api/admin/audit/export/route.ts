@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isCompliance(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -44,17 +44,17 @@ export async function GET(request: NextRequest) {
     if (entityType) where.entityType = entityType;
 
     // Limit export to 10,000 records
-    const logs = await prisma.auditLog.findMany({
+    const logs = await withDbRetry(() => prisma.auditLog.findMany({
       where,
       include: {
         actorUser: { select: { id: true, fullName: true, email: true } },
       },
       orderBy: { createdAt: "asc" },
       take: 10000,
-    });
+    }));
 
     // Log the export
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "AUDIT_LOG" as any,
         entityId: "EXPORT",
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
           recordCount: logs.length,
         },
       },
-    });
+    }));
 
     if (format === "csv") {
       // Generate CSV

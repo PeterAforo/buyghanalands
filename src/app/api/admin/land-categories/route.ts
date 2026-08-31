@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
 export async function GET() {
   try {
-    const categories = await prisma.landCategory.findMany({
+    const categories = await withDbRetry(() => prisma.landCategory.findMany({
       orderBy: [{ landType: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
       include: {
         _count: {
           select: { listings: true },
         },
       },
-    });
+    }));
 
     return NextResponse.json(categories);
   } catch (error) {
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-    const category = await prisma.landCategory.create({
+    const category = await withDbRetry(() => prisma.landCategory.create({
       data: {
         name,
         slug,
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? true,
         sortOrder: sortOrder ?? 0,
       },
-    });
+    }));
 
     return NextResponse.json(category, { status: 201 });
   } catch (error: any) {

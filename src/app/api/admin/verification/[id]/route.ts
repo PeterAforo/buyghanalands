@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { sendEmail, getVerificationStatusEmailHtml } from "@/lib/email";
 import { sendSMS } from "@/lib/sms";
 
 async function isVerifier(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "MODERATOR", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -30,7 +30,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const verificationRequest = await prisma.verificationRequest.findUnique({
+    const verificationRequest = await withDbRetry(() => prisma.verificationRequest.findUnique({
       where: { id },
       include: {
         user: {
@@ -54,7 +54,7 @@ export async function GET(
         },
         assignedTo: { select: { id: true, fullName: true } },
       },
-    });
+    }));
 
     if (!verificationRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -105,12 +105,12 @@ export async function PUT(
     const body = await request.json();
     const data = reviewSchema.parse(body);
 
-    const verificationRequest = await prisma.verificationRequest.findUnique({
+    const verificationRequest = await withDbRetry(() => prisma.verificationRequest.findUnique({
       where: { id },
       include: {
         listing: { select: { id: true, sellerId: true, title: true, verificationLevel: true } },
       },
-    });
+    }));
 
     if (!verificationRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -143,7 +143,7 @@ export async function PUT(
       ? data.checklist 
       : (verificationRequest.checklist ?? Prisma.JsonNull);
     
-    const updated = await prisma.verificationRequest.update({
+    const updated = await withDbRetry(() => prisma.verificationRequest.update({
       where: { id },
       data: {
         status: newStatus,
@@ -152,18 +152,18 @@ export async function PUT(
         referenceNo: data.referenceNo,
         completedAt: new Date(),
       },
-    });
+    }));
 
     // Update listing verification level if approved
     if (data.action === "approve" && verificationRequest.listing) {
-      await prisma.listing.update({
+      await withDbRetry(() => prisma.listing.update({
         where: { id: verificationRequest.listing.id },
         data: { verificationLevel: newVerificationLevel as any },
-      });
+      }));
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "VERIFICATION_REQUEST",
         entityId: id,
@@ -177,14 +177,14 @@ export async function PUT(
           outcomeNotes: data.outcomeNotes,
         },
       },
-    });
+    }));
 
     // Send notification to seller about verification outcome
     if (verificationRequest.listing) {
-      const seller = await prisma.user.findUnique({
+      const seller = await withDbRetry(() => prisma.user.findUnique({
         where: { id: verificationRequest.listing.sellerId },
         select: { email: true, phone: true, fullName: true },
-      });
+      }));
 
       if (seller) {
         const status = data.action === "approve" ? "approved" : "rejected";

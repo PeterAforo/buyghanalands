@@ -70,8 +70,25 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-geist-mono);
+}
+
+/* ============================================
+   Overlay Readability Utilities
+   ============================================ */
+.text-shadow-hero {
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.text-shadow-soft {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Editorial display headings */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
 }
 
 html, body {
@@ -79,16 +96,18 @@ html, body {
   max-width: 100%;
 }
 
-body {
-  background: var(--c-neutral-surface);
-  color: var(--c-neutral-ink);
-  font-family: var(--font-sans);
-  line-height: 1.65;
-}
+@layer base {
+  body {
+    background: var(--c-neutral-surface);
+    color: var(--c-neutral-ink);
+    font-family: var(--font-sans);
+    line-height: 1.65;
+  }
 
-/* Prevent iOS input zoom */
-input, select, textarea {
-  font-size: 16px;
+  /* Prevent iOS input zoom */
+  input, select, textarea {
+    font-size: 16px;
+  }
 }
 
 /* Safe area insets for iOS */
@@ -108,51 +127,55 @@ input, select, textarea {
 /* ============================================
    Typography Scale
    ============================================ */
-h1 {
-  font-size: clamp(2.25rem, 3vw, 3.25rem);
-  line-height: 1.08;
-  font-weight: 700;
-  letter-spacing: var(--ls-tight);
-  color: var(--c-neutral-ink);
-}
+@layer base {
+  h1 {
+    font-size: clamp(2.25rem, 3vw, 3.25rem);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: var(--ls-tight);
+    color: var(--c-neutral-ink);
+  }
 
-h2 {
-  font-size: clamp(1.75rem, 2.2vw, 2.25rem);
-  line-height: 1.15;
-  font-weight: 650;
-  letter-spacing: var(--ls-tight);
-  color: var(--c-neutral-ink);
-}
+  h2 {
+    font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+    line-height: 1.15;
+    font-weight: 650;
+    letter-spacing: var(--ls-tight);
+    color: var(--c-neutral-ink);
+  }
 
-h3 {
-  font-size: 1.25rem;
-  line-height: 1.25;
-  font-weight: 650;
-  color: var(--c-neutral-ink);
-}
+  h3 {
+    font-size: 1.25rem;
+    line-height: 1.25;
+    font-weight: 650;
+    color: var(--c-neutral-ink);
+  }
 
-p {
-  font-size: 1rem;
-  line-height: 1.65;
-  color: var(--c-neutral-ink-soft);
+  p {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--c-neutral-ink-soft);
+  }
 }
 
 /* ============================================
    Dark Section Text Utilities
    ============================================ */
-.dark-section {
-  background-color: var(--c-dark-bg);
-}
+@layer base {
+  .dark-section {
+    background-color: var(--c-dark-bg);
+  }
 
-.dark-section h1,
-.dark-section h2,
-.dark-section h3,
-.dark-section h4 {
-  color: var(--c-dark-text);
-}
+  .dark-section h1,
+  .dark-section h2,
+  .dark-section h3,
+  .dark-section h4 {
+    color: var(--c-dark-text);
+  }
 
-.dark-section p {
-  color: var(--c-dark-muted);
+  .dark-section p {
+    color: var(--c-dark-muted);
+  }
 }
 
 .text-dark-text {
@@ -246,19 +269,6 @@ p {
 }
 
 /* ============================================
-   GSAP Reveal Initial States
-   ============================================ */
-[data-reveal] {
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-reveal] {
-    opacity: 1;
-  }
-}
-
-/* ============================================
    Lenis Smooth Scroll Styles
    ============================================ */
 html.lenis,
@@ -280,67 +290,6 @@ html.lenis body {
 
 .lenis.lenis-scrolling iframe {
   pointer-events: none;
-}
-
-/* ============================================
-   Hero Visual Box Animations
-   ============================================ */
-.hero-visual-box {
-  position: relative;
-  background: var(--c-dark-surface);
-  border: 1px solid var(--c-dark-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-glow-green);
-  overflow: hidden;
-}
-
-.hero-visual-box::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: 
-    linear-gradient(rgba(32, 227, 178, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(32, 227, 178, 0.03) 1px, transparent 1px);
-  background-size: 24px 24px;
-  pointer-events: none;
-}
-
-/* Pin pulse animation */
-[data-pin] {
-  will-change: transform, opacity;
-}
-
-/* Scan line animation */
-[data-scan] {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(32, 227, 178, 0.08) 50%,
-    transparent 100%
-  );
-  pointer-events: none;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-pin],
-  [data-scan] {
-    animation: none !important;
-    transform: none !important;
-  }
-}
-
-/* ============================================
-   How It Works Line Draw
-   ============================================ */
-[data-how-line] {
-  transform-origin: left center;
-  will-change: transform;
 }
 
 /* ============================================
@@ -379,27 +328,4 @@ html.lenis body {
 
 .light-section [data-assurance] {
   color: var(--c-neutral-ink-soft);
-}
-
-/* ============================================
-   Animation Initial States (GSAP)
-   ============================================ */
-[data-hero-headline],
-[data-hero-sub],
-[data-hero-ctas] > *,
-[data-trust-item],
-[data-how-step],
-[data-reveal-group] > * {
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-hero-headline],
-  [data-hero-sub],
-  [data-hero-ctas] > *,
-  [data-trust-item],
-  [data-how-step],
-  [data-reveal-group] > * {
-    opacity: 1;
-  }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const messageSchema = z.object({
   content: z.string().min(1).max(2000),
@@ -21,12 +21,12 @@ export async function POST(
     const body = await request.json();
     const data = messageSchema.parse(body);
 
-    const dispute = await prisma.dispute.findUnique({
+    const dispute = await withDbRetry(() => prisma.dispute.findUnique({
       where: { id: disputeId },
       include: {
         transaction: true,
       },
-    });
+    }));
 
     if (!dispute) {
       return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
@@ -45,7 +45,7 @@ export async function POST(
     const receiverId = isBuyer ? dispute.transaction.sellerId : dispute.transaction.buyerId;
 
     // Use the Message model with transactionId to link to dispute
-    const message = await prisma.message.create({
+    const message = await withDbRetry(() => prisma.message.create({
       data: {
         senderId: session.user.id,
         receiverId,
@@ -55,7 +55,7 @@ export async function POST(
       include: {
         sender: { select: { fullName: true } },
       },
-    });
+    }));
 
     return NextResponse.json({
       id: message.id,

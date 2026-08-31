@@ -1,4 +1,4 @@
-import { prisma } from "./db";
+import { prisma, withDbRetry } from "./db";
 
 export type NotificationType =
   | "NEW_OFFER"
@@ -93,7 +93,7 @@ export async function sendPushNotification(
   payload: PushNotificationPayload
 ): Promise<{ sent: number; stored: boolean }> {
   // Get user's device tokens
-  const deviceTokens = await prisma.deviceToken.findMany({
+  const deviceTokens = await withDbRetry(() => prisma.deviceToken.findMany({
     where: {
       userId,
       isActive: true,
@@ -102,12 +102,12 @@ export async function sendPushNotification(
       token: true,
       platform: true,
     },
-  });
+  }));
 
   // Check user's notification preferences
-  const preferences = await prisma.notificationPreferences.findUnique({
+  const preferences = await withDbRetry(() => prisma.notificationPreferences.findUnique({
     where: { userId },
-  });
+  }));
 
   // Map notification type to preference field
   const shouldSend = checkNotificationPreference(payload.type, preferences);
@@ -117,7 +117,7 @@ export async function sendPushNotification(
   }
 
   // Store notification in database
-  await prisma.pushNotification.create({
+  await withDbRetry(() => prisma.pushNotification.create({
     data: {
       userId,
       type: payload.type,
@@ -129,7 +129,7 @@ export async function sendPushNotification(
         ...payload.data,
       },
     },
-  });
+  }));
 
   // Send to FCM if we have device tokens
   if (deviceTokens.length > 0) {

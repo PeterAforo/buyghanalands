@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isCompliance(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "COMPLIANCE", "MODERATOR"].includes(role)) || false;
 }
 
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    const [cases, total, stats] = await Promise.all([
+    const [cases, total, stats] = await withDbRetry(() => Promise.all([
       prisma.fraudCase.findMany({
         where,
         include: {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         by: ["status"],
         _count: true,
       }),
-    ]);
+    ]));
 
     const statusCounts = stats.reduce((acc, s) => {
       acc[s.status] = s._count;
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fraudCase = await prisma.fraudCase.create({
+    const fraudCase = await withDbRetry(() => prisma.fraudCase.create({
       data: {
         openedById: session.user.id,
         listingId: data.listingId,
@@ -133,10 +133,10 @@ export async function POST(request: NextRequest) {
         listing: { select: { id: true, title: true } },
         user: { select: { id: true, fullName: true } },
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "FRAUD_CASE",
         entityId: fraudCase.id,
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         action: "CREATE",
         diff: { listingId: data.listingId, userId: data.userId },
       },
-    });
+    }));
 
     return NextResponse.json(fraudCase, { status: 201 });
   } catch (error) {

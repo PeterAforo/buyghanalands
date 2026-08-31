@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
 const changePasswordSchema = z.object({
@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
     const data = changePasswordSchema.parse(body);
 
     // Get user with password hash
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { id: true, passwordHash: true },
-    });
+    }));
 
     if (!user || !user.passwordHash) {
       return NextResponse.json(
@@ -45,13 +45,13 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(data.newPassword, 12);
 
     // Update password
-    await prisma.user.update({
+    await withDbRetry(() => prisma.user.update({
       where: { id: session.user.id },
       data: { passwordHash: hashedPassword },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: session.user.id,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         action: "PASSWORD_CHANGE",
         diff: {},
       },
-    });
+    }));
 
     return NextResponse.json({ success: true });
   } catch (error) {

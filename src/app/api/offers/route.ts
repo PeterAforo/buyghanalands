@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { addDays } from "date-fns";
 import { notifyOfferReceived } from "@/lib/notifications";
 
@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
     const data = createOfferSchema.parse(body);
 
     // Check if listing exists and is published
-    const listing = await prisma.listing.findUnique({
+    const listing = await withDbRetry(() => prisma.listing.findUnique({
       where: { id: data.listingId },
       select: { id: true, status: true, sellerId: true, priceGhs: true },
-    });
+    }));
 
     if (!listing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
@@ -48,13 +48,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing pending offer
-    const existingOffer = await prisma.offer.findFirst({
+    const existingOffer = await withDbRetry(() => prisma.offer.findFirst({
       where: {
         listingId: data.listingId,
         buyerId: session.user.id,
         status: "SENT",
       },
-    });
+    }));
 
     if (existingOffer) {
       return NextResponse.json(
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const offer = await prisma.offer.create({
+    const offer = await withDbRetry(() => prisma.offer.create({
       data: {
         listingId: data.listingId,
         buyerId: session.user.id,
@@ -77,10 +77,10 @@ export async function POST(request: NextRequest) {
           select: { title: true, sellerId: true },
         },
       },
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "OFFER",
         entityId: offer.id,
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         action: "CREATE",
         diff: { amountGhs: data.amountGhs, listingId: data.listingId },
       },
-    });
+    }));
 
     // Send notification to seller (async, don't block response)
     notifyOfferReceived(offer.listing.sellerId, offer.listing.title, data.amountGhs).catch(console.error);
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const offers = await prisma.offer.findMany({
+    const offers = await withDbRetry(() => prisma.offer.findMany({
       where,
       include: {
         listing: {
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     // Serialize BigInt values
     const serializedOffers = offers.map((offer) => ({

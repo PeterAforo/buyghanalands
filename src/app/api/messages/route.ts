@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createMessageSchema = z.object({
   receiverId: z.string().min(1),
@@ -29,16 +29,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if receiver exists
-    const receiver = await prisma.user.findUnique({
+    const receiver = await withDbRetry(() => prisma.user.findUnique({
       where: { id: data.receiverId },
       select: { id: true },
-    });
+    }));
 
     if (!receiver) {
       return NextResponse.json({ error: "Receiver not found" }, { status: 404 });
     }
 
-    const message = await prisma.message.create({
+    const message = await withDbRetry(() => prisma.message.create({
       data: {
         senderId: session.user.id,
         receiverId: data.receiverId,
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         sender: { select: { id: true, fullName: true } },
         receiver: { select: { id: true, fullName: true } },
       },
-    });
+    }));
 
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     if (listingId) where.listingId = listingId;
     if (transactionId) where.transactionId = transactionId;
 
-    const messages = await prisma.message.findMany({
+    const messages = await withDbRetry(() => prisma.message.findMany({
       where,
       include: {
         sender: { select: { id: true, fullName: true, avatarUrl: true } },
@@ -107,18 +107,18 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: "asc" },
       take: 100,
-    });
+    }));
 
     // Mark messages as read
     if (conversationWith) {
-      await prisma.message.updateMany({
+      await withDbRetry(() => prisma.message.updateMany({
         where: {
           senderId: conversationWith,
           receiverId: session.user.id,
           readAt: null,
         },
         data: { readAt: new Date() },
-      });
+      }));
     }
 
     return NextResponse.json(messages);

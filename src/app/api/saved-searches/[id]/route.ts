@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const updateSearchSchema = z.object({
@@ -21,9 +21,9 @@ export async function GET(
 
     const { id } = await params;
 
-    const savedSearch = await prisma.savedSearch.findFirst({
+    const savedSearch = await withDbRetry(() => prisma.savedSearch.findFirst({
       where: { id, userId: session.user.id },
-    });
+    }));
 
     if (!savedSearch) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -58,21 +58,21 @@ export async function PUT(
     const body = await request.json();
     const data = updateSearchSchema.parse(body);
 
-    const existing = await prisma.savedSearch.findFirst({
+    const existing = await withDbRetry(() => prisma.savedSearch.findFirst({
       where: { id, userId: session.user.id },
-    });
+    }));
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const updated = await prisma.savedSearch.update({
+    const updated = await withDbRetry(() => prisma.savedSearch.update({
       where: { id },
       data: {
         name: data.name ?? existing.name,
         alertEnabled: data.alertEnabled ?? existing.alertEnabled,
       },
-    });
+    }));
 
     return NextResponse.json({
       id: updated.id,
@@ -101,15 +101,15 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await prisma.savedSearch.findFirst({
+    const existing = await withDbRetry(() => prisma.savedSearch.findFirst({
       where: { id, userId: session.user.id },
-    });
+    }));
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.savedSearch.delete({ where: { id } });
+    await withDbRetry(() => prisma.savedSearch.delete({ where: { id } }));
 
     return NextResponse.json({ success: true });
   } catch (error) {

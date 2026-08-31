@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role)) || false;
 }
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const transactions = await prisma.transaction.findMany({
+    const transactions = await withDbRetry(() => prisma.transaction.findMany({
       where,
       include: {
         listing: { select: { id: true, title: true, region: true, district: true } },
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
       take: 100,
-    });
+    }));
 
     return NextResponse.json(
       transactions.map((tx) => ({
@@ -109,16 +109,16 @@ export async function PUT(request: NextRequest) {
       close: "CLOSED",
     };
 
-    const result = await prisma.transaction.updateMany({
+    const result = await withDbRetry(() => prisma.transaction.updateMany({
       where: { id: { in: transactionIds } },
       data: {
         status: statusMap[action] as any,
       },
-    });
+    }));
 
     // Create audit logs
     for (const txId of transactionIds) {
-      await prisma.auditLog.create({
+      await withDbRetry(() => prisma.auditLog.create({
         data: {
           entityType: "TRANSACTION",
           entityId: txId,
@@ -127,7 +127,7 @@ export async function PUT(request: NextRequest) {
           action: `TRANSACTION_BULK_${action.toUpperCase()}`,
           diff: { newStatus: statusMap[action] },
         },
-      });
+      }));
     }
 
     return NextResponse.json({ success: true, count: result.count });

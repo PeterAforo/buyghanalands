@@ -291,7 +291,7 @@ export default function SubscriptionPage() {
             <div>
               <h4 className="font-medium">What payment methods are accepted?</h4>
               <p className="text-sm text-gray-600">
-                We accept Mobile Money (MTN, Vodafone, AirtelTigo) and card payments via Flutterwave.
+                We accept Mobile Money (MTN, Vodafone, AirtelTigo) and card payments via Theteller (Payswitch).
               </p>
             </div>
           </CardContent>

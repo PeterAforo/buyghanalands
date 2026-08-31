@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 async function isCompliance(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: userId },
     select: { roles: true },
-  });
+  }));
   return user?.roles.some((role) => ["ADMIN", "COMPLIANCE"].includes(role)) || false;
 }
 
@@ -27,7 +27,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const kycRequest = await prisma.kycRequest.findUnique({
+    const kycRequest = await withDbRetry(() => prisma.kycRequest.findUnique({
       where: { id },
       include: {
         user: {
@@ -49,13 +49,17 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!kycRequest) {
       return NextResponse.json({ error: "KYC request not found" }, { status: 404 });
     }
 
-    return NextResponse.json(kycRequest);
+    // Explicitly include providerPayload (automated check results) in the response
+    return NextResponse.json({
+      ...kycRequest,
+      providerPayload: kycRequest.providerPayload,
+    });
   } catch (error) {
     console.error("Error fetching KYC request:", error);
     return NextResponse.json({ error: "Failed to fetch KYC request" }, { status: 500 });
@@ -65,7 +69,7 @@ export async function GET(
 const reviewKycSchema = z.object({
   action: z.enum(["approve", "reject", "request_retry"]),
   notes: z.string().optional(),
-  newKycTier: z.enum(["TIER_0_OTP", "TIER_1_ID_UPLOADED", "TIER_2_GHANA_CARD"]).optional(),
+  newKycTier: z.enum(["TIER_0_OTP", "TIER_1_ID_UPLOAD", "TIER_2_GHANA_CARD"]).optional(),
 });
 
 export async function PUT(
@@ -86,10 +90,10 @@ export async function PUT(
     const body = await request.json();
     const data = reviewKycSchema.parse(body);
 
-    const kycRequest = await prisma.kycRequest.findUnique({
+    const kycRequest = await withDbRetry(() => prisma.kycRequest.findUnique({
       where: { id },
-      select: { id: true, status: true, userId: true },
-    });
+      select: { id: true, status: true, userId: true, ghanaCardNumber: true, selfieUrl: true },
+    }));
 
     if (!kycRequest) {
       return NextResponse.json({ error: "KYC request not found" }, { status: 404 });
@@ -100,13 +104,16 @@ export async function PUT(
 
     switch (data.action) {
       case "approve":
+        // Approve → set status to PASSED, upgrade user to TIER_2_GHANA_CARD
         newStatus = "PASSED";
         newKycTier = data.newKycTier || "TIER_2_GHANA_CARD";
         break;
       case "reject":
+        // Reject → set status to FAILED, user's kycTier stays at current
         newStatus = "FAILED";
         break;
       case "request_retry":
+        // Request retry → set status to RETRY, user's kycTier stays at current
         newStatus = "RETRY";
         break;
       default:
@@ -114,7 +121,7 @@ export async function PUT(
     }
 
     // Update KYC request
-    const updated = await prisma.kycRequest.update({
+    const updated = await withDbRetry(() => prisma.kycRequest.update({
       where: { id },
       data: {
         status: newStatus as any,
@@ -122,18 +129,18 @@ export async function PUT(
         reviewedById: session.user.id,
         completedAt: newStatus === "PASSED" || newStatus === "FAILED" ? new Date() : undefined,
       },
-    });
+    }));
 
     // Update user's KYC tier if approved
     if (newStatus === "PASSED" && newKycTier) {
-      await prisma.user.update({
+      await withDbRetry(() => prisma.user.update({
         where: { id: kycRequest.userId },
         data: { kycTier: newKycTier as any },
-      });
+      }));
     }
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "KYC_REQUEST",
         entityId: id,
@@ -147,7 +154,7 @@ export async function PUT(
           notes: data.notes,
         },
       },
-    });
+    }));
 
     return NextResponse.json({
       message: `KYC request ${data.action}d`,

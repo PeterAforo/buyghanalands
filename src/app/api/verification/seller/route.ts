@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const verificationRequestSchema = z.object({
   businessName: z.string().optional(),
@@ -25,15 +25,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's KYC tier
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { kycTier: true },
-    });
+    }));
 
     // Check if user has verified seller badge
-    const sellerBadge = await prisma.sellerBadge.findUnique({
+    const sellerBadge = await withDbRetry(() => prisma.sellerBadge.findUnique({
       where: { userId: session.user.id },
-    });
+    }));
 
     return NextResponse.json({
       kycTier: user?.kycTier,
@@ -57,16 +57,16 @@ export async function POST(request: NextRequest) {
     const data = verificationRequestSchema.parse(body);
 
     // Check if already verified
-    const existingBadge = await prisma.sellerBadge.findUnique({
+    const existingBadge = await withDbRetry(() => prisma.sellerBadge.findUnique({
       where: { userId: session.user.id },
-    });
+    }));
 
     if (existingBadge?.status === "ACTIVE") {
       return NextResponse.json({ error: "You are already a verified seller" }, { status: 400 });
     }
 
     // Create or update seller badge with pending status
-    const badge = await prisma.sellerBadge.upsert({
+    const badge = await withDbRetry(() => prisma.sellerBadge.upsert({
       where: { userId: session.user.id },
       create: {
         userId: session.user.id,
@@ -77,10 +77,10 @@ export async function POST(request: NextRequest) {
       update: {
         status: "EXPIRED", // Pending review
       },
-    });
+    }));
 
     // Store verification data in audit log for admin review
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "USER",
         entityId: session.user.id,
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
           references: data.references,
         },
       },
-    });
+    }));
 
     return NextResponse.json({ 
       message: "Verification request submitted",

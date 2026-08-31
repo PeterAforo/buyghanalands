@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -15,30 +15,30 @@ export async function GET(
 
     const { id } = await params;
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { applicantId: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
     }
 
     // Check authorization
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
     const isAdmin = user?.roles.some((r) => ["ADMIN", "SUPPORT"].includes(r));
 
     if (permit.applicantId !== session.user.id && !isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const queries = await prisma.permitQuery.findMany({
+    const queries = await withDbRetry(() => prisma.permitQuery.findMany({
       where: { permitApplicationId: id },
       orderBy: { raisedAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(queries);
   } catch (error) {
@@ -66,10 +66,10 @@ export async function POST(
     const body = await request.json();
     const data = respondToQuerySchema.parse(body);
 
-    const permit = await prisma.permitApplication.findUnique({
+    const permit = await withDbRetry(() => prisma.permitApplication.findUnique({
       where: { id },
       select: { applicantId: true, status: true },
-    });
+    }));
 
     if (!permit) {
       return NextResponse.json({ error: "Permit not found" }, { status: 404 });
@@ -79,10 +79,10 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const query = await prisma.permitQuery.findUnique({
+    const query = await withDbRetry(() => prisma.permitQuery.findUnique({
       where: { id: data.queryId },
       select: { permitApplicationId: true, status: true },
-    });
+    }));
 
     if (!query || query.permitApplicationId !== id) {
       return NextResponse.json({ error: "Query not found" }, { status: 404 });
@@ -93,31 +93,31 @@ export async function POST(
     }
 
     // Update query with response
-    const updated = await prisma.permitQuery.update({
+    const updated = await withDbRetry(() => prisma.permitQuery.update({
       where: { id: data.queryId },
       data: {
         response: data.response,
         status: "RESPONDED",
         respondedAt: new Date(),
       },
-    });
+    }));
 
     // Check if all queries are responded
-    const openQueries = await prisma.permitQuery.count({
+    const openQueries = await withDbRetry(() => prisma.permitQuery.count({
       where: {
         permitApplicationId: id,
         status: "OPEN",
       },
-    });
+    }));
 
     // If all queries responded and permit was in QUERY_RAISED, update to RESUBMITTED
     if (openQueries === 0 && permit.status === "QUERY_RAISED") {
-      await prisma.permitApplication.update({
+      await withDbRetry(() => prisma.permitApplication.update({
         where: { id },
         data: { status: "RESUBMITTED" },
-      });
+      }));
 
-      await prisma.permitStatusHistory.create({
+      await withDbRetry(() => prisma.permitStatusHistory.create({
         data: {
           permitApplicationId: id,
           fromStatus: "QUERY_RAISED",
@@ -125,7 +125,7 @@ export async function POST(
           note: "All queries responded",
           changedById: session.user.id,
         },
-      });
+      }));
     }
 
     return NextResponse.json({

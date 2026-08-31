@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const updateCostTrackerSchema = z.object({
@@ -59,7 +59,7 @@ export async function GET(
     const { id } = await params;
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
@@ -67,7 +67,7 @@ export async function GET(
       include: {
         costTracker: true,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -79,11 +79,11 @@ export async function GET(
     // If no cost tracker exists, create one
     let costTracker = workflow.costTracker;
     if (!costTracker) {
-      costTracker = await prisma.workflowCostTracker.create({
+      costTracker = await withDbRetry(() => prisma.workflowCostTracker.create({
         data: {
           propertyWorkflowId: id,
         },
-      });
+      }));
     }
 
     // Calculate category totals
@@ -203,7 +203,7 @@ export async function PATCH(
     const validatedData = updateCostTrackerSchema.parse(body);
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
@@ -211,7 +211,7 @@ export async function PATCH(
       include: {
         costTracker: true,
       },
-    });
+    }));
 
     if (!workflow) {
       return NextResponse.json(
@@ -222,18 +222,19 @@ export async function PATCH(
 
     // Create or update cost tracker
     let costTracker;
-    if (workflow.costTracker) {
-      costTracker = await prisma.workflowCostTracker.update({
-        where: { id: workflow.costTracker.id },
+    const existingTracker = workflow.costTracker;
+    if (existingTracker) {
+      costTracker = await withDbRetry(() => prisma.workflowCostTracker.update({
+        where: { id: existingTracker.id },
         data: validatedData,
-      });
+      }));
     } else {
-      costTracker = await prisma.workflowCostTracker.create({
+      costTracker = await withDbRetry(() => prisma.workflowCostTracker.create({
         data: {
           propertyWorkflowId: id,
           ...validatedData,
         },
-      });
+      }));
     }
 
     return NextResponse.json({ costTracker });

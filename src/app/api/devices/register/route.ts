@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const data = registerSchema.parse(body);
 
     // Upsert device token (update if exists, create if not)
-    const deviceToken = await prisma.deviceToken.upsert({
+    const deviceToken = await withDbRetry(() => prisma.deviceToken.upsert({
       where: { token: data.token },
       update: {
         userId: session.user.id,
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         isActive: true,
         lastUsedAt: new Date(),
       },
-    });
+    }));
 
     return NextResponse.json({
       id: deviceToken.id,

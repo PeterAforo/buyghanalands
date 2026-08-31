@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const ticket = await prisma.supportTicket.findUnique({
+    const ticket = await withDbRetry(() => prisma.supportTicket.findUnique({
       where: { id },
       include: {
         user: { select: { id: true, fullName: true, email: true, phone: true } },
@@ -27,17 +27,17 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!ticket) {
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
     }
 
     // Check authorization
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
     const isSupport = user?.roles.some((r) => ["ADMIN", "SUPPORT"].includes(r));
 
     if (ticket.userId !== session.user.id && !isSupport) {
@@ -70,19 +70,19 @@ export async function PUT(
     const body = await request.json();
     const data = updateTicketSchema.parse(body);
 
-    const ticket = await prisma.supportTicket.findUnique({
+    const ticket = await withDbRetry(() => prisma.supportTicket.findUnique({
       where: { id },
       select: { userId: true, status: true },
-    });
+    }));
 
     if (!ticket) {
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
     const isSupport = user?.roles.some((r) => ["ADMIN", "SUPPORT"].includes(r));
 
     // Users can only add to body, support can change status
@@ -98,23 +98,23 @@ export async function PUT(
 
     if (data.body) {
       // Append to existing body with timestamp
-      const existingTicket = await prisma.supportTicket.findUnique({
+      const existingTicket = await withDbRetry(() => prisma.supportTicket.findUnique({
         where: { id },
         select: { body: true },
-      });
+      }));
 
       const timestamp = new Date().toISOString();
       const sender = isSupport ? "[SUPPORT]" : "[USER]";
       updateData.body = `${existingTicket?.body}\n\n---\n${sender} ${timestamp}:\n${data.body}`;
     }
 
-    const updated = await prisma.supportTicket.update({
+    const updated = await withDbRetry(() => prisma.supportTicket.update({
       where: { id },
       data: updateData,
-    });
+    }));
 
     // Create audit log
-    await prisma.auditLog.create({
+    await withDbRetry(() => prisma.auditLog.create({
       data: {
         entityType: "SUPPORT_TICKET" as any,
         entityId: id,
@@ -123,7 +123,7 @@ export async function PUT(
         action: data.status ? "STATUS_CHANGE" : "ADD_RESPONSE",
         diff: { status: data.status, hasNewMessage: !!data.body },
       },
-    });
+    }));
 
     return NextResponse.json(updated);
   } catch (error) {

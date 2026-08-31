@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const preferencesSchema = z.object({
@@ -21,15 +21,15 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let preferences = await prisma.notificationPreferences.findUnique({
+    let preferences = await withDbRetry(() => prisma.notificationPreferences.findUnique({
       where: { userId: session.user.id },
-    });
+    }));
 
     // Create default preferences if none exist
     if (!preferences) {
-      preferences = await prisma.notificationPreferences.create({
+      preferences = await withDbRetry(() => prisma.notificationPreferences.create({
         data: { userId: session.user.id },
-      });
+      }));
     }
 
     return NextResponse.json({ preferences });
@@ -52,14 +52,14 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const data = preferencesSchema.parse(body);
 
-    const preferences = await prisma.notificationPreferences.upsert({
+    const preferences = await withDbRetry(() => prisma.notificationPreferences.upsert({
       where: { userId: session.user.id },
       update: data,
       create: {
         userId: session.user.id,
         ...data,
       },
-    });
+    }));
 
     return NextResponse.json({ preferences });
   } catch (error) {

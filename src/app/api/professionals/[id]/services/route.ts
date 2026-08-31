@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -10,13 +10,13 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const services = await prisma.professionalService.findMany({
+    const services = await withDbRetry(() => prisma.professionalService.findMany({
       where: {
         professionalId: id,
         isPublished: true,
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(
       services.map((s) => ({
@@ -53,10 +53,10 @@ export async function POST(
     const data = createServiceSchema.parse(body);
 
     // Verify ownership
-    const professional = await prisma.professionalProfile.findUnique({
+    const professional = await withDbRetry(() => prisma.professionalProfile.findUnique({
       where: { id },
       select: { userId: true },
-    });
+    }));
 
     if (!professional) {
       return NextResponse.json({ error: "Professional not found" }, { status: 404 });
@@ -66,7 +66,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const service = await prisma.professionalService.create({
+    const service = await withDbRetry(() => prisma.professionalService.create({
       data: {
         professionalId: id,
         title: data.title,
@@ -76,7 +76,7 @@ export async function POST(
         turnaroundDays: data.turnaroundDays,
         isPublished: true,
       },
-    });
+    }));
 
     return NextResponse.json({
       ...service,

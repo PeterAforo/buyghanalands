@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const addClientSchema = z.object({
   clientId: z.string(),
@@ -14,16 +14,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const agent = await prisma.agentProfile.findUnique({
+    const agent = await withDbRetry(() => prisma.agentProfile.findUnique({
       where: { userId: session.user.id },
       select: { id: true },
-    });
+    }));
 
     if (!agent) {
       return NextResponse.json({ error: "Agent profile not found" }, { status: 404 });
     }
 
-    const clients = await prisma.agentClient.findMany({
+    const clients = await withDbRetry(() => prisma.agentClient.findMany({
       where: { agentId: agent.id },
       include: {
         client: {
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     return NextResponse.json(clients);
   } catch (error) {
@@ -56,37 +56,37 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = addClientSchema.parse(body);
 
-    const agent = await prisma.agentProfile.findUnique({
+    const agent = await withDbRetry(() => prisma.agentProfile.findUnique({
       where: { userId: session.user.id },
       select: { id: true },
-    });
+    }));
 
     if (!agent) {
       return NextResponse.json({ error: "Agent profile not found" }, { status: 404 });
     }
 
     // Check if client exists
-    const client = await prisma.user.findUnique({
+    const client = await withDbRetry(() => prisma.user.findUnique({
       where: { id: data.clientId },
-    });
+    }));
 
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
     // Check if already a client
-    const existing = await prisma.agentClient.findFirst({
+    const existing = await withDbRetry(() => prisma.agentClient.findFirst({
       where: {
         agentId: agent.id,
         clientId: data.clientId,
       },
-    });
+    }));
 
     if (existing) {
       return NextResponse.json({ error: "Already a client" }, { status: 400 });
     }
 
-    const agentClient = await prisma.agentClient.create({
+    const agentClient = await withDbRetry(() => prisma.agentClient.create({
       data: {
         agentId: agent.id,
         clientId: data.clientId,
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    });
+    }));
 
     return NextResponse.json(agentClient, { status: 201 });
   } catch (error) {

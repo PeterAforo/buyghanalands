@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const updateLandAcquisitionSchema = z.object({
@@ -163,7 +163,7 @@ export async function PATCH(
     const validatedData = updateLandAcquisitionSchema.parse(body);
 
     // Verify ownership
-    const workflow = await prisma.propertyWorkflow.findFirst({
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.findFirst({
       where: {
         id,
         userId: session.user.id,
@@ -171,7 +171,7 @@ export async function PATCH(
       include: {
         landAcquisition: true,
       },
-    });
+    }));
 
     if (!workflow || !workflow.landAcquisition) {
       return NextResponse.json(
@@ -179,6 +179,8 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    const landAcquisition = workflow.landAcquisition;
 
     // Prepare update data
     const updateData: any = { ...validatedData };
@@ -195,13 +197,13 @@ export async function PATCH(
     }
 
     // Update land acquisition
-    const updatedLandAcquisition = await prisma.landAcquisitionWorkflow.update({
-      where: { id: workflow.landAcquisition.id },
+    const updatedLandAcquisition = await withDbRetry(() => prisma.landAcquisitionWorkflow.update({
+      where: { id: landAcquisition.id },
       data: updateData,
-    });
+    }));
 
     // Calculate progress for each stage
-    const mergedData = { ...workflow.landAcquisition, ...updatedLandAcquisition };
+    const mergedData = { ...landAcquisition, ...updatedLandAcquisition };
     const stage1Progress = calculateStageProgress(mergedData, 1);
     const stage2Progress = calculateStageProgress(mergedData, 2);
     const stage3Progress = calculateStageProgress(mergedData, 3);
@@ -222,8 +224,8 @@ export async function PATCH(
     };
 
     // Update with calculated progress
-    const finalUpdate = await prisma.landAcquisitionWorkflow.update({
-      where: { id: workflow.landAcquisition.id },
+    const finalUpdate = await withDbRetry(() => prisma.landAcquisitionWorkflow.update({
+      where: { id: landAcquisition.id },
       data: {
         currentStage,
         progress: overallProgress,
@@ -240,24 +242,24 @@ export async function PATCH(
         stage5Status: getStageStatus(stage5Progress, 5) as any,
         stage6Status: getStageStatus(stage6Progress, 6) as any,
         status: overallProgress === 100 ? "COMPLETED" : overallProgress > 0 ? "IN_PROGRESS" : "NOT_STARTED",
-        ...(overallProgress > 0 && !workflow.landAcquisition.startedAt && { startedAt: new Date() }),
+        ...(overallProgress > 0 && !landAcquisition.startedAt && { startedAt: new Date() }),
         ...(overallProgress === 100 && { completedAt: new Date() }),
       },
-    });
+    }));
 
     // Update parent workflow progress
-    await prisma.propertyWorkflow.update({
+    await withDbRetry(() => prisma.propertyWorkflow.update({
       where: { id },
       data: {
         overallProgress: Math.round(overallProgress * 0.25), // Land acquisition is 25% of total
         overallStatus: overallProgress > 0 ? "IN_PROGRESS" : "NOT_STARTED",
         ...(overallProgress > 0 && !workflow.startedAt && { startedAt: new Date() }),
       },
-    });
+    }));
 
     // Create alerts based on progress
     if (validatedData.lawyerEngaged === false && stage1Progress > 20) {
-      await prisma.workflowAlert.create({
+      await withDbRetry(() => prisma.workflowAlert.create({
         data: {
           propertyWorkflowId: id,
           alertType: "warning",
@@ -268,11 +270,11 @@ export async function PATCH(
           isRead: false,
           isDismissed: false,
         },
-      });
+      }));
     }
 
     if (validatedData.verifiedSitePlanObtained === false && validatedData.totalPaidGhs && Number(validatedData.totalPaidGhs) > 0) {
-      await prisma.workflowAlert.create({
+      await withDbRetry(() => prisma.workflowAlert.create({
         data: {
           propertyWorkflowId: id,
           alertType: "deadline",
@@ -283,7 +285,7 @@ export async function PATCH(
           isRead: false,
           isDismissed: false,
         },
-      });
+      }));
     }
 
     return NextResponse.json({ landAcquisition: finalUpdate });

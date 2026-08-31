@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 import { z } from "zod";
 
 const revokeSchema = z.object({
@@ -12,9 +12,9 @@ export async function POST(request: NextRequest) {
     const { refreshToken } = revokeSchema.parse(body);
 
     // Find and revoke the refresh token
-    const storedToken = await prisma.refreshToken.findUnique({
+    const storedToken = await withDbRetry(() => prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-    });
+    }));
 
     if (!storedToken) {
       // Return success even if token doesn't exist (idempotent)
@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Revoke the token
-    await prisma.refreshToken.update({
+    await withDbRetry(() => prisma.refreshToken.update({
       where: { id: storedToken.id },
       data: { revokedAt: new Date() },
-    });
+    }));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -58,13 +58,13 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Revoke all tokens for the user
-    const result = await prisma.refreshToken.updateMany({
+    const result = await withDbRetry(() => prisma.refreshToken.updateMany({
       where: {
         userId,
         revokedAt: null,
       },
       data: { revokedAt: new Date() },
-    });
+    }));
 
     return NextResponse.json({
       success: true,

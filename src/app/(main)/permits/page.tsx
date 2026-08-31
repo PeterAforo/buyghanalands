@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 import { formatDate } from "@/lib/utils";
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 async function getPermitApplications(userId: string) {
-  const applications = await prisma.permitApplication.findMany({
+  const applications = await withDbRetry(() => prisma.permitApplication.findMany({
     where: { applicantId: userId },
     include: {
       assembly: {
@@ -27,7 +27,7 @@ async function getPermitApplications(userId: string) {
       },
     },
     orderBy: { createdAt: "desc" },
-  });
+  }));
 
   return applications;
 }

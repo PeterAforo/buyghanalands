@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 const createAgentProfileSchema = z.object({
   agencyName: z.string().min(2),
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get agent profile
-    const agent = await prisma.agentProfile.findUnique({
+    const agent = await withDbRetry(() => prisma.agentProfile.findUnique({
       where: { userId: session.user.id },
       include: {
         clients: {
@@ -54,18 +54,18 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-    });
+    }));
 
     if (!agent) {
       return NextResponse.json({ error: "Agent profile not found" }, { status: 404 });
     }
 
     // Get commission stats
-    const commissionStats = await prisma.agentCommission.aggregate({
+    const commissionStats = await withDbRetry(() => prisma.agentCommission.aggregate({
       where: { agentId: agent.id },
       _sum: { amountGhs: true },
       _count: true,
-    });
+    }));
 
     return NextResponse.json({
       agent,
@@ -91,15 +91,15 @@ export async function POST(request: NextRequest) {
     const data = createAgentProfileSchema.parse(body);
 
     // Check if already has agent profile
-    const existing = await prisma.agentProfile.findUnique({
+    const existing = await withDbRetry(() => prisma.agentProfile.findUnique({
       where: { userId: session.user.id },
-    });
+    }));
 
     if (existing) {
       return NextResponse.json({ error: "Agent profile already exists" }, { status: 400 });
     }
 
-    const agent = await prisma.agentProfile.create({
+    const agent = await withDbRetry(() => prisma.agentProfile.create({
       data: {
         userId: session.user.id,
         agencyName: data.agencyName,
@@ -111,15 +111,15 @@ export async function POST(request: NextRequest) {
         isVerified: false,
         isActive: true,
       },
-    });
+    }));
 
     // Add AGENT role to user
-    await prisma.user.update({
+    await withDbRetry(() => prisma.user.update({
       where: { id: session.user.id },
       data: {
         roles: { push: "AGENT" },
       },
-    });
+    }));
 
     return NextResponse.json(agent, { status: 201 });
   } catch (error) {
@@ -140,15 +140,15 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
 
-    const agent = await prisma.agentProfile.findUnique({
+    const agent = await withDbRetry(() => prisma.agentProfile.findUnique({
       where: { userId: session.user.id },
-    });
+    }));
 
     if (!agent) {
       return NextResponse.json({ error: "Agent profile not found" }, { status: 404 });
     }
 
-    const updated = await prisma.agentProfile.update({
+    const updated = await withDbRetry(() => prisma.agentProfile.update({
       where: { userId: session.user.id },
       data: {
         agencyName: body.agencyName,
@@ -157,7 +157,7 @@ export async function PUT(request: NextRequest) {
         commissionRate: body.commissionRate,
         specializations: body.specializations,
       },
-    });
+    }));
 
     return NextResponse.json(updated);
   } catch (error) {

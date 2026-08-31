@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,10 +10,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Check admin role
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.user.id },
       select: { roles: true },
-    });
+    }));
 
     if (!user?.roles.includes("ADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (assemblyId) where.assemblyId = assemblyId;
 
-    const permits = await prisma.permitApplication.findMany({
+    const permits = await withDbRetry(() => prisma.permitApplication.findMany({
       where,
       include: {
         applicant: {
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-    });
+    }));
 
     const serialized = permits.map((p) => ({
       ...p,

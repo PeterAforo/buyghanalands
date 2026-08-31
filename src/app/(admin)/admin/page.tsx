@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { prisma, withDbRetry } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 import { formatPrice, formatDate } from "@/lib/utils";
@@ -42,7 +42,7 @@ async function getAdminStats() {
     openDisputes,
     openFraudCases,
     recentPayments,
-  ] = await Promise.all([
+  ] = await withDbRetry(() => Promise.all([
     prisma.user.count(),
     prisma.listing.count(),
     prisma.listing.count({ where: { status: "PUBLISHED" } }),
@@ -58,7 +58,7 @@ async function getAdminStats() {
       where: { status: "SUCCESS", createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
       _sum: { amount: true },
     }),
-  ]);
+  ]));
 
   return {
     totalUsers,
@@ -75,7 +75,7 @@ async function getAdminStats() {
 }
 
 async function getRecentActivity() {
-  const [recentListings, recentTransactions, recentDisputes] = await Promise.all([
+  const [recentListings, recentTransactions, recentDisputes] = await withDbRetry(() => Promise.all([
     prisma.listing.findMany({
       where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
       include: { seller: { select: { fullName: true } } },
@@ -99,7 +99,7 @@ async function getRecentActivity() {
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
-  ]);
+  ]));
 
   return { recentListings, recentTransactions, recentDisputes };
 }
@@ -112,10 +112,10 @@ export default async function AdminDashboard() {
   }
 
   // Check if user is admin
-  const user = await prisma.user.findUnique({
+  const user = await withDbRetry(() => prisma.user.findUnique({
     where: { id: session.user.id },
     select: { roles: true },
-  });
+  }));
 
   if (!user?.roles.some((role) => ["ADMIN", "SUPPORT", "MODERATOR"].includes(role))) {
     redirect("/dashboard");
