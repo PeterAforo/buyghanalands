@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function POST(
   request: NextRequest,
@@ -81,13 +82,10 @@ export async function POST(
       },
     }));
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       message: "Application submitted successfully",
-      permit: {
-        ...updated,
-        estimatedCostGhs: updated.estimatedCostGhs?.toString(),
-      },
-    });
+      permit: updated,
+    }));
   } catch (error) {
     console.error("Error submitting permit:", error);
     return NextResponse.json({ error: "Failed to submit permit" }, { status: 500 });

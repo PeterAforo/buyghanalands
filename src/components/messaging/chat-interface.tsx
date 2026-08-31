@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
   Send,
@@ -200,9 +201,12 @@ function ChatInterface({
         <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
           <div className="flex items-center gap-3">
             {listingContext.image && (
-              <img
+              <Image
                 src={listingContext.image}
                 alt={listingContext.title}
+                width={48}
+                height={48}
+                unoptimized
                 className="w-12 h-12 rounded-lg object-cover"
               />
             )}
@@ -265,10 +269,13 @@ function ChatInterface({
                         {message.attachments.map((attachment, index) => (
                           <div key={index}>
                             {attachment.type === "image" ? (
-                              <img
+                              <Image
                                 src={attachment.url}
                                 alt="Attachment"
-                                className="rounded-lg max-w-full"
+                                width={400}
+                                height={300}
+                                unoptimized
+                                className="rounded-lg max-w-full h-auto"
                               />
                             ) : (
                               <a
@@ -331,10 +338,12 @@ function ChatInterface({
                 className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-200"
               >
                 {file.type.startsWith("image/") ? (
-                  <img
+                  <Image
                     src={URL.createObjectURL(file)}
                     alt={file.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    unoptimized
+                    className="object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">

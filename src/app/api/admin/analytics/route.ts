@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 async function isAdmin(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -177,7 +178,7 @@ export async function GET(request: NextRequest) {
       }),
     ]));
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       period,
       startDate: startDate.toISOString(),
       generatedAt: new Date().toISOString(),
@@ -189,13 +190,10 @@ export async function GET(request: NextRequest) {
       disputes: disputeStats,
       recent: {
         users: recentUsers,
-        listings: recentListings.map((l) => ({
-          ...l,
-          priceGhs: l.priceGhs.toString(),
-        })),
+        listings: recentListings,
       },
       topRegions,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching analytics:", error);
     return NextResponse.json({ error: "Failed to fetch analytics" }, { status: 500 });

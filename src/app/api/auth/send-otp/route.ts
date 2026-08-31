@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const { phone, userId } = await request.json();
 
     // Rate limit by phone number (primary) and IP (secondary)
-    const phoneRateLimit = checkRateLimit(phone || "unknown", RATE_LIMITS.OTP_SEND);
+    const phoneRateLimit = await checkRateLimit(phone || "unknown", RATE_LIMITS.OTP_SEND);
     if (!phoneRateLimit.success) {
       return NextResponse.json(
         { error: "Too many OTP requests. Please try again later." },
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ip = getClientIP(request);
-    const ipRateLimit = checkRateLimit(ip, { ...RATE_LIMITS.OTP_SEND, limit: 10, identifier: "otp-send-ip" });
+    const ipRateLimit = await checkRateLimit(ip, { ...RATE_LIMITS.OTP_SEND, limit: 10, identifier: "otp-send-ip" });
     if (!ipRateLimit.success) {
       return NextResponse.json(
         { error: "Too many requests from this IP. Please try again later." },

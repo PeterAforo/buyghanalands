@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { User } from "lucide-react";
 
@@ -41,10 +42,12 @@ function Avatar({ src, alt, size = "md", fallback, className, ...props }: Avatar
         )}
         {...props}
       >
-        <img
+        <Image
           src={src}
           alt={alt || "Avatar"}
-          className="h-full w-full object-cover"
+          fill
+          unoptimized
+          className="object-cover"
           onError={() => setError(true)}
         />
       </div>

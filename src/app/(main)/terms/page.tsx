@@ -1,4 +1,10 @@
+import { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+export const metadata: Metadata = {
+  title: "Terms of Service | Buy Ghana Lands",
+  description: "Read the terms of service for using Buy Ghana Lands platform for land transactions in Ghana.",
+};
 
 export default function TermsPage() {
   return (

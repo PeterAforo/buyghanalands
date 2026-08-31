@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
@@ -84,22 +85,7 @@ export async function GET(
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
-      ...transaction,
-      agreedPriceGhs: transaction.agreedPriceGhs.toString(),
-      platformFeeBps: transaction.platformFeeBps,
-      listing: transaction.listing
-        ? {
-            ...transaction.listing,
-            priceGhs: transaction.listing.priceGhs.toString(),
-            sizeAcres: transaction.listing.sizeAcres.toString(),
-          }
-        : null,
-      payments: transaction.payments.map((p) => ({
-        ...p,
-        amount: p.amount.toString(),
-      })),
-    });
+    return NextResponse.json(serializeForJson(transaction));
   } catch (error) {
     console.error("Error fetching transaction:", error);
     return NextResponse.json({ error: "Failed to fetch transaction" }, { status: 500 });
@@ -175,11 +161,7 @@ export async function PUT(
       },
     }));
 
-    return NextResponse.json({
-      ...updatedTransaction,
-      agreedPriceGhs: updatedTransaction.agreedPriceGhs.toString(),
-      platformFeeBps: updatedTransaction.platformFeeBps,
-    });
+    return NextResponse.json(serializeForJson(updatedTransaction));
   } catch (error) {
     return NextResponse.json({ error: "Failed to update transaction" }, { status: 500 });
   }
@@ -238,11 +220,7 @@ export async function PATCH(
       },
     }));
 
-    return NextResponse.json({
-      ...updatedTransaction,
-      agreedPriceGhs: updatedTransaction.agreedPriceGhs.toString(),
-      platformFeeBps: updatedTransaction.platformFeeBps,
-    });
+    return NextResponse.json(serializeForJson(updatedTransaction));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });

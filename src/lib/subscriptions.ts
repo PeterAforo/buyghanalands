@@ -465,25 +465,25 @@ export function getProfessionalCommissionRate(plan: ProfessionalPlan | null): nu
 /**
  * Get listing limit for a seller plan
  */
-export function getSellerListingLimit(plan: SellerPlan | null): number {
+export function getSellerListingLimit(plan: SellerPlan | string | null): number {
   if (!plan) return SELLER_PLANS.FREE.listingLimit;
-  return SELLER_PLANS[plan]?.listingLimit ?? SELLER_PLANS.FREE.listingLimit;
+  return (SELLER_PLANS as Record<string, SellerPlanConfig>)[plan]?.listingLimit ?? SELLER_PLANS.FREE.listingLimit;
 }
 
 /**
  * Get client limit for an agent plan
  */
-export function getAgentClientLimit(plan: AgentPlan | null): number {
+export function getAgentClientLimit(plan: AgentPlan | string | null): number {
   if (!plan) return AGENT_PLANS.BASIC.clientLimit;
-  return AGENT_PLANS[plan]?.clientLimit ?? AGENT_PLANS.BASIC.clientLimit;
+  return (AGENT_PLANS as Record<string, AgentPlanConfig>)[plan]?.clientLimit ?? AGENT_PLANS.BASIC.clientLimit;
 }
 
 /**
  * Get lead limit for a professional plan
  */
-export function getProfessionalLeadLimit(plan: ProfessionalPlan | null): number {
+export function getProfessionalLeadLimit(plan: ProfessionalPlan | string | null): number {
   if (!plan) return PROFESSIONAL_PLANS.BASIC.leadLimit;
-  return PROFESSIONAL_PLANS[plan]?.leadLimit ?? PROFESSIONAL_PLANS.BASIC.leadLimit;
+  return (PROFESSIONAL_PLANS as Record<string, ProfessionalPlanConfig>)[plan]?.leadLimit ?? PROFESSIONAL_PLANS.BASIC.leadLimit;
 }
 
 /**
@@ -491,10 +491,10 @@ export function getProfessionalLeadLimit(plan: ProfessionalPlan | null): number 
  */
 export function planHasFeature(
   category: SubscriptionCategory,
-  plan: BuyerPlan | SellerPlan | AgentPlan | ProfessionalPlan,
+  plan: BuyerPlan | SellerPlan | AgentPlan | ProfessionalPlan | string,
   feature: string
 ): boolean {
-  const config = getPlanConfig(category, plan);
+  const config = getPlanConfig(category, plan as BuyerPlan | SellerPlan | AgentPlan | ProfessionalPlan);
   if (!config) return false;
   return config.features[feature] === true;
 }

@@ -1,7 +1,13 @@
+import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+
+export const metadata: Metadata = {
+  title: "Admin Dashboard | Buy Ghana Lands",
+  description: "Admin dashboard overview for managing the Buy Ghana Lands platform.",
+};
 
 export const dynamic = 'force-dynamic';
 import { formatPrice, formatDate } from "@/lib/utils";
@@ -104,6 +110,45 @@ async function getRecentActivity() {
   return { recentListings, recentTransactions, recentDisputes };
 }
 
+async function getMonthlyRevenue() {
+  // Get last 7 months of revenue
+  const months: { label: string; revenue: number; expenses: number }[] = [];
+  const now = new Date();
+
+  for (let i = 6; i >= 0; i--) {
+    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+
+    const result = await withDbRetry(() =>
+      prisma.payment.aggregate({
+        where: {
+          status: "SUCCESS",
+          createdAt: { gte: start, lt: end },
+        },
+        _sum: { amount: true },
+      })
+    );
+
+    // Approximate platform expenses as 15% of revenue (escrow fees, payment processing)
+    const revenue = Number(result._sum.amount || 0);
+    months.push({
+      label: start.toLocaleDateString("en", { month: "short" }),
+      revenue,
+      expenses: Math.round(revenue * 0.15),
+    });
+  }
+
+  // Calculate growth percentage
+  const currentMonth = months[months.length - 1]?.revenue || 0;
+  const previousMonth = months[months.length - 2]?.revenue || 0;
+  const growthPercent =
+    previousMonth > 0
+      ? Math.round(((currentMonth - previousMonth) / previousMonth) * 100)
+      : 0;
+
+  return { months, growthPercent };
+}
+
 export default async function AdminDashboard() {
   const session = await auth();
 
@@ -123,6 +168,7 @@ export default async function AdminDashboard() {
 
   const stats = await getAdminStats();
   const { recentListings, recentTransactions, recentDisputes } = await getRecentActivity();
+  const { months: revenueMonths, growthPercent } = await getMonthlyRevenue();
 
   return (
     <div>
@@ -140,7 +186,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Top Row - Alert Card + Stats */}
-      <div className="grid grid-cols-12 gap-6 mb-6">
+      <div className="grid grid-cols-12 gap-6 mb-6" data-testid="admin-stats">
         {/* Update Alert Card */}
         <div className="col-span-3 bg-[#1a3a2f] rounded-2xl p-5 text-white">
           <div className="flex items-center gap-2 mb-2">
@@ -209,7 +255,7 @@ export default async function AdminDashboard() {
       {/* Middle Row - Transactions + Revenue Chart + Performance */}
       <div className="grid grid-cols-12 gap-6 mb-6">
         {/* Recent Transactions */}
-        <div className="col-span-4 bg-white rounded-2xl p-5 border border-gray-100">
+        <div className="col-span-4 bg-white rounded-2xl p-5 border border-gray-100" data-testid="admin-recent-users">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-[#1a3a2f]">Recent Activity</h3>
             <button className="text-gray-400 hover:text-gray-600">
@@ -265,17 +311,33 @@ export default async function AdminDashboard() {
             GH₵{Number(stats.monthlyRevenue).toLocaleString()}
           </div>
           <div className="flex items-center gap-1 mb-4">
-            <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-            <span className="text-sm text-emerald-500 font-medium">+35%</span>
+            {growthPercent >= 0 ? (
+              <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+            ) : (
+              <ArrowDownRight className="h-4 w-4 text-red-500" />
+            )}
+            <span className={`text-sm font-medium ${growthPercent >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+              {growthPercent >= 0 ? "+" : ""}{growthPercent}%
+            </span>
             <span className="text-sm text-gray-400">from last month</span>
           </div>
-          {/* Simple bar chart representation */}
+          {/* Bar chart from real monthly revenue data */}
           <div className="flex items-end gap-2 h-32 mt-4">
-            {[40, 65, 45, 80, 55, 90, 70].map((height, i) => (
-              <div key={i} className="flex-1 flex flex-col gap-1">
-                <div className="bg-[#c5e063] rounded-t-sm" style={{ height: `${height}%` }}></div>
-                <div className="bg-gray-200 rounded-b-sm" style={{ height: `${100 - height}%` }}></div>
-              </div>
+            {revenueMonths.map((m, i) => {
+              const maxRevenue = Math.max(...revenueMonths.map((rm) => rm.revenue), 1);
+              const incomeHeight = maxRevenue > 0 ? Math.max(5, (m.revenue / maxRevenue) * 100) : 5;
+              const expenseHeight = maxRevenue > 0 ? Math.max(2, (m.expenses / maxRevenue) * 100) : 2;
+              return (
+                <div key={i} className="flex-1 flex flex-col gap-1" title={`${m.label}: GHS ${m.revenue.toLocaleString()}`}>
+                  <div className="bg-[#c5e063] rounded-t-sm transition-all" style={{ height: `${incomeHeight}%` }}></div>
+                  <div className="bg-gray-200 rounded-b-sm transition-all" style={{ height: `${expenseHeight}%` }}></div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between mt-2 text-[10px] text-gray-400">
+            {revenueMonths.map((m, i) => (
+              <span key={i}>{m.label}</span>
             ))}
           </div>
         </div>

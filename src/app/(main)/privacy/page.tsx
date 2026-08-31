@@ -1,3 +1,10 @@
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy | Buy Ghana Lands",
+  description: "Read our privacy policy to understand how we collect, use, and protect your information on Buy Ghana Lands.",
+};
+
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-gray-50">

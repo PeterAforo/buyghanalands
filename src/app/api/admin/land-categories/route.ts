@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+
+const createLandCategorySchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  landType: z.enum(["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "MIXED"]),
+  icon: z.string().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().nonnegative().optional(),
+});
 
 async function isAdmin(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -40,11 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, landType, icon, isActive, sortOrder } = body;
-
-    if (!name || !landType) {
-      return NextResponse.json({ error: "Name and land type are required" }, { status: 400 });
-    }
+    const { name, description, landType, icon, isActive, sortOrder } = createLandCategorySchema.parse(body);
 
     // Generate slug from name
     const slug = name
@@ -66,6 +72,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(category, { status: 201 });
   } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 });
+    }
     console.error("Error creating land category:", error);
     if (error.code === "P2002") {
       return NextResponse.json({ error: "Category with this name already exists" }, { status: 400 });

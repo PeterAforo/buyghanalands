@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
       take: 100,
     }));
 
-    return NextResponse.json(users);
+    return NextResponse.json(serializeForJson(users));
   } catch (error) {
     console.error("Error fetching admin users:", error);
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json(newUser, { status: 201 });
+    return NextResponse.json(serializeForJson(newUser), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });

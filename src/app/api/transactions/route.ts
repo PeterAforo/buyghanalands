@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const createTransactionSchema = z.object({
   offerId: z.string().min(1),
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json(transaction, { status: 201 });
+    return NextResponse.json(serializeForJson(transaction), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -182,7 +183,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     }));
 
-    return NextResponse.json(transactions);
+    return NextResponse.json(serializeForJson(transactions));
   } catch (error) {
     console.error("Error fetching transactions:", error);
     return NextResponse.json(

@@ -1,5 +1,11 @@
+import { Metadata } from "next";
 import { prisma, withDbRetry } from "@/lib/db";
 import { ProfessionalsClient } from "./professionals-client";
+
+export const metadata: Metadata = {
+  title: "Find Professionals | Buy Ghana Lands",
+  description: "Find licensed surveyors, lawyers, architects, engineers, planners, and valuers for your land transactions in Ghana.",
+};
 
 export const dynamic = 'force-dynamic';
 

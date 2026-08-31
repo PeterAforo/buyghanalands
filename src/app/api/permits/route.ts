@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const createPermitSchema = z.object({
   assemblyId: z.string(),
@@ -56,12 +57,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     }));
 
-    const serialized = permits.map((p) => ({
-      ...p,
-      estimatedCostGhs: p.estimatedCostGhs?.toString() || null,
-    }));
-
-    return NextResponse.json(serialized);
+    return NextResponse.json(serializeForJson(permits));
   } catch (error) {
     console.error("Error fetching permits:", error);
     return NextResponse.json({ error: "Failed to fetch permits" }, { status: 500 });
@@ -116,10 +112,7 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json({
-      ...permit,
-      estimatedCostGhs: permit.estimatedCostGhs?.toString() || null,
-    }, { status: 201 });
+    return NextResponse.json(serializeForJson(permit), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });

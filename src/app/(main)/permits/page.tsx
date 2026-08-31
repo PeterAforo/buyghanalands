@@ -1,7 +1,13 @@
+import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+
+export const metadata: Metadata = {
+  title: "Building Permits | Buy Ghana Lands",
+  description: "Manage and track building permits for your land properties on Buy Ghana Lands.",
+};
 
 export const dynamic = 'force-dynamic';
 import { formatDate } from "@/lib/utils";

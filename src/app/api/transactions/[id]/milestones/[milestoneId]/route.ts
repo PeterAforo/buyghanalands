@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function PUT(
   request: NextRequest,
@@ -102,10 +103,7 @@ export async function PUT(
         where: { id: milestoneId },
       }));
 
-      return NextResponse.json({
-        ...finalMilestone,
-        amountGhs: finalMilestone?.amountGhs.toString(),
-      });
+      return NextResponse.json(serializeForJson(finalMilestone));
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

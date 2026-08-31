@@ -123,7 +123,7 @@ function WorkflowAlerts({
   const [showAll, setShowAll] = React.useState(false);
 
   const visibleAlerts = React.useMemo(() => {
-    let filtered = alerts.filter((a) => showDismissed || !a.isDismissed);
+    const filtered = alerts.filter((a) => showDismissed || !a.isDismissed);
     
     // Sort by priority: deadlines first, then warnings, then unread, then by date
     filtered.sort((a, b) => {

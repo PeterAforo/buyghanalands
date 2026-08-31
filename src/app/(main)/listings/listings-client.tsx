@@ -378,6 +378,7 @@ function ListingsClientInner({
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
+                  data-testid="listings-search"
                   placeholder="Search by location, title, or keyword..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -512,6 +513,7 @@ function ListingsClientInner({
       <AnimatePresence>
         {showFilters && (
           <motion.div
+            data-testid="listings-filter"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -833,7 +835,7 @@ function ListingCard({
 
   return (
     <Link href={`/listings/${listing.id}`}>
-      <div className="group h-full overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+      <div data-testid="listing-card" className="group h-full overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
         <div className="relative aspect-[16/11] overflow-hidden bg-gray-100">
           <Image
             src={imageUrl}
@@ -927,7 +929,7 @@ function ListingListItem({
 
   return (
     <Link href={`/listings/${listing.id}`}>
-      <div className="group overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:shadow-2xl">
+      <div data-testid="listing-card" className="group overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:shadow-2xl">
         <div className="flex flex-col sm:flex-row">
           <div className="relative h-52 w-full flex-shrink-0 overflow-hidden bg-gray-100 sm:h-auto sm:w-80">
             <Image

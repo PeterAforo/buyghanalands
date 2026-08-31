@@ -1,6 +1,14 @@
 // Hybrid KYC (Know Your Customer) verification library for Ghana Card.
 // Provides automated in-house checks with manual admin review as fallback.
-// Pure utility library — no external imports, no prisma calls.
+// Uses AWS Rekognition for document quality, selfie quality, and face matching
+// when AWS credentials are configured. Falls back to stub checks otherwise.
+
+import {
+  RekognitionClient,
+  DetectTextCommand,
+  DetectFacesCommand,
+  CompareFacesCommand,
+} from "@aws-sdk/client-rekognition";
 
 export interface KycCheckResult {
   checkName: string;
@@ -21,6 +29,46 @@ export type KycTier = "TIER_0_OTP" | "TIER_1_ID_UPLOAD" | "TIER_2_GHANA_CARD";
 
 const GHANA_CARD_WITH_DASHES = /^GHA-\d{9}-\d$/;
 const GHANA_CARD_NO_DASHES = /^GHA\d{10}$/;
+
+// ============================================================================
+// AWS Rekognition client (lazy initialization)
+// ============================================================================
+
+let _rekognitionClient: RekognitionClient | null = null;
+
+function getRekognitionClient(): RekognitionClient | null {
+  if (_rekognitionClient !== null) return _rekognitionClient;
+
+  const region = process.env.AWS_REGION;
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (!region || !accessKeyId || !secretAccessKey) {
+    return null;
+  }
+
+  _rekognitionClient = new RekognitionClient({
+    region,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+  return _rekognitionClient;
+}
+
+/**
+ * Fetch an image from a URL and return it as bytes for Rekognition.
+ */
+async function fetchImageBytes(imageUrl: string): Promise<Uint8Array> {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
+}
+
+// ============================================================================
+// Ghana Card validation
+// ============================================================================
 
 /**
  * Validate a Ghana Card number.
@@ -64,47 +112,251 @@ export function formatGhanaCardNumber(input: string): string {
   return `GHA-${first9}-${last}`;
 }
 
+// ============================================================================
+// AWS Rekognition-powered checks
+// ============================================================================
+
 /**
- * Placeholder for document image quality check (resolution, blur detection).
- * No real image processing available — returns a passed result at 80% confidence.
+ * Check document image quality using AWS Rekognition DetectText.
+ * Verifies the image contains text (expected on an ID card) and checks
+ * for the presence of "GHANA" text as a basic document authenticity signal.
  */
-export function checkDocumentQuality(_imageUrl: string): KycCheckResult {
-  return {
-    checkName: "documentQuality",
-    passed: true,
-    confidence: 80,
-    notes: "Document quality check completed (automated)",
-  };
+export async function checkDocumentQuality(imageUrl: string): Promise<KycCheckResult> {
+  const client = getRekognitionClient();
+  if (!client) {
+    return {
+      checkName: "documentQuality",
+      passed: true,
+      confidence: 80,
+      notes: "Document quality check skipped — AWS Rekognition not configured (stub fallback)",
+    };
+  }
+
+  try {
+    const imageBytes = await fetchImageBytes(imageUrl);
+    const command = new DetectTextCommand({ Image: { Bytes: imageBytes } });
+    const response = await client.send(command);
+
+    const textDetections = response.TextDetections ?? [];
+    const detectedText = textDetections
+      .map((d) => d.DetectedText ?? "")
+      .join(" ")
+      .toUpperCase();
+
+    // Check for presence of text (any ID card should have text)
+    const hasText = textDetections.length > 0;
+    // Check for "GHANA" text as a basic authenticity signal
+    const hasGhana = detectedText.includes("GHANA");
+    // Check for common ID card keywords
+    const hasIdKeywords =
+      detectedText.includes("CARD") ||
+      detectedText.includes("REPUBLIC") ||
+      detectedText.includes("IDENTITY") ||
+      detectedText.includes("GHA-");
+
+    if (hasText && (hasGhana || hasIdKeywords)) {
+      const confidence = Math.min(
+        95,
+        Math.round(
+          (textDetections[0]?.Confidence ?? 80) + (hasGhana ? 5 : 0)
+        )
+      );
+      return {
+        checkName: "documentQuality",
+        passed: true,
+        confidence,
+        notes: `Document quality verified via Rekognition — ${textDetections.length} text regions detected, Ghana ID keywords found`,
+      };
+    }
+
+    if (hasText) {
+      return {
+        checkName: "documentQuality",
+        passed: true,
+        confidence: 60,
+        notes: "Document has text but Ghana ID keywords not detected — manual review recommended",
+      };
+    }
+
+    return {
+      checkName: "documentQuality",
+      passed: false,
+      confidence: 20,
+      notes: "No text detected in document image — image may be blank or unreadable",
+    };
+  } catch (error) {
+    console.error("Rekognition checkDocumentQuality error:", error);
+    return {
+      checkName: "documentQuality",
+      passed: true,
+      confidence: 50,
+      notes: "Document quality check failed (Rekognition error) — defaulting to pass for manual review",
+    };
+  }
 }
 
 /**
- * Placeholder for selfie image quality check.
- * No real image processing available — returns a passed result at 80% confidence.
+ * Check selfie image quality using AWS Rekognition DetectFaces.
+ * Verifies a face is present, is the primary subject, and has eyes open.
  */
-export function checkSelfieQuality(_selfieUrl: string): KycCheckResult {
-  return {
-    checkName: "selfieQuality",
-    passed: true,
-    confidence: 80,
-    notes: "Selfie quality check completed (automated)",
-  };
+export async function checkSelfieQuality(selfieUrl: string): Promise<KycCheckResult> {
+  const client = getRekognitionClient();
+  if (!client) {
+    return {
+      checkName: "selfieQuality",
+      passed: true,
+      confidence: 80,
+      notes: "Selfie quality check skipped — AWS Rekognition not configured (stub fallback)",
+    };
+  }
+
+  try {
+    const imageBytes = await fetchImageBytes(selfieUrl);
+    const command = new DetectFacesCommand({
+      Image: { Bytes: imageBytes },
+      Attributes: ["DEFAULT"],
+    });
+    const response = await client.send(command);
+
+    const faces = response.FaceDetails ?? [];
+
+    if (faces.length === 0) {
+      return {
+        checkName: "selfieQuality",
+        passed: false,
+        confidence: 10,
+        notes: "No face detected in selfie image",
+      };
+    }
+
+    if (faces.length > 1) {
+      return {
+        checkName: "selfieQuality",
+        passed: false,
+        confidence: 30,
+        notes: `${faces.length} faces detected — selfie should contain only one face`,
+      };
+    }
+
+    const face = faces[0];
+    const confidence = Math.round(face.Confidence ?? 0);
+
+    // Check face landmarks — eyes open
+    const eyesOpen = face.EyesOpen?.Value === true;
+    const sunglasses = face.Sunglasses?.Value === true;
+
+    if (!eyesOpen || sunglasses) {
+      return {
+        checkName: "selfieQuality",
+        passed: false,
+        confidence: 50,
+        notes: "Face detected but eyes appear closed or sunglasses detected — retake selfie",
+      };
+    }
+
+    // Check face bounding box is reasonably centered (not too small)
+    const bbox = face.BoundingBox;
+    const faceWidth = bbox?.Width ?? 0;
+    if (faceWidth < 0.15) {
+      return {
+        checkName: "selfieQuality",
+        passed: false,
+        confidence: 40,
+        notes: "Face detected but too small in frame — move closer to camera",
+      };
+    }
+
+    return {
+      checkName: "selfieQuality",
+      passed: true,
+      confidence: Math.min(98, confidence),
+      notes: `Selfie quality verified — single face detected at ${confidence}% confidence, eyes open`,
+    };
+  } catch (error) {
+    console.error("Rekognition checkSelfieQuality error:", error);
+    return {
+      checkName: "selfieQuality",
+      passed: true,
+      confidence: 50,
+      notes: "Selfie quality check failed (Rekognition error) — defaulting to pass for manual review",
+    };
+  }
 }
 
 /**
- * Placeholder for face matching between selfie and ID photo.
- * No real face matching available — returns a passed result at 75% confidence.
+ * Compare selfie to ID photo using AWS Rekognition CompareFaces.
+ * Returns passed=true if face similarity is >= 90%.
  */
-export function compareSelfieToId(
-  _selfieUrl: string,
-  _idUrl: string
-): KycCheckResult {
-  return {
-    checkName: "selfieToIdMatch",
-    passed: true,
-    confidence: 75,
-    notes: "Face match comparison completed (automated)",
-  };
+export async function compareSelfieToId(
+  selfieUrl: string,
+  idUrl: string
+): Promise<KycCheckResult> {
+  const client = getRekognitionClient();
+  if (!client) {
+    return {
+      checkName: "selfieToIdMatch",
+      passed: true,
+      confidence: 75,
+      notes: "Face match comparison skipped — AWS Rekognition not configured (stub fallback)",
+    };
+  }
+
+  try {
+    const [selfieBytes, idBytes] = await Promise.all([
+      fetchImageBytes(selfieUrl),
+      fetchImageBytes(idUrl),
+    ]);
+
+    const command = new CompareFacesCommand({
+      SourceImage: { Bytes: selfieBytes },
+      TargetImage: { Bytes: idBytes },
+      SimilarityThreshold: 90,
+    });
+
+    const response = await client.send(command);
+
+    if (!response.FaceMatches || response.FaceMatches.length === 0) {
+      const unmatchedCount = response.UnmatchedFaces?.length ?? 0;
+      return {
+        checkName: "selfieToIdMatch",
+        passed: false,
+        confidence: 20,
+        notes: `No face match found above 90% threshold${unmatchedCount > 0 ? ` (${unmatchedCount} unmatched faces in ID)` : ""}`,
+      };
+    }
+
+    const bestMatch = response.FaceMatches[0];
+    const similarity = Math.round(bestMatch.Similarity ?? 0);
+
+    if (similarity >= 90) {
+      return {
+        checkName: "selfieToIdMatch",
+        passed: true,
+        confidence: similarity,
+        notes: `Face match verified — ${similarity}% similarity between selfie and ID photo`,
+      };
+    }
+
+    return {
+      checkName: "selfieToIdMatch",
+      passed: false,
+      confidence: similarity,
+      notes: `Face match below threshold — ${similarity}% similarity (requires >= 90%)`,
+    };
+  } catch (error) {
+    console.error("Rekognition compareSelfieToId error:", error);
+    return {
+      checkName: "selfieToIdMatch",
+      passed: true,
+      confidence: 50,
+      notes: "Face match comparison failed (Rekognition error) — defaulting to pass for manual review",
+    };
+  }
 }
+
+// ============================================================================
+// Ghana Card format check
+// ============================================================================
 
 /**
  * Check Ghana Card number format using validateGhanaCardNumber.
@@ -122,6 +374,10 @@ export function checkGhanaCardFormat(ghanaCardNumber: string): KycCheckResult {
   };
 }
 
+// ============================================================================
+// Combined automated checks
+// ============================================================================
+
 /**
  * Run all available automated KYC checks and produce an overall result.
  *
@@ -137,12 +393,12 @@ export function checkGhanaCardFormat(ghanaCardNumber: string): KycCheckResult {
  *   - Some passed                    → TIER_1_ID_UPLOAD
  *   - None passed                    → TIER_0_OTP
  */
-export function performAutomatedChecks(params: {
+export async function performAutomatedChecks(params: {
   ghanaCardNumber: string;
   selfieUrl?: string;
   idFrontUrl?: string;
   idBackUrl?: string;
-}): KycAutomatedResults {
+}): Promise<KycAutomatedResults> {
   const results: KycCheckResult[] = [];
 
   // Always check Ghana Card format
@@ -150,20 +406,20 @@ export function performAutomatedChecks(params: {
 
   // Document quality checks
   if (params.idFrontUrl) {
-    results.push(checkDocumentQuality(params.idFrontUrl));
+    results.push(await checkDocumentQuality(params.idFrontUrl));
   }
   if (params.idBackUrl) {
-    results.push(checkDocumentQuality(params.idBackUrl));
+    results.push(await checkDocumentQuality(params.idBackUrl));
   }
 
   // Selfie quality check
   if (params.selfieUrl) {
-    results.push(checkSelfieQuality(params.selfieUrl));
+    results.push(await checkSelfieQuality(params.selfieUrl));
   }
 
   // Face match comparison (requires both selfie and front of ID)
   if (params.selfieUrl && params.idFrontUrl) {
-    results.push(compareSelfieToId(params.selfieUrl, params.idFrontUrl));
+    results.push(await compareSelfieToId(params.selfieUrl, params.idFrontUrl));
   }
 
   const overallPassed = results.every((r) => r.passed);

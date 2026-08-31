@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     }));
 
-    return NextResponse.json(requests);
+    return NextResponse.json(serializeForJson(requests));
   } catch (error) {
     console.error("Error fetching verification requests:", error);
     return NextResponse.json({ error: "Failed to fetch requests" }, { status: 500 });

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
   MapPin,
@@ -465,10 +466,12 @@ function CreateListingForm({ onSubmit, className }: CreateListingFormProps) {
                     key={index}
                     className="relative aspect-square rounded-lg overflow-hidden bg-gray-100"
                   >
-                    <img
+                    <Image
                       src={URL.createObjectURL(file)}
                       alt={`Upload ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      fill
+                      unoptimized
+                      className="object-cover"
                     />
                     <button
                       type="button"

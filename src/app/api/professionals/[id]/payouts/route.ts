@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(
   request: NextRequest,
@@ -62,7 +63,7 @@ export async function GET(
     // Get pending payouts (simplified - in production would have separate payout table)
     const pendingPayouts = bookings.filter((b) => !b.completedAt);
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       professionalId: id,
       totalEarnings,
       completedBookings: bookings.length,
@@ -71,10 +72,10 @@ export async function GET(
         id: b.id,
         title: b.serviceRequest.title,
         client: b.serviceRequest.requester.fullName,
-        amount: b.serviceRequest.acceptedPriceGhs?.toString() || "0",
+        amount: b.serviceRequest.acceptedPriceGhs || 0,
         completedAt: b.completedAt,
       })),
-    });
+    }));
   } catch (error) {
     console.error("Error fetching payouts:", error);
     return NextResponse.json({ error: "Failed to fetch payouts" }, { status: 500 });

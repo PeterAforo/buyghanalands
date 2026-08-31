@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
 import { notifyListingModerated } from "@/lib/notifications";
+import { serializeForJson } from "@/lib/serialize";
 
 async function isModeratorOrAdmin(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -74,21 +75,15 @@ export async function GET(request: NextRequest) {
       prisma.listing.count({ where }),
     ]));
 
-    return NextResponse.json({
-      listings: listings.map((l) => ({
-        ...l,
-        priceGhs: l.priceGhs.toString(),
-        sizeAcres: l.sizeAcres.toString(),
-        latitude: l.latitude?.toString(),
-        longitude: l.longitude?.toString(),
-      })),
+    return NextResponse.json(serializeForJson({
+      listings,
       pagination: {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
       },
-    });
+    }));
   } catch (error) {
     console.error("Error fetching moderation queue:", error);
     return NextResponse.json({ error: "Failed to fetch moderation queue" }, { status: 500 });
@@ -179,14 +174,10 @@ export async function POST(request: NextRequest) {
       notifyListingModerated(listing.sellerId, listing.title, decision, data.reason).catch(console.error);
     }
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       message: `Listing ${data.action}ed successfully`,
-      listing: {
-        ...updatedListing,
-        priceGhs: updatedListing.priceGhs.toString(),
-        sizeAcres: updatedListing.sizeAcres.toString(),
-      },
-    });
+      listing: updatedListing,
+    }));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

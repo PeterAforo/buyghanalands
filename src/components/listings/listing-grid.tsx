@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { 
   Heart, 
@@ -257,10 +258,12 @@ function ListingCardGrid({
       <Link href={`/listings/${listing.id}`}>
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
           {listing.images.length > 0 ? (
-            <img
+            <Image
               src={listing.images[0]}
               alt={listing.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              fill
+              unoptimized
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -390,10 +393,12 @@ function ListingCardList({
         >
           <div className="absolute inset-0 bg-gray-100">
             {listing.images.length > 0 ? (
-              <img
+              <Image
                 src={listing.images[0]}
                 alt={listing.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                fill
+                unoptimized
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

@@ -71,16 +71,22 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-[#f8f7f4] flex">
+      <a
+        href="#admin-main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-emerald-700 focus:px-4 focus:py-2 focus:text-white"
+      >
+        Skip to main content
+      </a>
       {/* Mobile Navigation */}
       <AdminLayoutClient userName={name} userEmail={email}>
         <div />
       </AdminLayoutClient>
 
       {/* Sidebar - Hidden on mobile */}
-      <aside className="hidden md:flex w-[240px] bg-[#1a3a2f] min-h-screen fixed left-0 top-0 flex-col rounded-r-3xl">
+      <aside className="hidden md:flex w-[240px] bg-[#1a3a2f] min-h-screen fixed left-0 top-0 flex-col rounded-r-3xl" aria-label="Admin sidebar navigation">
         {/* Logo */}
         <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#c5e063] rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-[#c5e063] rounded-lg flex items-center justify-center" aria-hidden="true">
             <span className="text-[#1a3a2f] font-bold text-sm">✦</span>
           </div>
           <span className="text-white font-semibold text-lg">BuyGhanaLands</span>
@@ -89,16 +95,16 @@ export default async function AdminLayout({
         {/* Menu Section */}
         <div className="px-4 mt-4">
           <p className="text-[#a3c4b5] text-[10px] font-semibold uppercase tracking-wider mb-3 px-3">Menu</p>
-          <nav className="space-y-1">
+          <nav className="space-y-1" aria-label="Main menu">
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-3 px-3 py-2.5 text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white rounded-xl transition-all group"
+                  className="flex items-center gap-3 px-3 py-2.5 text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white rounded-xl transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063]"
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-5 w-5" aria-hidden="true" />
                   <span className="text-sm font-medium flex-1">{item.label}</span>
                   {item.badge && (
                     <span className="bg-[#c5e063] text-[#1a3a2f] text-xs font-semibold px-2 py-0.5 rounded-full">
@@ -114,16 +120,16 @@ export default async function AdminLayout({
         {/* General Section */}
         <div className="px-4 mt-8">
           <p className="text-[#a3c4b5] text-[10px] font-semibold uppercase tracking-wider mb-3 px-3">General</p>
-          <nav className="space-y-1">
+          <nav className="space-y-1" aria-label="General menu">
             {generalItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-3 px-3 py-2.5 text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white rounded-xl transition-all"
+                  className="flex items-center gap-3 px-3 py-2.5 text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063]"
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-5 w-5" aria-hidden="true" />
                   <span className="text-sm font-medium">{item.label}</span>
                 </Link>
               );
@@ -134,7 +140,7 @@ export default async function AdminLayout({
         {/* User Profile at Bottom */}
         <div className="mt-auto p-4 border-t border-[#2a4a3f]">
           <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-10 h-10 bg-[#c5e063] rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-[#c5e063] rounded-full flex items-center justify-center" aria-hidden="true">
               <span className="text-[#1a3a2f] font-bold text-sm">
                 {name.charAt(0).toUpperCase()}
               </span>
@@ -151,10 +157,11 @@ export default async function AdminLayout({
             >
               <button
                 type="submit"
-                className="p-2 text-[#6b8f7a] hover:text-white hover:bg-[#2a4a3f] rounded-lg transition-colors"
+                className="p-2 text-[#6b8f7a] hover:text-white hover:bg-[#2a4a3f] rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063]"
                 title="Sign out"
+                aria-label="Sign out"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-4" aria-hidden="true" />
               </button>
             </form>
           </div>
@@ -171,33 +178,35 @@ export default async function AdminLayout({
               <input
                 type="text"
                 placeholder="Search..."
+                aria-label="Search"
                 className="w-[200px] pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a2f] focus:border-transparent"
               />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
             </div>
 
             {/* Notifications */}
             <Link
               href="/admin/messages"
-              className="relative p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className="relative p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a3a2f]"
+              aria-label="Notifications"
             >
-              <Bell className="h-4 w-4 text-[#1a3a2f]" />
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+              <Bell className="h-4 w-4 text-[#1a3a2f]" aria-hidden="true" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full" aria-hidden="true"></span>
             </Link>
 
             {/* View Site */}
             <Link
               href="/"
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#1a3a2f] text-white rounded-lg text-xs font-medium hover:bg-[#2a4a3f] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#1a3a2f] text-white rounded-lg text-xs font-medium hover:bg-[#2a4a3f] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063]"
             >
-              <Home className="h-3.5 w-3.5" />
+              <Home className="h-3.5 w-3.5" aria-hidden="true" />
               View Site
             </Link>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="p-8">
+        <main id="admin-main" className="p-8">
           {children}
         </main>
       </div>

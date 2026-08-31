@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { 
   User, 
@@ -136,9 +137,12 @@ export function ConversationsList({
               {/* Avatar */}
               <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
                 {conversation.partnerAvatar ? (
-                  <img 
+                  <Image 
                     src={conversation.partnerAvatar} 
-                    alt={conversation.partnerName} 
+                    alt={conversation.partnerName}
+                    width={48}
+                    height={48}
+                    unoptimized
                     className="h-12 w-12 rounded-full object-cover" 
                   />
                 ) : (

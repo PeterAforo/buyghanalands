@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 async function isVerifier(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -77,21 +78,15 @@ export async function GET(request: NextRequest) {
       prisma.verificationRequest.count({ where }),
     ]));
 
-    return NextResponse.json({
-      requests: requests.map((r) => ({
-        ...r,
-        listing: r.listing ? {
-          ...r.listing,
-          priceGhs: r.listing.priceGhs.toString(),
-        } : null,
-      })),
+    return NextResponse.json(serializeForJson({
+      requests,
       pagination: {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
       },
-    });
+    }));
   } catch (error) {
     console.error("Error fetching verification queue:", error);
     return NextResponse.json({ error: "Failed to fetch queue" }, { status: 500 });
@@ -148,10 +143,10 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       message: "Request assigned successfully",
       request: updated,
-    });
+    }));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

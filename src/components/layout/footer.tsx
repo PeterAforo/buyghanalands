@@ -60,7 +60,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="dark-section" style={{ backgroundColor: 'var(--c-dark-bg)' }}>
+    <footer className="dark-section" style={{ backgroundColor: 'var(--c-dark-bg)' }} role="contentinfo">
       {/* Newsletter Subscription */}
       <div className="border-b" style={{ borderColor: 'var(--c-dark-border)' }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">

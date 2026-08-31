@@ -5,6 +5,7 @@ import { prisma, withDbRetry } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { sendEmail, getVerificationStatusEmailHtml } from "@/lib/email";
 import { sendSMS } from "@/lib/sms";
+import { serializeForJson } from "@/lib/serialize";
 
 async function isVerifier(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -60,16 +61,7 @@ export async function GET(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
-      ...verificationRequest,
-      listing: verificationRequest.listing ? {
-        ...verificationRequest.listing,
-        priceGhs: verificationRequest.listing.priceGhs.toString(),
-        sizeAcres: verificationRequest.listing.sizeAcres.toString(),
-        latitude: verificationRequest.listing.latitude?.toString(),
-        longitude: verificationRequest.listing.longitude?.toString(),
-      } : null,
-    });
+    return NextResponse.json(serializeForJson(verificationRequest));
   } catch (error) {
     console.error("Error fetching verification request:", error);
     return NextResponse.json({ error: "Failed to fetch request" }, { status: 500 });
@@ -208,10 +200,10 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       message: `Verification request ${data.action}ed`,
       request: updated,
-    });
+    }));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

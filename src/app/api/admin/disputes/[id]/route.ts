@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 async function isAdmin(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -79,14 +80,10 @@ export async function GET(
       };
     });
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       ...dispute,
-      transaction: {
-        ...dispute.transaction,
-        agreedPriceGhs: dispute.transaction.agreedPriceGhs.toString(),
-      },
       messages: transformedMessages,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching dispute:", error);
     return NextResponse.json({ error: "Failed to fetch dispute" }, { status: 500 });
@@ -221,14 +218,10 @@ export async function PUT(
       },
     }));
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       ...updatedDispute,
-      transaction: {
-        ...updatedDispute.transaction,
-        agreedPriceGhs: updatedDispute.transaction.agreedPriceGhs.toString(),
-      },
       messages: transformedMessages,
-    });
+    }));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

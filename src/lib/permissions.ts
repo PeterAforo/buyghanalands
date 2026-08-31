@@ -24,7 +24,7 @@ export interface SubscriptionInfo {
   plan: string | null;
   status: string;
   endDate: Date;
-  features: Record<string, any> | null;
+  features: Record<string, boolean | number | string> | null;
 }
 
 export interface UserPermissions {
@@ -186,7 +186,7 @@ export async function canCreateListing(userId: string): Promise<PermissionCheckR
   if (isSeller || !isAgent) {
     const sellerSub = await getActiveSubscription(userId, "SELLER");
     const sellerPlan = sellerSub?.plan ?? "FREE";
-    const limit = getSellerListingLimit(sellerPlan as any);
+    const limit = getSellerListingLimit(sellerPlan);
 
     // Count current active listings
     const currentCount = await withDbRetry(() => prisma.listing.count({
@@ -318,7 +318,7 @@ export async function canAddClient(agentUserId: string): Promise<PermissionCheck
     },
   }));
 
-  const limit = getAgentClientLimit(agentSub.plan as any);
+  const limit = getAgentClientLimit(agentSub.plan);
 
   if (limit !== -1 && currentClients >= limit) {
     return {
@@ -351,7 +351,7 @@ export async function canAcceptLead(professionalUserId: string): Promise<Permiss
     };
   }
 
-  const limit = getProfessionalLeadLimit(profSub.plan as any);
+  const limit = getProfessionalLeadLimit(profSub.plan);
 
   if (limit === -1) {
     return { allowed: true }; // Unlimited
@@ -437,7 +437,7 @@ export async function hasFeatureAccess(
     // Check if category has a free tier
     if (category === "BUYER" || category === "SELLER") {
       // Use free plan features
-      return planHasFeature(category, "FREE" as any, feature);
+      return planHasFeature(category, "FREE", feature);
     }
     return false;
   }
@@ -448,7 +448,7 @@ export async function hasFeatureAccess(
   }
 
   // Fall back to plan config
-  return planHasFeature(category, subscription.plan as any, feature);
+  return planHasFeature(category, subscription.plan, feature);
 }
 
 /**
@@ -606,7 +606,7 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
 
   // Get seller info
   const sellerSub = subscriptions.find((s) => s.category === "SELLER");
-  const listingLimit = getSellerListingLimit(sellerSub?.plan as any);
+  const listingLimit = getSellerListingLimit(sellerSub?.plan ?? null);
   const currentListings = await withDbRetry(() => prisma.listing.count({
     where: {
       sellerId: userId,
@@ -616,7 +616,7 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
 
   // Get agent info
   const agentSub = subscriptions.find((s) => s.category === "AGENT");
-  const clientLimit = getAgentClientLimit(agentSub?.plan as any);
+  const clientLimit = getAgentClientLimit(agentSub?.plan ?? null);
   let currentClients = 0;
   const agentProfile = await withDbRetry(() => prisma.agentProfile.findUnique({
     where: { userId },
@@ -633,7 +633,7 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
 
   // Get professional info
   const profSub = subscriptions.find((s) => s.category === "PROFESSIONAL");
-  const leadLimit = getProfessionalLeadLimit(profSub?.plan as any);
+  const leadLimit = getProfessionalLeadLimit(profSub?.plan ?? null);
   let currentLeadsThisMonth = 0;
   const profProfile = await withDbRetry(() => prisma.professionalProfile.findUnique({
     where: { userId },

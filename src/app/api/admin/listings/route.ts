@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
@@ -71,13 +72,7 @@ export async function GET(request: NextRequest) {
       take: 100,
     }));
 
-    return NextResponse.json(
-      listings.map((l) => ({
-        ...l,
-        priceGhs: l.priceGhs.toString(),
-        sizeAcres: l.sizeAcres.toString(),
-      }))
-    );
+    return NextResponse.json(serializeForJson(listings));
   } catch (error) {
     console.error("Error fetching admin listings:", error);
     return NextResponse.json({ error: "Failed to fetch listings" }, { status: 500 });

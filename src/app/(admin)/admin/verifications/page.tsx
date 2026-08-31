@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import { prisma, withDbRetry } from "@/lib/db";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,11 @@ import {
   User,
   MapPin,
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Verifications | Admin",
+  description: "Review and manage verification requests for listings and users on Buy Ghana Lands.",
+};
 
 export const dynamic = 'force-dynamic';
 

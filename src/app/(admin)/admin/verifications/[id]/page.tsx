@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -259,12 +260,14 @@ export default function AdminVerificationReviewPage({
                       href={media.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="aspect-square rounded-lg overflow-hidden bg-gray-100"
+                      className="relative aspect-square rounded-lg overflow-hidden bg-gray-100"
                     >
-                      <img
+                      <Image
                         src={media.url}
                         alt="Listing"
-                        className="w-full h-full object-cover hover:opacity-80 transition-opacity"
+                        fill
+                        unoptimized
+                        className="object-cover hover:opacity-80 transition-opacity"
                       />
                     </a>
                   ))}

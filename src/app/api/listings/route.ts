@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const createListingSchema = z.object({
   title: z.string().min(5),
@@ -117,16 +118,7 @@ export async function GET(request: NextRequest) {
       take: limit,
     }));
 
-    // Serialize BigInt fields
-    const serializedListings = listings.map((listing) => ({
-      ...listing,
-      priceGhs: listing.priceGhs.toString(),
-      sizeAcres: listing.sizeAcres.toString(),
-      latitude: listing.latitude?.toString() || null,
-      longitude: listing.longitude?.toString() || null,
-    }));
-
-    return NextResponse.json({ listings: serializedListings, page, limit });
+    return NextResponse.json(serializeForJson({ listings, page, limit }));
   } catch (error) {
     console.error("Error fetching listings:", error);
     return NextResponse.json(
@@ -287,13 +279,7 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    // Convert BigInt to string for JSON serialization
-    const serializedListing = {
-      ...listing,
-      priceGhs: listing.priceGhs.toString(),
-    };
-
-    return NextResponse.json(serializedListing, { status: 201 });
+    return NextResponse.json(serializeForJson(listing), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

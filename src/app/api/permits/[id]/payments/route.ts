@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(
   request: NextRequest,
@@ -39,12 +40,7 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     }));
 
-    return NextResponse.json(
-      payments.map((p) => ({
-        ...p,
-        amount: p.amount.toString(),
-      }))
-    );
+    return NextResponse.json(serializeForJson(payments));
   } catch (error) {
     console.error("Error fetching permit payments:", error);
     return NextResponse.json({ error: "Failed to fetch payments" }, { status: 500 });
@@ -111,14 +107,10 @@ export async function POST(
     // In production, this would initiate payment with PSP
     // For now, return payment reference
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       message: "Payment initiated",
-      payment: {
-        ...payment,
-        amount: payment.amount.toString(),
-      },
-      // In production: paymentUrl, reference, etc.
-    }, { status: 201 });
+      payment,
+    }), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

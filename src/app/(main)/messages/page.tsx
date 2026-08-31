@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -200,9 +201,12 @@ function MessagesContent() {
                       <div className="flex items-start gap-3">
                         <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
                           {conv.partnerAvatar ? (
-                            <img
+                            <Image
                               src={conv.partnerAvatar}
                               alt={conv.partnerName}
+                              width={40}
+                              height={40}
+                              unoptimized
                               className="h-10 w-10 rounded-full object-cover"
                             />
                           ) : (

@@ -14,6 +14,7 @@ import {
   MapPin
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Message {
   id: string;
@@ -157,7 +158,7 @@ export function ChatWindow({
         
         <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
           {partnerAvatar ? (
-            <img src={partnerAvatar} alt={partnerName} className="h-10 w-10 rounded-full object-cover" />
+            <Image src={partnerAvatar} alt={partnerName} width={40} height={40} unoptimized className="h-10 w-10 rounded-full object-cover" />
           ) : (
             <User className="h-5 w-5 text-emerald-600" />
           )}

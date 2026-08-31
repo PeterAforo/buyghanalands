@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const createServiceRequestSchema = z.object({
   professionalId: z.string().optional(),
@@ -82,17 +83,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     }));
 
-    const serialized = requests.map((r) => ({
-      ...r,
-      offerPriceGhs: r.offerPriceGhs?.toString() || null,
-      acceptedPriceGhs: r.acceptedPriceGhs?.toString() || null,
-      service: r.service ? {
-        ...r.service,
-        priceGhs: r.service.priceGhs?.toString() || null,
-      } : null,
-    }));
-
-    return NextResponse.json(serialized);
+    return NextResponse.json(serializeForJson(requests));
   } catch (error) {
     console.error("Error fetching service requests:", error);
     return NextResponse.json({ error: "Failed to fetch service requests" }, { status: 500 });
@@ -143,10 +134,7 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json({
-      ...serviceRequest,
-      offerPriceGhs: serviceRequest.offerPriceGhs?.toString() || null,
-    }, { status: 201 });
+    return NextResponse.json(serializeForJson(serviceRequest), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });

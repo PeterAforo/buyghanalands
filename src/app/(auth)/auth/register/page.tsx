@@ -864,6 +864,7 @@ export default function RegisterPage() {
                         <input
                           id="fullName"
                           type="text"
+                          data-testid="register-name"
                           placeholder="Kwame Asante"
                           className={`w-full pl-12 pr-4 py-3.5 rounded-xl border ${
                             errors.fullName ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
@@ -885,6 +886,7 @@ export default function RegisterPage() {
                         <input
                           id="email"
                           type="email"
+                          data-testid="register-email"
                           placeholder="you@example.com"
                           className={`w-full pl-12 pr-4 py-3.5 rounded-xl border ${
                             errors.email ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
@@ -906,6 +908,7 @@ export default function RegisterPage() {
                         <input
                           id="phone"
                           type="tel"
+                          data-testid="register-phone"
                           placeholder="0XX XXX XXXX"
                           className={`w-full pl-12 pr-4 py-3.5 rounded-xl border ${
                             errors.phone ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
@@ -928,6 +931,7 @@ export default function RegisterPage() {
                           <input
                             id="password"
                             type={showPassword ? "text" : "password"}
+                            data-testid="register-password"
                             placeholder="Create password"
                             className={`w-full pl-12 pr-12 py-3.5 rounded-xl border ${
                               errors.password ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
@@ -1000,6 +1004,7 @@ export default function RegisterPage() {
                       </Button>
                       <Button
                         type="submit"
+                        data-testid="register-submit"
                         disabled={isSubmitting}
                         className="bg-emerald-600 hover:bg-emerald-700 rounded-xl px-8"
                       >

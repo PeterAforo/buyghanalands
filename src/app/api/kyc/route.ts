@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }));
 
     // Run automated KYC checks (hybrid system: automated checks + admin review)
-    const automatedResults = performAutomatedChecks({
+    const automatedResults = await performAutomatedChecks({
       ghanaCardNumber: data.ghanaCardNumber,
       selfieUrl: data.selfieUrl,
     });

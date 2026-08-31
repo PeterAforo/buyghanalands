@@ -1,5 +1,11 @@
+import { Metadata } from "next";
 import { prisma, withDbRetry } from "@/lib/db";
 import { ListingsClient } from "./listings-client";
+
+export const metadata: Metadata = {
+  title: "Browse Land Listings | Buy Ghana Lands",
+  description: "Browse verified land listings across all regions of Ghana. Filter by location, size, price, and land type.",
+};
 
 export const dynamic = 'force-dynamic';
 

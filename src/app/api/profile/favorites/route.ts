@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET() {
   try {
@@ -28,18 +29,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     }));
 
-    return NextResponse.json(
-      favorites.map((f) => ({
-        ...f,
-        listing: {
-          ...f.listing,
-          priceGhs: f.listing.priceGhs.toString(),
-          sizeAcres: f.listing.sizeAcres.toString(),
-          latitude: f.listing.latitude?.toString() || null,
-          longitude: f.listing.longitude?.toString() || null,
-        },
-      }))
-    );
+    return NextResponse.json(serializeForJson(favorites));
   } catch (error) {
     console.error("Error fetching favorites:", error);
     return NextResponse.json({ error: "Failed to fetch favorites" }, { status: 500 });
@@ -91,7 +81,7 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json(favorite, { status: 201 });
+    return NextResponse.json(serializeForJson(favorite), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

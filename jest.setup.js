@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+require('@testing-library/jest-dom');
 
 // Polyfill Web Fetch APIs (Request, Response, Headers, fetch) which are
 // required by `next/server` (route handlers) but not provided by the jsdom

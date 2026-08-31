@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (resolvedGhanaCardNumber) {
-        const automatedResults = performAutomatedChecks({
+        const automatedResults = await performAutomatedChecks({
           ghanaCardNumber: resolvedGhanaCardNumber,
           selfieUrl,
           idFrontUrl: ghanaCardUrl,

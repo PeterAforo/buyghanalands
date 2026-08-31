@@ -3,14 +3,13 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Redirects for Next.js
+# Redirects for Next.js — unconditional catch-all for the Next.js runtime handler
 [[redirects]]
   from = "/*"
   to = "/.netlify/functions/___netlify-handler"
   status = 200
-  conditions = {Role = ["admin"]}

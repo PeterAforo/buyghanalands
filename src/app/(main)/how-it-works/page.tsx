@@ -1,5 +1,11 @@
+import { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, FileCheck, Shield, Key } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "How It Works | Buy Ghana Lands",
+  description: "Learn how to find, verify, and securely purchase land in Ghana through Buy Ghana Lands.",
+};
 
 export default function HowItWorksPage() {
   const steps = [

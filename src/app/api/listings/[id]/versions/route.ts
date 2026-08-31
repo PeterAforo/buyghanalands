@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(
   request: NextRequest,
@@ -43,15 +44,7 @@ export async function GET(
       orderBy: { versionNumber: "desc" },
     }));
 
-    return NextResponse.json(
-      versions.map((v) => ({
-        ...v,
-        priceGhs: v.priceGhs.toString(),
-        sizeAcres: v.sizeAcres.toString(),
-        latitude: v.latitude.toString(),
-        longitude: v.longitude.toString(),
-      }))
-    );
+    return NextResponse.json(serializeForJson(versions));
   } catch (error) {
     console.error("Error fetching listing versions:", error);
     return NextResponse.json({ error: "Failed to fetch versions" }, { status: 500 });
@@ -118,11 +111,7 @@ export async function POST(
         },
       }));
 
-      return NextResponse.json({
-        ...updated,
-        priceGhs: updated.priceGhs.toString(),
-        sizeAcres: updated.sizeAcres.toString(),
-      });
+      return NextResponse.json(serializeForJson(updated));
     }
 
     // For published listings, create a new version
@@ -172,14 +161,10 @@ export async function POST(
       },
     }));
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       message: "New version created and submitted for review",
-      version: {
-        ...newVersion,
-        priceGhs: newVersion.priceGhs.toString(),
-        sizeAcres: newVersion.sizeAcres.toString(),
-      },
-    }, { status: 201 });
+      version: newVersion,
+    }), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

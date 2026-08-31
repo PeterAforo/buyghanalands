@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const approveMilestoneSchema = z.object({
   milestoneId: z.string().min(1),
@@ -44,12 +45,7 @@ export async function GET(
       orderBy: { sortOrder: "asc" },
     }));
 
-    return NextResponse.json({
-      milestones: milestones.map((m) => ({
-        ...m,
-        amountGhs: m.amountGhs.toString(),
-      })),
-    });
+    return NextResponse.json(serializeForJson({ milestones }));
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch milestones" }, { status: 500 });
   }
@@ -175,13 +171,10 @@ export async function POST(
       },
     }));
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       success: true,
-      milestone: {
-        ...updatedMilestone,
-        amountGhs: updatedMilestone.amountGhs.toString(),
-      },
-    });
+      milestone: updatedMilestone,
+    }));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });

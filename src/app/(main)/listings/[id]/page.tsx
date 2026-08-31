@@ -1,9 +1,33 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Metadata } from "next";
 import { prisma, withDbRetry } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const listing = await withDbRetry(() =>
+    prisma.listing.findUnique({
+      where: { id },
+      select: { title: true, region: true, district: true, description: true },
+    })
+  );
+
+  if (!listing) {
+    return {
+      title: "Listing Not Found | Buy Ghana Lands",
+      description: "The requested land listing could not be found.",
+    };
+  }
+
+  const location = [listing.district, listing.region].filter(Boolean).join(", ");
+  return {
+    title: `${listing.title} | Buy Ghana Lands`,
+    description: listing.description || `${listing.title}${location ? ` in ${location}` : ""}`,
+  };
+}
 import { formatPrice, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

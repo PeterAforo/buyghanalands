@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET() {
   try {
@@ -34,15 +35,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     }));
 
-    return NextResponse.json(
-      disputes.map((d) => ({
-        ...d,
-        transaction: {
-          ...d.transaction,
-          agreedPriceGhs: d.transaction.agreedPriceGhs.toString(),
-        },
-      }))
-    );
+    return NextResponse.json(serializeForJson(disputes));
   } catch (error) {
     console.error("Error fetching disputes:", error);
     return NextResponse.json({ error: "Failed to fetch disputes" }, { status: 500 });

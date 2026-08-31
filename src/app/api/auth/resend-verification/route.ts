@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   try {
     // Rate limit by IP
     const ip = getClientIP(request);
-    const ipRateLimit = checkRateLimit(ip, { limit: 3, windowSeconds: 300, identifier: "resend-verification" });
+    const ipRateLimit = await checkRateLimit(ip, { limit: 3, windowSeconds: 300, identifier: "resend-verification" });
     if (!ipRateLimit.success) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },

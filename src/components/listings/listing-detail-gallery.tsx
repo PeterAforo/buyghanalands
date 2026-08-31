@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, X, ZoomIn, Maximize2 } from "lucide-react";
 
@@ -47,10 +48,12 @@ function ListingGallery({ images, title, className }: ListingGalleryProps) {
       <div className={cn("space-y-3", className)}>
         {/* Main Image */}
         <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-gray-100 group">
-          <img
+          <Image
             src={images[currentIndex]}
             alt={`${title} - Image ${currentIndex + 1}`}
-            className="w-full h-full object-cover"
+            fill
+            unoptimized
+            className="object-cover"
           />
           
           {/* Navigation Arrows */}
@@ -99,10 +102,12 @@ function ListingGallery({ images, title, className }: ListingGalleryProps) {
                     : "opacity-70 hover:opacity-100"
                 )}
               >
-                <img
+                <Image
                   src={image}
                   alt={`Thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  fill
+                  unoptimized
+                  className="object-cover"
                 />
               </button>
             ))}
@@ -137,10 +142,12 @@ function ListingGallery({ images, title, className }: ListingGalleryProps) {
             </>
           )}
 
-          <img
+          <Image
             src={images[currentIndex]}
             alt={`${title} - Image ${currentIndex + 1}`}
-            className="max-w-[90vw] max-h-[90vh] object-contain"
+            fill
+            unoptimized
+            className="object-contain"
           />
 
           {/* Thumbnails in Lightbox */}
@@ -150,16 +157,18 @@ function ListingGallery({ images, title, className }: ListingGalleryProps) {
                 key={index}
                 onClick={() => setCurrentIndex(index)}
                 className={cn(
-                  "w-16 h-12 rounded overflow-hidden transition-all",
+                  "relative w-16 h-12 rounded overflow-hidden transition-all",
                   currentIndex === index
                     ? "ring-2 ring-white"
                     : "opacity-50 hover:opacity-100"
                 )}
               >
-                <img
+                <Image
                   src={image}
                   alt={`Thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  fill
+                  unoptimized
+                  className="object-cover"
                 />
               </button>
             ))}

@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
+
+const updateListingSchema = z.object({
+  title: z.string().min(5).optional(),
+  description: z.string().min(20).optional(),
+  region: z.string().min(1).optional(),
+  constituency: z.string().nullable().optional(),
+  district: z.string().min(1).optional(),
+  town: z.string().nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  landType: z.enum(["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "MIXED"]).optional(),
+  categoryId: z.string().nullable().optional(),
+  tenureType: z.enum(["FREEHOLD", "LEASEHOLD", "CUSTOMARY"]).optional(),
+  leaseDurationYears: z.number().int().positive().nullable().optional(),
+  sizeAcres: z.number().positive().optional(),
+  totalPlots: z.number().int().positive().optional(),
+  availablePlots: z.number().int().nonnegative().optional(),
+  pricePerPlotGhs: z.number().nonnegative().nullable().optional(),
+  priceGhs: z.number().nonnegative().optional(),
+  negotiable: z.boolean().optional(),
+});
 
 export async function GET(
   request: NextRequest,
@@ -30,16 +53,7 @@ export async function GET(
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
-    // Convert BigInt to string for JSON serialization
-    const serializedListing = {
-      ...listing,
-      priceGhs: listing.priceGhs.toString(),
-      sizeAcres: listing.sizeAcres.toString(),
-      latitude: listing.latitude?.toString() || null,
-      longitude: listing.longitude?.toString() || null,
-    };
-
-    return NextResponse.json(serializedListing);
+    return NextResponse.json(serializeForJson(listing));
   } catch (error) {
     console.error("Error fetching listing:", error);
     return NextResponse.json(
@@ -65,6 +79,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
+    const data = updateListingSchema.parse(body);
 
     // Check if user owns this listing
     const existingListing = await withDbRetry(() => prisma.listing.findUnique({
@@ -82,20 +97,17 @@ export async function PUT(
 
     const listing = await withDbRetry(() => prisma.listing.update({
       where: { id },
-      data: body,
+      data: data,
     }));
 
-    // Convert BigInt to string for JSON serialization
-    const serializedListing = {
-      ...listing,
-      priceGhs: listing.priceGhs.toString(),
-      sizeAcres: listing.sizeAcres.toString(),
-      latitude: listing.latitude?.toString() || null,
-      longitude: listing.longitude?.toString() || null,
-    };
-
-    return NextResponse.json(serializedListing);
+    return NextResponse.json(serializeForJson(listing));
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Invalid data", details: error.issues },
+        { status: 400 }
+      );
+    }
     console.error("Error updating listing:", error);
     return NextResponse.json(
       { error: "Failed to update listing" },

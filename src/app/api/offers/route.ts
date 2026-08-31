@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
 import { addDays } from "date-fns";
 import { notifyOfferReceived } from "@/lib/notifications";
+import { serializeForJson } from "@/lib/serialize";
 
 const createOfferSchema = z.object({
   listingId: z.string().min(1),
@@ -94,11 +95,7 @@ export async function POST(request: NextRequest) {
     // Send notification to seller (async, don't block response)
     notifyOfferReceived(offer.listing.sellerId, offer.listing.title, data.amountGhs).catch(console.error);
 
-    // Serialize BigInt for JSON response
-    return NextResponse.json({
-      ...offer,
-      amountGhs: offer.amountGhs.toString(),
-    }, { status: 201 });
+    return NextResponse.json(serializeForJson(offer), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error("Zod validation error:", JSON.stringify(error.issues));
@@ -165,17 +162,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     }));
 
-    // Serialize BigInt values
-    const serializedOffers = offers.map((offer) => ({
-      ...offer,
-      amountGhs: offer.amountGhs.toString(),
-      listing: {
-        ...offer.listing,
-        priceGhs: offer.listing.priceGhs.toString(),
-      },
-    }));
-
-    return NextResponse.json(serializedOffers);
+    return NextResponse.json(serializeForJson(offers));
   } catch (error) {
     console.error("Error fetching offers:", error);
     return NextResponse.json(

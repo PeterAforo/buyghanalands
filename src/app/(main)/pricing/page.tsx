@@ -1,5 +1,11 @@
+import { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Pricing | Buy Ghana Lands",
+  description: "Transparent fees for secure land transactions on Buy Ghana Lands.",
+};
 
 export default function PricingPage() {
   return (

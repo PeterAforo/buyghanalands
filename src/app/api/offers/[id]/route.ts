@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
 import { notifyOfferAccepted, notifyOfferCountered } from "@/lib/notifications";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(
   request: NextRequest,
@@ -36,10 +37,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json({
-      ...offer,
-      amountGhs: offer.amountGhs.toString(),
-    });
+    return NextResponse.json(serializeForJson(offer));
   } catch (error) {
     console.error("Error fetching offer:", error);
     return NextResponse.json({ error: "Failed to fetch offer" }, { status: 500 });
@@ -125,10 +123,7 @@ export async function PUT(
       data: updateData,
     }));
 
-    return NextResponse.json({
-      ...updatedOffer,
-      amountGhs: updatedOffer.amountGhs.toString(),
-    });
+    return NextResponse.json(serializeForJson(updatedOffer));
   } catch (error) {
     console.error("Error updating offer:", error);
     return NextResponse.json({ error: "Failed to update offer" }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 async function isCompliance(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -79,15 +80,10 @@ export async function GET(
       take: 20,
     }));
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       ...fraudCase,
-      listing: fraudCase.listing ? {
-        ...fraudCase.listing,
-        priceGhs: fraudCase.listing.priceGhs.toString(),
-        sizeAcres: fraudCase.listing.sizeAcres.toString(),
-      } : null,
       relatedReports,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching fraud case:", error);
     return NextResponse.json({ error: "Failed to fetch fraud case" }, { status: 500 });
@@ -174,10 +170,10 @@ export async function PUT(
       },
     }));
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       message: "Fraud case updated",
       fraudCase: updated,
-    });
+    }));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

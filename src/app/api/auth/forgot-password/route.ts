@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     // Rate limit by IP
     const ip = getClientIP(request);
-    const ipRateLimit = checkRateLimit(ip, RATE_LIMITS.PASSWORD_RESET);
+    const ipRateLimit = await checkRateLimit(ip, RATE_LIMITS.PASSWORD_RESET);
     if (!ipRateLimit.success) {
       return NextResponse.json(
         { error: "Too many password reset requests. Please try again later." },

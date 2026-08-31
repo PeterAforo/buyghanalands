@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
 import crypto from "crypto";
@@ -87,6 +88,16 @@ const DEFAULT_SETTINGS: Record<string, Record<string, { value: string; descripti
   },
 };
 
+const updateSettingsSchema = z.object({
+  category: z.string().min(1),
+  settings: z.record(z.string(), z.string()),
+});
+
+const deleteSettingSchema = z.object({
+  category: z.string().min(1),
+  key: z.string().min(1),
+});
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -166,11 +177,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { category, settings } = body as { category: string; settings: Record<string, string> };
-
-    if (!category || !settings) {
-      return NextResponse.json({ error: "Category and settings required" }, { status: 400 });
-    }
+    const { category, settings } = updateSettingsSchema.parse(body);
 
     // Update each setting
     for (const [key, value] of Object.entries(settings)) {
@@ -215,6 +222,9 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 });
+    }
     console.error("Error updating settings:", error);
     return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
   }
@@ -232,11 +242,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { category, key } = body as { category: string; key: string };
-
-    if (!category || !key) {
-      return NextResponse.json({ error: "Category and key required" }, { status: 400 });
-    }
+    const { category, key } = deleteSettingSchema.parse(body);
 
     // Delete the setting
     await withDbRetry(() => prisma.systemSetting.delete({
@@ -257,6 +263,9 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 });
+    }
     console.error("Error deleting setting:", error);
     return NextResponse.json({ error: "Failed to delete setting" }, { status: 500 });
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
@@ -72,17 +73,7 @@ export async function GET(request: NextRequest) {
       take: 100,
     }));
 
-    return NextResponse.json(
-      transactions.map((tx) => ({
-        ...tx,
-        agreedPriceGhs: tx.agreedPriceGhs.toString(),
-        platformFeeBps: tx.platformFeeBps,
-        payments: tx.payments.map((p) => ({
-          ...p,
-          amount: p.amount.toString(),
-        })),
-      }))
-    );
+    return NextResponse.json(serializeForJson(transactions));
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
   }

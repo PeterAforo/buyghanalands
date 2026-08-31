@@ -11,60 +11,60 @@ describe('Rate Limiting', () => {
   });
 
   describe('checkRateLimit', () => {
-    it('should allow requests within limit', () => {
+    it('should allow requests within limit', async () => {
       const config = { limit: 3, windowSeconds: 60, identifier: 'test' };
       
-      const result1 = checkRateLimit('user1', config);
+      const result1 = await checkRateLimit('user1', config);
       expect(result1.success).toBe(true);
       expect(result1.remaining).toBe(2);
 
-      const result2 = checkRateLimit('user1', config);
+      const result2 = await checkRateLimit('user1', config);
       expect(result2.success).toBe(true);
       expect(result2.remaining).toBe(1);
 
-      const result3 = checkRateLimit('user1', config);
+      const result3 = await checkRateLimit('user1', config);
       expect(result3.success).toBe(true);
       expect(result3.remaining).toBe(0);
     });
 
-    it('should block requests exceeding limit', () => {
+    it('should block requests exceeding limit', async () => {
       const config = { limit: 2, windowSeconds: 60, identifier: 'test-block' };
       
-      checkRateLimit('user2', config);
-      checkRateLimit('user2', config);
+      await checkRateLimit('user2', config);
+      await checkRateLimit('user2', config);
       
-      const result = checkRateLimit('user2', config);
+      const result = await checkRateLimit('user2', config);
       expect(result.success).toBe(false);
       expect(result.remaining).toBe(0);
       expect(result.retryAfterSeconds).toBeDefined();
     });
 
-    it('should track different keys separately', () => {
+    it('should track different keys separately', async () => {
       const config = { limit: 1, windowSeconds: 60, identifier: 'test-separate' };
       
-      const result1 = checkRateLimit('userA', config);
+      const result1 = await checkRateLimit('userA', config);
       expect(result1.success).toBe(true);
 
-      const result2 = checkRateLimit('userB', config);
+      const result2 = await checkRateLimit('userB', config);
       expect(result2.success).toBe(true);
 
-      const result3 = checkRateLimit('userA', config);
+      const result3 = await checkRateLimit('userA', config);
       expect(result3.success).toBe(false);
     });
 
-    it('should reset after window expires', () => {
+    it('should reset after window expires', async () => {
       const config = { limit: 1, windowSeconds: 1, identifier: 'test-reset' };
       
-      const result1 = checkRateLimit('user3', config);
+      const result1 = await checkRateLimit('user3', config);
       expect(result1.success).toBe(true);
 
-      const result2 = checkRateLimit('user3', config);
+      const result2 = await checkRateLimit('user3', config);
       expect(result2.success).toBe(false);
 
       // Advance time past the window
       jest.advanceTimersByTime(2000);
 
-      const result3 = checkRateLimit('user3', config);
+      const result3 = await checkRateLimit('user3', config);
       expect(result3.success).toBe(true);
     });
   });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const updatePermitSchema = z.object({
   projectTitle: z.string().min(5).optional(),
@@ -64,10 +65,7 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({
-      ...permit,
-      estimatedCostGhs: permit.estimatedCostGhs?.toString() || null,
-    });
+    return NextResponse.json(serializeForJson(permit));
   } catch (error) {
     console.error("Error fetching permit:", error);
     return NextResponse.json({ error: "Failed to fetch permit" }, { status: 500 });
@@ -147,10 +145,7 @@ export async function PUT(
       data: updateData,
     }));
 
-    return NextResponse.json({
-      ...updated,
-      estimatedCostGhs: updated.estimatedCostGhs?.toString() || null,
-    });
+    return NextResponse.json(serializeForJson(updated));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });

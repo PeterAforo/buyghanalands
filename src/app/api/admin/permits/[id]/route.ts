@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const updatePermitSchema = z.object({
   status: z.enum(["UNDER_REVIEW", "QUERY_RAISED", "APPROVED", "REJECTED"]),
@@ -80,10 +81,7 @@ export async function PUT(
       },
     }));
 
-    return NextResponse.json({
-      ...updated,
-      estimatedCostGhs: updated.estimatedCostGhs?.toString() || null,
-    });
+    return NextResponse.json(serializeForJson(updated));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });

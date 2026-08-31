@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -92,7 +93,7 @@ export async function PUT(
       },
     }));
 
-    return NextResponse.json(updatedUser);
+    return NextResponse.json(serializeForJson(updatedUser));
   } catch (error) {
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
@@ -148,7 +149,7 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    return NextResponse.json(serializeForJson(user));
   } catch (error) {
     console.error("Error fetching user:", error);
     return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
@@ -241,7 +242,7 @@ export async function PATCH(
       },
     }));
 
-    return NextResponse.json(updatedUser);
+    return NextResponse.json(serializeForJson(updatedUser));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });

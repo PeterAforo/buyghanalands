@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(
   request: NextRequest,
@@ -18,12 +19,7 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     }));
 
-    return NextResponse.json(
-      services.map((s) => ({
-        ...s,
-        priceGhs: s.priceGhs?.toString() || null,
-      }))
-    );
+    return NextResponse.json(serializeForJson(services));
   } catch (error) {
     console.error("Error fetching services:", error);
     return NextResponse.json({ error: "Failed to fetch services" }, { status: 500 });
@@ -78,10 +74,7 @@ export async function POST(
       },
     }));
 
-    return NextResponse.json({
-      ...service,
-      priceGhs: service.priceGhs?.toString() || null,
-    }, { status: 201 });
+    return NextResponse.json(serializeForJson(service), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

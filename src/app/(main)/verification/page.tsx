@@ -1,5 +1,11 @@
+import { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, FileCheck, Users, Award } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Verification | Buy Ghana Lands",
+  description: "Professional land verification services to ensure your land purchase is secure in Ghana.",
+};
 
 export default function VerificationPage() {
   return (

@@ -16,7 +16,7 @@ Ghana's trusted platform for secure land transactions. Verified listings, protec
 - **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Database**: NeonDB (PostgreSQL + PostGIS)
-- **ORM**: Prisma 7
+- **ORM**: Prisma 6.19
 - **Authentication**: Auth.js (NextAuth v5)
 - **Styling**: Tailwind CSS
 - **Payments**: Theteller (Payswitch)

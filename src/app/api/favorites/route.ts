@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 import { z } from "zod";
 
 const addFavoriteSchema = z.object({
@@ -47,15 +48,11 @@ export async function GET(request: NextRequest) {
       .map((f) => ({
         id: f.id,
         listingId: f.listingId,
-        createdAt: f.createdAt.toISOString(),
-        listing: {
-          ...f.listing,
-          sizeAcres: f.listing.sizeAcres.toString(),
-          priceGhs: f.listing.priceGhs.toString(),
-        },
+        createdAt: f.createdAt,
+        listing: f.listing,
       }));
 
-    return NextResponse.json(serializedFavorites);
+    return NextResponse.json(serializeForJson(serializedFavorites));
   } catch (error) {
     console.error("Error fetching favorites:", error);
     return NextResponse.json({ error: "Failed to fetch favorites" }, { status: 500 });

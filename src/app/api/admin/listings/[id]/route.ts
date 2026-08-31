@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 import { z } from "zod";
 
 async function isAdmin(userId: string): Promise<boolean> {
@@ -85,11 +86,7 @@ export async function PUT(
       },
     }));
 
-    return NextResponse.json({
-      ...updatedListing,
-      priceGhs: updatedListing.priceGhs.toString(),
-      sizeAcres: updatedListing.sizeAcres.toString(),
-    });
+    return NextResponse.json(serializeForJson(updatedListing));
   } catch (error) {
     console.error("Error moderating listing:", error);
     return NextResponse.json({ error: "Failed to moderate listing" }, { status: 500 });
@@ -141,11 +138,7 @@ export async function GET(
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
-      ...listing,
-      priceGhs: listing.priceGhs.toString(),
-      sizeAcres: listing.sizeAcres.toString(),
-    });
+    return NextResponse.json(serializeForJson(listing));
   } catch (error) {
     console.error("Error fetching listing:", error);
     return NextResponse.json({ error: "Failed to fetch listing" }, { status: 500 });
@@ -211,11 +204,7 @@ export async function PATCH(
       },
     }));
 
-    return NextResponse.json({
-      ...updatedListing,
-      priceGhs: updatedListing.priceGhs.toString(),
-      sizeAcres: updatedListing.sizeAcres.toString(),
-    });
+    return NextResponse.json(serializeForJson(updatedListing));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });

@@ -100,7 +100,7 @@ function HeroSearch({ className, variant = "hero" }: HeroSearchProps) {
   }
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full", className)} data-testid="hero-search">
       {/* Purpose Tabs */}
       <div className="flex items-center gap-1 mb-[-1px] pl-1">
         {PURPOSE_TABS.map((tab) => (
@@ -126,6 +126,7 @@ function HeroSearch({ className, variant = "hero" }: HeroSearchProps) {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
+            data-testid="hero-search-input"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -297,6 +298,7 @@ function HeroSearch({ className, variant = "hero" }: HeroSearchProps) {
           <div className="md:pl-2">
             <button
               onClick={handleSearch}
+              data-testid="hero-search-button"
               className="w-full md:w-auto md:h-full flex items-center justify-center gap-2 px-8 py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl shadow-lg shadow-emerald-700/25 transition-colors"
             >
               <Search className="h-5 w-5" />

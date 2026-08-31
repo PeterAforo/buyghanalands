@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,16 +46,7 @@ export async function GET(request: NextRequest) {
       take: limit,
     }));
 
-    const serialized = featured.map((f) => ({
-      ...f,
-      listing: {
-        ...f.listing,
-        priceGhs: f.listing.priceGhs.toString(),
-        sizeAcres: f.listing.sizeAcres.toString(),
-      },
-    }));
-
-    return NextResponse.json(serialized);
+    return NextResponse.json(serializeForJson(featured));
   } catch (error) {
     console.error("Error fetching featured listings:", error);
     return NextResponse.json({ error: "Failed to fetch featured listings" }, { status: 500 });

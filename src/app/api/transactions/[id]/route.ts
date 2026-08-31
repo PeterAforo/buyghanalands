@@ -5,6 +5,7 @@ import { prisma, withDbRetry } from "@/lib/db";
 import { notifyTransactionDisputed, notifyTransactionReleased, notifyPayoutProcessed, notifyPayoutFailed } from "@/lib/notifications";
 import { calculateTransactionFees, createTransactionServiceCharges, markChargesCollected } from "@/lib/fees";
 import { transferToMobileMoney, transferToBank, generateTransactionId } from "@/lib/theteller";
+import { serializeForJson } from "@/lib/serialize";
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   CREATED: ["ESCROW_REQUESTED"],
@@ -59,14 +60,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json({
-      ...transaction,
-      agreedPriceGhs: transaction.agreedPriceGhs.toString(),
-      milestones: transaction.milestones.map((m) => ({
-        ...m,
-        amountGhs: m.amountGhs.toString(),
-      })),
-    });
+    return NextResponse.json(serializeForJson(transaction));
   } catch (error) {
     console.error("Error fetching transaction:", error);
     return NextResponse.json({ error: "Failed to fetch transaction" }, { status: 500 });
@@ -399,14 +393,7 @@ export async function PUT(
         }));
       }
 
-      return NextResponse.json({
-        ...updatedTransaction,
-        agreedPriceGhs: updatedTransaction.agreedPriceGhs.toString(),
-        milestones: updatedTransaction.milestones.map((m) => ({
-          ...m,
-          amountGhs: m.amountGhs.toString(),
-        })),
-      });
+      return NextResponse.json(serializeForJson(updatedTransaction));
     }
 
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });

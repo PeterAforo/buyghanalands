@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 async function isAdmin(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -64,15 +65,7 @@ export async function GET(request: NextRequest) {
       take: 100,
     }));
 
-    return NextResponse.json(
-      disputes.map((d) => ({
-        ...d,
-        transaction: {
-          ...d.transaction,
-          agreedPriceGhs: d.transaction.agreedPriceGhs.toString(),
-        },
-      }))
-    );
+    return NextResponse.json(serializeForJson(disputes));
   } catch (error) {
     console.error("Error fetching admin disputes:", error);
     return NextResponse.json({ error: "Failed to fetch disputes" }, { status: 500 });

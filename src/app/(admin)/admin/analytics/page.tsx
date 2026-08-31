@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import { prisma, withDbRetry } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
@@ -11,6 +12,11 @@ import {
   CreditCard,
   BarChart3,
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Analytics | Admin",
+  description: "View platform analytics and statistics for Buy Ghana Lands admin panel.",
+};
 
 export const dynamic = 'force-dynamic';
 

@@ -5,6 +5,7 @@ import { prisma, withDbRetry } from "@/lib/db";
 import { notifyDisputeResolved, notifyPayoutProcessed, notifyPayoutFailed } from "@/lib/notifications";
 import { calculateTransactionFees, createTransactionServiceCharges, markChargesCollected } from "@/lib/fees";
 import { transferToMobileMoney, transferToBank, generateTransactionId } from "@/lib/theteller";
+import { serializeForJson } from "@/lib/serialize";
 
 const resolveDisputeSchema = z.object({
   outcome: z.enum(["RELEASE", "REFUND", "PARTIAL", "TERMINATE"]),
@@ -616,11 +617,11 @@ export async function POST(
     notifyDisputeResolved(transaction.buyerId, transaction.listing.title, data.outcome).catch(() => {});
     notifyDisputeResolved(transaction.sellerId, transaction.listing.title, data.outcome).catch(() => {});
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       success: true,
       dispute: updatedDispute,
       transactionStatus: newTransactionStatus,
-    });
+    }));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });

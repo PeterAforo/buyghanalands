@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 // High-value transaction threshold (GH₵500,000)
 const HIGH_VALUE_THRESHOLD = 500000;
@@ -53,15 +54,15 @@ export async function GET(
     const requiresApproval = isHighValue && transaction.status === "READY_TO_RELEASE";
     const pendingMilestones = transaction.milestones.filter((m) => !m.adminApprovedAt);
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       transactionId: id,
       isHighValue,
       threshold: HIGH_VALUE_THRESHOLD,
-      amount: transaction.agreedPriceGhs.toString(),
+      amount: transaction.agreedPriceGhs,
       requiresApproval,
       pendingAdminApprovals: pendingMilestones.length,
       milestones: transaction.milestones,
-    });
+    }));
   } catch (error) {
     console.error("Error checking high-value status:", error);
     return NextResponse.json({ error: "Failed to check status" }, { status: 500 });

@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+
+const updateLandCategorySchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
+  landType: z.enum(["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "MIXED"]).optional(),
+  icon: z.string().nullable().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().nonnegative().optional(),
+});
 
 async function isAdmin(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -52,7 +62,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, description, landType, icon, isActive, sortOrder } = body;
+    const { name, description, landType, icon, isActive, sortOrder } = updateLandCategorySchema.parse(body);
 
     // Generate new slug if name changed
     const slug = name
@@ -77,6 +87,9 @@ export async function PUT(
 
     return NextResponse.json(category);
   } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid data", details: error.issues }, { status: 400 });
+    }
     console.error("Error updating land category:", error);
     if (error.code === "P2025") {
       return NextResponse.json({ error: "Category not found" }, { status: 404 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const createReviewSchema = z.object({
   rating: z.number().min(1).max(5),
@@ -80,7 +81,7 @@ export async function POST(
       },
     }));
 
-    return NextResponse.json(review, { status: 201 });
+    return NextResponse.json(serializeForJson(review), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.issues }, { status: 400 });

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { MapPin, ArrowRight } from "lucide-react";
 
@@ -32,10 +33,12 @@ function RegionCard({ name, listingCount, image }: RegionCardProps) {
       href={`/listings?region=${encodeURIComponent(name)}`}
       className="group relative overflow-hidden rounded-2xl aspect-[4/3] bg-gray-100"
     >
-      <img
+      <Image
         src={regionImage}
         alt={name}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+        fill
+        unoptimized
+        className="object-cover transition-transform duration-500 group-hover:scale-110"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       

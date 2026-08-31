@@ -3,6 +3,8 @@ import Image from "next/image";
 import { PageHero, Eyebrow } from "@/components/marketing/page-hero";
 import { NewsletterForm } from "@/components/marketing/newsletter-form";
 import { Calendar, ArrowRight, Clock, ArrowUpRight } from "lucide-react";
+import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export const metadata: Metadata = {
   title: "News & Updates | Buy Ghana Lands",
@@ -10,79 +12,119 @@ export const metadata: Metadata = {
     "Stay updated with the latest news, market insights, and updates from Buy Ghana Lands.",
 };
 
-const newsArticles = [
+const fallbackArticles = [
   {
-    id: 1,
+    id: "fallback-1",
+    slug: "new-verification-partnership",
     title: "New Verification Partnership with Ghana Lands Commission",
     excerpt:
       "We're excited to announce our official partnership with the Ghana Lands Commission to provide faster and more reliable land verification services.",
-    date: "2026-01-20",
+    publishedAt: new Date("2026-01-20"),
     category: "Partnership",
-    readTime: "3 min read",
-    image: "/images/african-american-woman-looking-map.jpg",
+    readTime: 3,
+    coverImage: "/images/african-american-woman-looking-map.jpg",
+    isFeatured: true,
   },
   {
-    id: 2,
+    id: "fallback-2",
+    slug: "land-prices-greater-accara-2026",
     title: "Land Prices in Greater Accra: 2026 Market Report",
     excerpt:
       "Our comprehensive analysis of land prices across Greater Accra reveals interesting trends for buyers and investors.",
-    date: "2026-01-15",
+    publishedAt: new Date("2026-01-15"),
     category: "Market Insights",
-    readTime: "5 min read",
-    image: "/images/listings/land-3.jpg",
+    readTime: 5,
+    coverImage: "/images/listings/land-3.jpg",
+    isFeatured: false,
   },
   {
-    id: 3,
+    id: "fallback-3",
+    slug: "avoiding-land-fraud-guide",
     title: "How to Avoid Land Fraud: A Complete Guide",
     excerpt:
       "Learn the essential steps to protect yourself from land fraud when buying property in Ghana.",
-    date: "2026-01-10",
+    publishedAt: new Date("2026-01-10"),
     category: "Guide",
-    readTime: "7 min read",
-    image: "/images/listings/land-11.jpg",
+    readTime: 7,
+    coverImage: "/images/listings/land-11.jpg",
+    isFeatured: false,
   },
   {
-    id: 4,
+    id: "fallback-4",
+    slug: "escrow-protection-all-transactions",
     title: "Escrow Protection Now Available for All Transactions",
     excerpt:
       "We've expanded our escrow protection service to cover all land transactions on our platform.",
-    date: "2026-01-05",
+    publishedAt: new Date("2026-01-05"),
     category: "Product Update",
-    readTime: "2 min read",
-    image: "/images/listings/land-6.jpg",
+    readTime: 2,
+    coverImage: "/images/listings/land-6.jpg",
+    isFeatured: false,
   },
   {
-    id: 5,
+    id: "fallback-5",
+    slug: "top-5-regions-land-investment-2026",
     title: "Top 5 Regions for Land Investment in 2026",
     excerpt:
       "Discover which regions in Ghana offer the best opportunities for land investment this year.",
-    date: "2025-12-28",
+    publishedAt: new Date("2025-12-28"),
     category: "Market Insights",
-    readTime: "6 min read",
-    image: "/images/listings/land-14.jpg",
+    readTime: 6,
+    coverImage: "/images/listings/land-14.jpg",
+    isFeatured: false,
   },
   {
-    id: 6,
+    id: "fallback-6",
+    slug: "customary-land-tenure-ghana",
     title: "Understanding Customary Land Tenure in Ghana",
     excerpt:
       "A detailed explanation of customary land tenure and what it means for land buyers.",
-    date: "2025-12-20",
+    publishedAt: new Date("2025-12-20"),
     category: "Education",
-    readTime: "8 min read",
-    image: "/images/listings/land-8.jpg",
+    readTime: 8,
+    coverImage: "/images/listings/land-8.jpg",
+    isFeatured: false,
   },
 ];
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString("en-GB", {
+function formatDate(date: Date) {
+  return new Date(date).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 }
 
-export default function NewsPage() {
-  const [featured, ...rest] = newsArticles;
+export default async function NewsPage() {
+  let articles: typeof fallbackArticles = fallbackArticles;
+
+  try {
+    const dbArticles = await withDbRetry(() =>
+      prisma.newsArticle.findMany({
+        where: { isPublished: true },
+        orderBy: { publishedAt: "desc" },
+        take: 12,
+      })
+    );
+    if (dbArticles.length > 0) {
+      articles = serializeForJson(dbArticles).map((a: any) => ({
+        id: a.id,
+        slug: a.slug,
+        title: a.title,
+        excerpt: a.excerpt || "",
+        publishedAt: new Date(a.publishedAt || a.createdAt),
+        category: a.category,
+        readTime: a.readTime,
+        coverImage: a.coverImage || "/images/listings/land-3.jpg",
+        isFeatured: a.isFeatured,
+      }));
+    }
+  } catch {
+    // Use fallback articles if DB is unavailable
+  }
+
+  const featured = articles.find((a) => a.isFeatured) || articles[0];
+  const rest = articles.filter((a) => a.id !== featured.id);
 
   return (
     <div className="min-h-screen bg-[#faf8f2]">
@@ -105,7 +147,7 @@ export default function NewsPage() {
           <div className="group grid cursor-pointer overflow-hidden rounded-3xl bg-white shadow-md transition-all hover:shadow-2xl lg:grid-cols-2">
             <div className="relative aspect-[16/10] overflow-hidden lg:aspect-auto">
               <Image
-                src={featured.image}
+                src={featured.coverImage}
                 alt={featured.title}
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -122,7 +164,7 @@ export default function NewsPage() {
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
-                  {featured.readTime}
+                  {featured.readTime} min read
                 </span>
               </div>
               <h2 className="font-display mt-4 text-2xl font-semibold text-emerald-950 transition-colors group-hover:text-emerald-700 sm:text-3xl">
@@ -132,7 +174,7 @@ export default function NewsPage() {
               <div className="mt-6 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-sm text-gray-500">
                   <Calendar className="h-4 w-4" />
-                  {formatDate(featured.date)}
+                  {formatDate(featured.publishedAt)}
                 </span>
                 <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
                   Read article
@@ -162,7 +204,7 @@ export default function NewsPage() {
               >
                 <div className="relative aspect-[16/10] overflow-hidden">
                   <Image
-                    src={article.image}
+                    src={article.coverImage}
                     alt={article.title}
                     fill
                     className="object-cover transition-transform duration-700 group-hover:scale-110"
@@ -179,7 +221,7 @@ export default function NewsPage() {
                 <div className="flex flex-1 flex-col p-6">
                   <span className="flex items-center gap-1 text-xs text-gray-400">
                     <Clock className="h-3 w-3" />
-                    {article.readTime}
+                    {article.readTime} min read
                   </span>
                   <h3 className="font-display mt-2 text-lg font-semibold leading-snug text-emerald-950 transition-colors group-hover:text-emerald-700">
                     {article.title}
@@ -190,7 +232,7 @@ export default function NewsPage() {
                   <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-4">
                     <span className="flex items-center gap-1.5 text-xs text-gray-500">
                       <Calendar className="h-3.5 w-3.5" />
-                      {formatDate(article.date)}
+                      {formatDate(article.publishedAt)}
                     </span>
                     <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700">
                       Read more

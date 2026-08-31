@@ -1,5 +1,11 @@
+import { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Lock, RefreshCw, CheckCircle } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Escrow Policy | Buy Ghana Lands",
+  description: "Learn how our escrow service protects your money during land transactions on Buy Ghana Lands.",
+};
 
 export default function EscrowPolicyPage() {
   return (

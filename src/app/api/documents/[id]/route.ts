@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 async function canAccessDocument(userId: string, document: any): Promise<boolean> {
   // Owner always has access
@@ -99,12 +100,11 @@ export async function GET(
                         document.ownerId !== session.user.id &&
                         document.redactedUrl;
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       ...document,
       url: useRedacted ? document.redactedUrl : document.url,
-      fileSizeBytes: document.fileSizeBytes?.toString(),
       isRedacted: useRedacted,
-    });
+    }));
   } catch (error) {
     console.error("Error fetching document:", error);
     return NextResponse.json({ error: "Failed to fetch document" }, { status: 500 });

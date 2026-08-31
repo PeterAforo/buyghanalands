@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(request: NextRequest) {
   try {
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
       })),
     }));
 
-    return NextResponse.json(documents);
+    return NextResponse.json(serializeForJson(documents));
   } catch (error) {
     console.error("Error fetching documents:", error);
     return NextResponse.json({ error: "Failed to fetch documents" }, { status: 500 });
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json(document, { status: 201 });
+    return NextResponse.json(serializeForJson(document), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

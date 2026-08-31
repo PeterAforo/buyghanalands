@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -652,10 +653,12 @@ export default function DashboardListingDetailPage({
                   .filter(m => m.type === "PHOTO" || m.type === "IMAGE")
                   .map((media) => (
                     <div key={media.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                      <img
+                      <Image
                         src={media.url}
                         alt="Listing photo"
-                        className="w-full h-full object-cover"
+                        fill
+                        unoptimized
+                        className="object-cover"
                       />
                     </div>
                   ))}

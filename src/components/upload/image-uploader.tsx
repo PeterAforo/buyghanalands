@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Upload,
@@ -228,10 +229,12 @@ export function ImageUploader({
               key={image.id || image.url}
               className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100 border"
             >
-              <img
+              <Image
                 src={image.url}
                 alt={`Upload ${index + 1}`}
-                className="w-full h-full object-cover"
+                fill
+                unoptimized
+                className="object-cover"
               />
 
               {/* Overlay */}

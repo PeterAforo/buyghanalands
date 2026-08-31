@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 export async function GET(request: NextRequest) {
   try {
@@ -140,14 +141,6 @@ export async function GET(request: NextRequest) {
 
     // Calculate distances if proximity search
     let serializedListings = listings.map((listing) => {
-      const base = {
-        ...listing,
-        priceGhs: listing.priceGhs.toString(),
-        sizeAcres: listing.sizeAcres.toString(),
-        latitude: listing.latitude?.toString() || null,
-        longitude: listing.longitude?.toString() || null,
-      };
-
       if (lat && lng && listing.latitude && listing.longitude) {
         const lat1 = parseFloat(lat) * Math.PI / 180;
         const lat2 = Number(listing.latitude) * Math.PI / 180;
@@ -160,20 +153,20 @@ export async function GET(request: NextRequest) {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const distanceKm = 6371 * c;
 
-        return { ...base, distanceKm: Math.round(distanceKm * 100) / 100 };
+        return { ...listing, distanceKm: Math.round(distanceKm * 100) / 100 };
       }
 
-      return base;
+      return listing;
     });
 
     // Sort by distance if proximity search
     if (lat && lng && sortBy === "nearest") {
-      serializedListings = serializedListings.sort((a: any, b: any) => 
+      serializedListings = serializedListings.sort((a: any, b: any) =>
         (a.distanceKm || 0) - (b.distanceKm || 0)
       );
     }
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       listings: serializedListings,
       pagination: {
         page,
@@ -195,7 +188,7 @@ export async function GET(request: NextRequest) {
         verified,
         sortBy,
       },
-    });
+    }));
   } catch (error) {
     console.error("Error searching listings:", error);
     return NextResponse.json({ error: "Failed to search listings" }, { status: 500 });

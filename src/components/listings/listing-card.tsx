@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Heart, MapPin, Maximize, Shield, ShieldCheck, ShieldAlert, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +74,7 @@ function ListingCard({
 
   return (
     <div
+      data-testid="listing-card"
       className={cn(
         "group relative bg-white rounded-xl border border-gray-100 overflow-hidden transition-all duration-300",
         "hover:shadow-lg hover:border-gray-200 hover:-translate-y-1",
@@ -85,10 +87,12 @@ function ListingCard({
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         <Link href={`/listings/${id}`}>
           {images.length > 0 ? (
-            <img
+            <Image
               src={images[currentImage]}
               alt={title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              fill
+              unoptimized
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">

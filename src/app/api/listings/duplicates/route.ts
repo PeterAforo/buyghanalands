@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 const checkDuplicateSchema = z.object({
   latitude: z.number(),
@@ -74,20 +75,16 @@ export async function POST(request: NextRequest) {
 
       return {
         ...listing,
-        latitude: listing.latitude?.toString(),
-        longitude: listing.longitude?.toString(),
-        sizeAcres: listing.sizeAcres.toString(),
-        priceGhs: listing.priceGhs.toString(),
         distanceKm: Math.round(distanceKm * 1000) / 1000,
       };
     }).filter((l) => l.distanceKm <= data.radiusKm)
       .sort((a, b) => a.distanceKm - b.distanceKm);
 
-    return NextResponse.json({
+    return NextResponse.json(serializeForJson({
       hasPotentialDuplicates: potentialDuplicates.length > 0,
       count: potentialDuplicates.length,
       listings: potentialDuplicates,
-    });
+    }));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

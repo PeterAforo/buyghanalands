@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -29,7 +30,10 @@ import {
   WorkflowChecklist,
   WorkflowAlerts,
   WorkflowAlertBanner,
+  WorkflowDocumentVault,
+  WorkflowCostTracker,
 } from "@/components/workflow";
+import type { WorkflowDocument, DocumentCategory, CostCategory } from "@/components/workflow";
 
 interface WorkflowDetailClientProps {
   workflow: any;
@@ -56,6 +60,136 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState("overview");
   const [isUpdating, setIsUpdating] = React.useState(false);
+
+  // Document vault state
+  const [documents, setDocuments] = React.useState<WorkflowDocument[]>([]);
+  const [docCategories, setDocCategories] = React.useState<DocumentCategory[]>([]);
+  const [isUploadingDocs, setIsUploadingDocs] = React.useState(false);
+
+  // Cost tracker state
+  const [costCategories, setCostCategories] = React.useState<CostCategory[]>([]);
+
+  const workflowId = workflow.id;
+
+  // Fetch documents when documents tab is opened
+  const fetchDocuments = React.useCallback(async () => {
+    try {
+      const res = await fetch(`/api/workflows/${workflowId}/documents`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setDocuments(data.documents || []);
+      setDocCategories(data.categories || []);
+    } catch (e) {
+      // silent fail; UI shows empty state
+    }
+  }, [workflowId]);
+
+  // Fetch cost tracker when costs tab is opened
+  const fetchCosts = React.useCallback(async () => {
+    try {
+      const res = await fetch(`/api/workflows/${workflowId}/costs`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setCostCategories(data.categories || []);
+    } catch (e) {
+      // silent fail; UI shows empty state
+    }
+  }, [workflowId]);
+
+  React.useEffect(() => {
+    if (activeTab === "documents" && documents.length === 0) {
+      fetchDocuments();
+    }
+    if (activeTab === "costs" && costCategories.length === 0) {
+      fetchCosts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const handleUploadDocuments = React.useCallback(
+    async (files: File[], category: string) => {
+      if (files.length === 0) return;
+      setIsUploadingDocs(true);
+      try {
+        for (const file of files) {
+          // Convert file to base64 data URL for upload (simple vault upload)
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          await fetch(`/api/workflows/${workflowId}/documents`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              category,
+              documentType: file.type || "document",
+              title: file.name.replace(/\.[^.]+$/, ""),
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type || "application/octet-stream",
+              fileUrl: dataUrl,
+            }),
+          });
+        }
+        await fetchDocuments();
+      } finally {
+        setIsUploadingDocs(false);
+      }
+    },
+    [workflowId, fetchDocuments]
+  );
+
+  const handleDeleteDocument = React.useCallback(
+    async (documentId: string) => {
+      await fetch(
+        `/api/workflows/${workflowId}/documents?documentId=${encodeURIComponent(documentId)}`,
+        { method: "DELETE" }
+      );
+      await fetchDocuments();
+    },
+    [workflowId, fetchDocuments]
+  );
+
+  const handleAddCostItem = React.useCallback(
+    async (category: string, item: { description: string; budgetAmount: number; actualAmount: number; notes?: string }) => {
+      const newCostItems = [
+        ...(costCategories.flatMap((c) => c.items) as any[]),
+        {
+          category,
+          description: item.description,
+          budgetAmount: item.budgetAmount,
+          actualAmount: item.actualAmount,
+          notes: item.notes,
+        },
+      ];
+      await fetch(`/api/workflows/${workflowId}/costs`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ costItems: newCostItems }),
+      });
+      await fetchCosts();
+    },
+    [workflowId, costCategories, fetchCosts]
+  );
+
+  const handleDeleteCostItem = React.useCallback(
+    async (itemId: string) => {
+      const remaining = costCategories
+        .flatMap((c) => c.items)
+        .filter((item: any) => item.id !== itemId)
+        .map(({ id, ...rest }: any) => rest);
+      await fetch(`/api/workflows/${workflowId}/costs`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ costItems: remaining }),
+      });
+      await fetchCosts();
+    },
+    [workflowId, costCategories, fetchCosts]
+  );
 
   const module = moduleConfig[workflow.currentModule];
   const ModuleIcon = module?.icon || MapPin;
@@ -541,9 +675,12 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
                     className="block hover:bg-gray-50 -m-2 p-2 rounded-lg transition-colors"
                   >
                     {workflow.listing.image && (
-                      <img
+                      <Image
                         src={workflow.listing.image}
                         alt={workflow.listing.title}
+                        width={600}
+                        height={128}
+                        unoptimized
                         className="w-full h-32 object-cover rounded-lg mb-3"
                       />
                     )}
@@ -585,19 +722,25 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
         </TabsContent>
 
         <TabsContent value="documents">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <p className="text-gray-500 text-center py-12">
-              Document vault coming soon...
-            </p>
-          </div>
+          <WorkflowDocumentVault
+            documents={documents}
+            categories={docCategories}
+            onUpload={handleUploadDocuments}
+            onDelete={handleDeleteDocument}
+            onDownload={(docId) => {
+              const doc = documents.find((d) => d.id === docId);
+              if (doc) window.open(doc.fileUrl, "_blank");
+            }}
+            isUploading={isUploadingDocs}
+          />
         </TabsContent>
 
         <TabsContent value="costs">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <p className="text-gray-500 text-center py-12">
-              Cost tracker coming soon...
-            </p>
-          </div>
+          <WorkflowCostTracker
+            categories={costCategories}
+            onAddItem={handleAddCostItem}
+            onDeleteItem={handleDeleteCostItem}
+          />
         </TabsContent>
 
         <TabsContent value="alerts">
