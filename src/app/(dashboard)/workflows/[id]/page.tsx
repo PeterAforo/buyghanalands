@@ -156,17 +156,15 @@ export default async function WorkflowDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Suspense fallback={<WorkflowDetailLoading />}>
-        <WorkflowDetailClient workflow={workflow} />
-      </Suspense>
-    </div>
+    <Suspense fallback={<WorkflowDetailLoading />}>
+      <WorkflowDetailClient workflow={workflow} />
+    </Suspense>
   );
 }
 
 function WorkflowDetailLoading() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="space-y-6">
       <div className="animate-pulse space-y-6">
         <div className="h-8 bg-gray-200 rounded w-64" />
         <div className="h-48 bg-gray-200 rounded-xl" />

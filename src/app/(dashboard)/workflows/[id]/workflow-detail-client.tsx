@@ -6,7 +6,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft,
   MapPin,
   FileText,
   Bell,
@@ -25,6 +24,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { PageHeader, SectionCard } from "@/components/dashboard";
 import {
   WorkflowProgressTracker,
   WorkflowChecklist,
@@ -517,48 +517,38 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6">
-        <Link
-          href="/workflows"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Workflows
-        </Link>
-
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <PageHeader
+        title={workflow.propertyTitle || workflow.listing?.title || "Untitled Project"}
+        description={`${workflow.region || workflow.listing?.region}${
+          (workflow.district || workflow.listing?.district) &&
+          `, ${workflow.district || workflow.listing?.district}`
+        }${
+          (workflow.town || workflow.listing?.town) &&
+          ` • ${workflow.town || workflow.listing?.town}`
+        }`}
+        breadcrumb={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Workflows", href: "/workflows" },
+          { label: workflow.propertyTitle || workflow.listing?.title || "Untitled Project" },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
             <div className={cn("p-3 rounded-xl", module?.color || "bg-gray-100")}>
               <ModuleIcon className="h-6 w-6" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {workflow.propertyTitle || workflow.listing?.title || "Untitled Project"}
-              </h1>
-              <p className="text-gray-500">
-                {workflow.region || workflow.listing?.region}
-                {(workflow.district || workflow.listing?.district) &&
-                  `, ${workflow.district || workflow.listing?.district}`}
-                {(workflow.town || workflow.listing?.town) &&
-                  ` • ${workflow.town || workflow.listing?.town}`}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm">
               <Settings className="h-4 w-4 mr-1" />
               Settings
             </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Critical Alerts Banner */}
       {alerts.filter((a: any) => a.type === "warning" || a.type === "deadline").length > 0 && (
-        <div className="mb-6 space-y-3">
+        <div className="space-y-3">
           {alerts
             .filter((a: any) => (a.type === "warning" || a.type === "deadline") && !a.isRead)
             .slice(0, 2)
@@ -575,7 +565,7 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
       )}
 
       {/* Progress Tracker */}
-      <div className="mb-6">
+      <div>
         <WorkflowProgressTracker
           title="Land Acquisition Progress"
           currentStage={workflow.landAcquisition?.currentStage || 1}
@@ -587,7 +577,7 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6">
+        <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="documents">
@@ -609,7 +599,7 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview">
+        <TabsContent value="overview" className="mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
@@ -644,8 +634,7 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
               />
 
               {/* Quick Stats */}
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h3 className="font-semibold text-gray-900 mb-4">Quick Stats</h3>
+              <SectionCard title="Quick Stats">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Documents</span>
@@ -664,12 +653,11 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
                     </span>
                   </div>
                 </div>
-              </div>
+              </SectionCard>
 
               {/* Linked Listing */}
               {workflow.listing && (
-                <div className="bg-white rounded-xl border border-gray-200 p-5">
-                  <h3 className="font-semibold text-gray-900 mb-4">Linked Listing</h3>
+                <SectionCard title="Linked Listing">
                   <Link
                     href={`/listings/${workflow.listing.id}`}
                     className="block hover:bg-gray-50 -m-2 p-2 rounded-lg transition-colors"
@@ -692,13 +680,13 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
                       GHS {Number(workflow.listing.priceGhs).toLocaleString()}
                     </p>
                   </Link>
-                </div>
+                </SectionCard>
               )}
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="tasks">
+        <TabsContent value="tasks" className="mt-6">
           <div className="space-y-6">
             {LAND_ACQUISITION_STAGES.map((stage) => {
               const stageStatus = workflow.landAcquisition?.[`stage${stage.id}Status`] || "LOCKED";
@@ -721,7 +709,7 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
           </div>
         </TabsContent>
 
-        <TabsContent value="documents">
+        <TabsContent value="documents" className="mt-6">
           <WorkflowDocumentVault
             documents={documents}
             categories={docCategories}
@@ -735,7 +723,7 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
           />
         </TabsContent>
 
-        <TabsContent value="costs">
+        <TabsContent value="costs" className="mt-6">
           <WorkflowCostTracker
             categories={costCategories}
             onAddItem={handleAddCostItem}
@@ -743,7 +731,7 @@ export function WorkflowDetailClient({ workflow }: WorkflowDetailClientProps) {
           />
         </TabsContent>
 
-        <TabsContent value="alerts">
+        <TabsContent value="alerts" className="mt-6">
           <WorkflowAlerts
             alerts={alerts}
             onMarkAsRead={handleAlertMarkRead}

@@ -11,17 +11,16 @@ import {
   Bell,
   Clock,
   CheckCircle,
-  AlertCircle,
   ChevronRight,
   Building2,
   Hammer,
   ClipboardCheck,
   Home,
   Search,
-  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader, SectionCard, EmptyState, DashboardStatCard } from "@/components/dashboard";
 
 interface Workflow {
   id: string;
@@ -200,71 +199,50 @@ export function WorkflowsClient({ initialWorkflows }: WorkflowsClientProps) {
   }, [workflows]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Property Workflows</h1>
-          <p className="text-gray-500 mt-1">
-            Track your land acquisition and building projects
-          </p>
-        </div>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Workflow
-        </Button>
-      </div>
+      <PageHeader
+        title="Property Workflows"
+        description="Track your land acquisition and building projects"
+        breadcrumb={[{ label: "Dashboard", href: "/dashboard" }, { label: "Workflows" }]}
+        actions={
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Workflow
+          </Button>
+        }
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Building2 className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              <p className="text-sm text-gray-500">Total Projects</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 rounded-lg">
-              <Clock className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{stats.inProgress}</p>
-              <p className="text-sm text-gray-500">In Progress</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{stats.completed}</p>
-              <p className="text-sm text-gray-500">Completed</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <Bell className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{stats.alerts}</p>
-              <p className="text-sm text-gray-500">Active Alerts</p>
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <DashboardStatCard
+          label="Total Projects"
+          value={stats.total}
+          icon={<Building2 className="h-5 w-5" />}
+          accent="blue"
+        />
+        <DashboardStatCard
+          label="In Progress"
+          value={stats.inProgress}
+          icon={<Clock className="h-5 w-5" />}
+          accent="gold"
+        />
+        <DashboardStatCard
+          label="Completed"
+          value={stats.completed}
+          icon={<CheckCircle className="h-5 w-5" />}
+          accent="emerald"
+        />
+        <DashboardStatCard
+          label="Active Alerts"
+          value={stats.alerts}
+          icon={<Bell className="h-5 w-5" />}
+          accent="pink"
+        />
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
@@ -294,23 +272,22 @@ export function WorkflowsClient({ initialWorkflows }: WorkflowsClientProps) {
 
       {/* Workflows Grid */}
       {filteredWorkflows.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {searchQuery || statusFilter ? "No workflows found" : "No workflows yet"}
-          </h3>
-          <p className="text-gray-500 mb-6">
-            {searchQuery || statusFilter
-              ? "Try adjusting your search or filters"
-              : "Start tracking your first property acquisition or building project"}
-          </p>
-          {!searchQuery && !statusFilter && (
-            <Button onClick={() => setShowCreateModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Workflow
-            </Button>
-          )}
-        </div>
+        <SectionCard>
+          <EmptyState
+            icon={<Building2 className="h-7 w-7" />}
+            title={searchQuery || statusFilter ? "No workflows found" : "No workflows yet"}
+            description={
+              searchQuery || statusFilter
+                ? "Try adjusting your search or filters"
+                : "Start tracking your first property acquisition or building project"
+            }
+            action={
+              !searchQuery && !statusFilter
+                ? { label: "Create Your First Workflow", onClick: () => setShowCreateModal(true) }
+                : undefined
+            }
+          />
+        </SectionCard>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredWorkflows.map((workflow) => {
