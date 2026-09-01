@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, Download, Shield } from "lucide-react";
+import { Loader2, FileText, Download, Shield, Trash2 } from "lucide-react";
 
 interface Document {
   id: string;
@@ -44,6 +44,8 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [type, setType] = useState("");
   const [accessPolicy, setAccessPolicy] = useState("");
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -58,6 +60,30 @@ export default function DocumentsPage() {
     }
     load();
   }, [type, accessPolicy]);
+
+  async function updateStatus(id: string, verificationStatus: string) {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/documents", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, verificationStatus }),
+      });
+      if (res.ok) {
+        setDocuments((prev) => prev.map((d) => d.id === id ? { ...d, virusScanStatus: verificationStatus } : d));
+      }
+    } catch { } finally { setUpdating(null); }
+  }
+
+  async function deleteDocument(id: string) {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/admin/documents?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setDocuments((prev) => prev.filter((d) => d.id !== id));
+      }
+    } catch { } finally { setDeleting(null); }
+  }
 
   const docTypes = ["TITLE_DEED", "ID_CARD", "PERMIT", "CONTRACT", "SURVEY_PLAN", "LAND_CERTIFICATE", "PROOF_OF_PAYMENT", "OTHER"];
 
@@ -106,6 +132,7 @@ export default function DocumentsPage() {
                     <th className="px-4 py-3 font-medium text-gray-600">Virus Scan</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Logs</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Date</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">Actions</th>
                     <th className="px-4 py-3 font-medium text-gray-600 text-right">View</th>
                   </tr>
                 </thead>
@@ -124,6 +151,29 @@ export default function DocumentsPage() {
                       </td>
                       <td className="px-4 py-3 text-center text-xs">{d._count.accessLogs}</td>
                       <td className="px-4 py-3 text-gray-500">{formatDate(d.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={d.virusScanStatus || "PENDING"}
+                            disabled={updating === d.id}
+                            onChange={(e) => updateStatus(d.id, e.target.value)}
+                            className="text-xs border rounded px-2 py-1 bg-white"
+                          >
+                            <option value="PENDING">Pending</option>
+                            <option value="VERIFIED">Verified</option>
+                            <option value="REJECTED">Rejected</option>
+                          </select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={deleting === d.id}
+                            onClick={() => deleteDocument(d.id)}
+                            className="gap-1 text-red-600 hover:text-red-700"
+                          >
+                            {deleting === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <a href={d.url} target="_blank" rel="noopener noreferrer">
                           <Button variant="outline" size="sm" className="gap-1"><Download className="h-3 w-3" /> View</Button>

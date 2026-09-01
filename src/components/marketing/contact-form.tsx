@@ -15,7 +15,8 @@ const subjects = [
 ];
 
 export function ContactForm() {
-  const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -29,9 +30,24 @@ export function ContactForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("loading");
-    // Simulate submission — front-end UX only (no backend endpoint yet)
-    await new Promise((r) => setTimeout(r, 900));
-    setStatus("success");
+    setErrorMessage("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStatus("success");
+      } else {
+        setStatus("error");
+        setErrorMessage(data.error || "Something went wrong. Please try again.");
+      }
+    } catch {
+      setStatus("error");
+      setErrorMessage("Network error. Please try again.");
+    }
   };
 
   if (status === "success") {
@@ -133,6 +149,12 @@ export function ContactForm() {
           </>
         )}
       </button>
+
+      {status === "error" && (
+        <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+          {errorMessage}
+        </p>
+      )}
     </form>
   );
 }

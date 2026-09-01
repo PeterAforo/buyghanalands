@@ -82,3 +82,39 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
   }
 }
+
+// DELETE — delete a message (admin moderation)
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+
+    await withDbRetry(() => prisma.message.delete({ where: { id } }));
+
+    await withDbRetry(() => prisma.auditLog.create({
+      data: {
+        entityType: "MESSAGE",
+        entityId: id,
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "DELETE",
+        diff: {},
+      },
+    }));
+
+    return NextResponse.json({ message: "Message deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting message:", error);
+    return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
+  }
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, withDbRetry } from "@/lib/db";
+import { serializeForJson } from "@/lib/serialize";
 
 async function isSupport(userId: string): Promise<boolean> {
   const user = await withDbRetry(() => prisma.user.findUnique({
@@ -95,5 +96,41 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching support tickets:", error);
     return NextResponse.json({ error: "Failed to fetch tickets" }, { status: 500 });
+  }
+}
+
+// PUT — update ticket status (admin action)
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await isSupport(session.user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { id, status, adminResponse } = await request.json();
+    if (!id || !status) return NextResponse.json({ error: "id and status are required" }, { status: 400 });
+
+    const validStatuses = ["OPEN", "IN_PROGRESS", "WAITING_USER", "RESOLVED", "CLOSED"];
+    if (!validStatuses.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+
+    const ticket = await withDbRetry(() => prisma.supportTicket.update({
+      where: { id },
+      data: { status },
+    }));
+
+    await withDbRetry(() => prisma.auditLog.create({
+      data: {
+        entityType: "SUPPORT_TICKET",
+        entityId: id,
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "UPDATE",
+        diff: { status, adminResponse },
+      },
+    }));
+
+    return NextResponse.json(serializeForJson(ticket));
+  } catch (error) {
+    console.error("Error updating support ticket:", error);
+    return NextResponse.json({ error: "Failed to update ticket" }, { status: 500 });
   }
 }

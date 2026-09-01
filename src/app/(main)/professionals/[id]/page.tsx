@@ -38,15 +38,12 @@ const professionalConfig: Record<string, { icon: any; label: string; description
   VALUER: { icon: Calculator, label: "Valuer", description: "Property valuation services" },
 };
 
-function demoAvatar(id: string, professionalType: string) {
-  const prof = professionalType.toLowerCase();
-  const known = ["surveyor", "lawyer", "architect", "engineer", "planner", "valuer"];
-  const folder = known.includes(prof) ? prof : "surveyor";
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-  return `/images/professionals/${folder}-${(hash % 3) + 1}.jpg`;
+  return name.slice(0, 2).toUpperCase();
 }
 
 async function getProfessional(id: string) {
@@ -181,9 +178,7 @@ export default async function ProfessionalDetailPage({
   };
   const TypeIcon = config.icon;
   const isVerified = professional.licenseStatus === "VERIFIED";
-  const avatar =
-    professional.user.avatarUrl ||
-    demoAvatar(professional.id, professional.professionalType);
+  const avatar = professional.user.avatarUrl || null;
   const isOwnProfile = session?.user?.id === professional.user.id;
 
   return (
@@ -204,14 +199,18 @@ export default async function ProfessionalDetailPage({
       {/* Hero header */}
       <section className="relative overflow-hidden bg-black">
         <div className="absolute inset-0">
-          <Image
-            src={avatar}
-            alt=""
-            fill
-            priority
-            className="object-cover opacity-30 scale-105"
-            sizes="100vw"
-          />
+          {avatar ? (
+            <Image
+              src={avatar}
+              alt=""
+              fill
+              priority
+              className="object-cover opacity-30 scale-105"
+              sizes="100vw"
+            />
+          ) : (
+            <div className="h-full w-full bg-emerald-900" />
+          )}
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/45" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#faf8f2] via-transparent to-black/20" />
@@ -221,13 +220,19 @@ export default async function ProfessionalDetailPage({
             {/* Avatar */}
             <div className="relative">
               <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-3xl border-4 border-white/90 bg-white shadow-2xl md:h-40 md:w-40">
-                <Image
-                  src={avatar}
-                  alt={professional.user.fullName}
-                  width={160}
-                  height={160}
-                  className="h-full w-full object-cover"
+                {avatar ? (
+                  <Image
+                    src={avatar}
+                    alt={professional.user.fullName}
+                    width={160}
+                    height={160}
+                    className="h-full w-full object-cover"
                 />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-emerald-50 font-display text-3xl font-semibold text-emerald-700">
+                    {getInitials(professional.user.fullName)}
+                  </div>
+                )}
               </div>
               {isVerified && (
                 <div className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-lg">

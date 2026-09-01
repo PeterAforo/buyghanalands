@@ -55,6 +55,7 @@ export async function GET(
             district: true,
             priceGhs: true,
             sizeAcres: true,
+            verificationLevel: true,
           },
         },
         buyer: {
@@ -64,6 +65,7 @@ export async function GET(
             phone: true,
             email: true,
             kycTier: true,
+            kycRequests: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, status: true, createdAt: true } },
           },
         },
         seller: {
@@ -73,11 +75,12 @@ export async function GET(
             phone: true,
             email: true,
             kycTier: true,
+            kycRequests: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, status: true, createdAt: true } },
           },
         },
         payments: true,
         disputes: true,
-        milestones: true,
+        milestones: { orderBy: { sortOrder: "asc" } },
       },
     }));
 
@@ -85,7 +88,65 @@ export async function GET(
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    return NextResponse.json(serializeForJson(transaction));
+    // Compute pre-release checklist
+    const buyerLatestKyc = transaction.buyer.kycRequests[0];
+    const sellerLatestKyc = transaction.seller.kycRequests[0];
+
+    const buyerKycPassed =
+      transaction.buyer.kycTier !== "TIER_0_OTP" &&
+      (!buyerLatestKyc || buyerLatestKyc.status === "PASSED");
+
+    const sellerKycPassed =
+      transaction.seller.kycTier === "TIER_2_GHANA_CARD" &&
+      (!sellerLatestKyc || sellerLatestKyc.status === "PASSED");
+
+    // Verification period: check if enough days have passed since the first successful escrow payment
+    const escrowPayment = transaction.payments.find(
+      (p) => p.status === "SUCCESS" && p.type === "TRANSACTION_FUNDING"
+    );
+    const fundedAt = escrowPayment?.createdAt ?? null;
+    const verificationDaysMin = transaction.verificationDaysMin;
+    let verificationPeriodElapsed = true;
+    let daysSinceFunded = 0;
+    if (fundedAt) {
+      const diffMs = Date.now() - new Date(fundedAt).getTime();
+      daysSinceFunded = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      verificationPeriodElapsed = daysSinceFunded >= verificationDaysMin;
+    }
+    // If already past verification period status, consider it elapsed
+    if (["READY_TO_RELEASE", "RELEASED", "REFUNDED", "CLOSED"].includes(transaction.status)) {
+      verificationPeriodElapsed = true;
+    }
+
+    const allMilestonesApproved = transaction.milestones.length > 0 && transaction.milestones.every((m) => {
+      const buyerOk = !!m.buyerApprovedAt || !m.requiresBuyerApproval;
+      const sellerOk = !!m.sellerApprovedAt || !m.requiresSellerApproval;
+      const adminOk = !!m.adminApprovedAt || !m.requiresAdminApproval;
+      return buyerOk && sellerOk && adminOk;
+    });
+
+    const pendingAdminMilestones = transaction.milestones.filter(
+      (m) => m.requiresAdminApproval && !m.adminApprovedAt
+    ).length;
+
+    const canRelease = buyerKycPassed && sellerKycPassed && verificationPeriodElapsed && allMilestonesApproved;
+
+    const releaseChecklist = {
+      buyerKycPassed,
+      sellerKycPassed,
+      verificationPeriodElapsed,
+      allMilestonesApproved,
+      pendingAdminMilestones,
+      canRelease,
+      daysSinceFunded,
+      verificationDaysMin,
+      buyerKycTier: transaction.buyer.kycTier,
+      buyerLatestKycStatus: buyerLatestKyc?.status ?? null,
+      sellerKycTier: transaction.seller.kycTier,
+      sellerLatestKycStatus: sellerLatestKyc?.status ?? null,
+    };
+
+    return NextResponse.json(serializeForJson({ ...transaction, releaseChecklist }));
   } catch (error) {
     console.error("Error fetching transaction:", error);
     return NextResponse.json({ error: "Failed to fetch transaction" }, { status: 500 });
@@ -109,14 +170,61 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { action } = body;
+    const { action, force } = body;
 
     const transaction = await withDbRetry(() => prisma.transaction.findUnique({
       where: { id },
+      include: {
+        buyer: { select: { id: true, kycTier: true, kycRequests: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } } } },
+        seller: { select: { id: true, kycTier: true, kycRequests: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } } } },
+        payments: { where: { status: "SUCCESS", type: "TRANSACTION_FUNDING" }, take: 1, select: { createdAt: true } },
+        milestones: { select: { requiresBuyerApproval: true, requiresSellerApproval: true, requiresAdminApproval: true, buyerApprovedAt: true, sellerApprovedAt: true, adminApprovedAt: true } },
+      },
     }));
 
     if (!transaction) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    }
+
+    // Pre-release checklist validation for "release" action
+    if (action === "release" && !force) {
+      const buyerLatestKyc = transaction.buyer.kycRequests[0];
+      const sellerLatestKyc = transaction.seller.kycRequests[0];
+
+      const buyerKycPassed =
+        transaction.buyer.kycTier !== "TIER_0_OTP" &&
+        (!buyerLatestKyc || buyerLatestKyc.status === "PASSED");
+
+      const sellerKycPassed =
+        transaction.seller.kycTier === "TIER_2_GHANA_CARD" &&
+        (!sellerLatestKyc || sellerLatestKyc.status === "PASSED");
+
+      const fundedAt = transaction.payments[0]?.createdAt ?? null;
+      let verificationPeriodElapsed = true;
+      if (fundedAt && !["READY_TO_RELEASE", "RELEASED", "REFUNDED", "CLOSED"].includes(transaction.status)) {
+        const daysSince = Math.floor((Date.now() - new Date(fundedAt).getTime()) / (1000 * 60 * 60 * 24));
+        verificationPeriodElapsed = daysSince >= transaction.verificationDaysMin;
+      }
+
+      const allMilestonesApproved = transaction.milestones.length > 0 && transaction.milestones.every((m) => {
+        const buyerOk = !!m.buyerApprovedAt || !m.requiresBuyerApproval;
+        const sellerOk = !!m.sellerApprovedAt || !m.requiresSellerApproval;
+        const adminOk = !!m.adminApprovedAt || !m.requiresAdminApproval;
+        return buyerOk && sellerOk && adminOk;
+      });
+
+      const failures: string[] = [];
+      if (!buyerKycPassed) failures.push("Buyer KYC not passed");
+      if (!sellerKycPassed) failures.push("Seller KYC not passed (requires TIER_2_GHANA_CARD)");
+      if (!verificationPeriodElapsed) failures.push("Verification period not elapsed");
+      if (!allMilestonesApproved) failures.push("Not all milestones approved");
+
+      if (failures.length > 0) {
+        return NextResponse.json(
+          { error: "Release checklist not met", failures },
+          { status: 400 }
+        );
+      }
     }
 
     type TransactionStatusType = "CREATED" | "ESCROW_REQUESTED" | "FUNDED" | "VERIFICATION_PERIOD" | "DISPUTED" | "READY_TO_RELEASE" | "RELEASED" | "REFUNDED" | "CLOSED";
@@ -125,6 +233,9 @@ export async function PUT(
     switch (action) {
       case "release":
         newStatus = "RELEASED";
+        if (newStatus === "RELEASED") {
+          // Mark transaction as closed when released
+        }
         break;
       case "refund":
         newStatus = "REFUNDED";
@@ -146,6 +257,7 @@ export async function PUT(
       where: { id },
       data: {
         status: newStatus,
+        ...(["RELEASED", "REFUNDED", "CLOSED"].includes(newStatus) ? { closedAt: new Date() } : {}),
       },
     }));
 
@@ -157,7 +269,7 @@ export async function PUT(
         actorType: "USER",
         actorUserId: session.user.id,
         action: `TRANSACTION_${action.toUpperCase()}`,
-        diff: { from: transaction.status, to: newStatus },
+        diff: { from: transaction.status, to: newStatus, forced: !!force },
       },
     }));
 

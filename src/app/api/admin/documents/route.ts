@@ -40,3 +40,70 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch documents" }, { status: 500 });
   }
 }
+
+// PUT — update document verification status (admin action)
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await isAdmin(session.user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { id, verificationStatus, note } = await request.json();
+    if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+
+    const data: any = {};
+    if (verificationStatus) data.verificationStatus = verificationStatus;
+
+    const document = await withDbRetry(() => prisma.document.update({
+      where: { id },
+      data,
+    }));
+
+    await withDbRetry(() => prisma.auditLog.create({
+      data: {
+        entityType: "DOCUMENT",
+        entityId: id,
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "UPDATE",
+        diff: { verificationStatus, note },
+      },
+    }));
+
+    return NextResponse.json(serializeForJson(document));
+  } catch (error) {
+    console.error("Error updating document:", error);
+    return NextResponse.json({ error: "Failed to update document" }, { status: 500 });
+  }
+}
+
+// DELETE — delete a document (admin action)
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await isAdmin(session.user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+
+    await withDbRetry(() => prisma.document.delete({ where: { id } }));
+
+    await withDbRetry(() => prisma.auditLog.create({
+      data: {
+        entityType: "DOCUMENT",
+        entityId: id,
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "DELETE",
+        diff: {},
+      },
+    }));
+
+    return NextResponse.json({ message: "Document deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting document:", error);
+    return NextResponse.json({ error: "Failed to delete document" }, { status: 500 });
+  }
+}

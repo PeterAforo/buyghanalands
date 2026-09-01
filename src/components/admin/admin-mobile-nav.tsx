@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, Users, Package, CreditCard, Settings, FileCheck,
   AlertTriangle, Shield, Lock, BarChart3, Home, LogOut, Tag, FileText,
   ShieldCheck, Flag, ScrollText, Briefcase, Calendar, Workflow, Bell,
-  Newspaper, MessageSquare, LifeBuoy, FileSearch, LucideIcon,
+  Newspaper, MessageSquare, LifeBuoy, FileSearch, ChevronDown, LucideIcon,
 } from "lucide-react";
 
 interface NavItem { href: string; label: string; icon: LucideIcon; }
@@ -81,12 +81,21 @@ interface AdminMobileNavProps {
 
 export function AdminMobileNav({ userName, userEmail, onSignOut }: AdminMobileNavProps) {
   const [isOpen, setIsOpen] = useState(false);
+  // Accordion: only one section open at a time. Start all collapsed.
+  const [openSection, setOpenSection] = useState<string | null>(null);
   const pathname = usePathname();
 
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin";
     return pathname.startsWith(href);
   };
+
+  const toggleSection = (title: string) => {
+    setOpenSection((prev) => (prev === title ? null : title));
+  };
+
+  const sectionHasActive = (section: NavSection) =>
+    section.items.some((item) => isActive(item.href));
 
   return (
     <div className="md:hidden">
@@ -108,26 +117,49 @@ export function AdminMobileNav({ userName, userEmail, onSignOut }: AdminMobileNa
       {isOpen && (
         <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setIsOpen(false)}>
           <div className="absolute right-0 top-14 bottom-0 w-[280px] bg-[#1a3a2f] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            {sections.map((section, sIdx) => (
-              <div key={section.title} className={`p-4 ${sIdx > 0 ? "border-t border-[#2a4a3f]" : ""}`}>
-                <p className="text-[#a3c4b5] text-xs font-semibold uppercase tracking-wider mb-3 px-3">{section.title}</p>
-                <nav className="space-y-1">
-                  {section.items.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                      <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all min-h-[44px] ${
-                          active ? "bg-[#c5e063] text-[#1a3a2f]" : "text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white"
-                        }`}>
-                        <Icon className="h-5 w-5" />
-                        <span className="text-sm font-medium">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </div>
-            ))}
+            {sections.map((section, sIdx) => {
+              const isSectionOpen = openSection === section.title;
+              const hasActive = sectionHasActive(section);
+              return (
+                <div key={section.title} className={`p-4 ${sIdx > 0 ? "border-t border-[#2a4a3f]" : ""}`}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.title)}
+                    aria-expanded={isSectionOpen}
+                    className="w-full flex items-center justify-between px-3 py-2 min-h-[44px]"
+                  >
+                    <span className="text-[#a3c4b5] text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                      {section.title}
+                      {hasActive && <span className="h-1.5 w-1.5 rounded-full bg-[#c5e063]" aria-hidden="true" />}
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 text-[#a3c4b5] transition-transform duration-200 ${
+                        isSectionOpen ? "rotate-0" : "-rotate-90"
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  {isSectionOpen && (
+                    <nav className="space-y-1 mt-2">
+                      {section.items.map((item) => {
+                        const Icon = item.icon;
+                        const active = isActive(item.href);
+                        return (
+                          <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)}
+                            className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all min-h-[44px] ${
+                              active ? "bg-[#c5e063] text-[#1a3a2f]" : "text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white"
+                            }`}>
+                            <Icon className="h-5 w-5" />
+                            <span className="text-sm font-medium">{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </nav>
+                  )}
+                </div>
+              );
+            })}
 
             <div className="p-4 border-t border-[#2a4a3f]">
               <div className="flex items-center gap-3 px-2 py-2">

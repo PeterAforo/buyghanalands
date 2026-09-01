@@ -2,7 +2,9 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, Eyebrow } from "@/components/marketing/page-hero";
 import { ContactForm } from "@/components/marketing/contact-form";
-import { Mail, Phone, MapPin, Clock, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
+import { getPageContent } from "@/lib/cms";
+import { getIcon } from "@/lib/icon-map";
 
 export const metadata: Metadata = {
   title: "Contact Us | Buy Ghana Lands",
@@ -10,51 +12,30 @@ export const metadata: Metadata = {
     "Get in touch with Buy Ghana Lands. We're here to help with any questions about secure land transactions in Ghana.",
 };
 
-const channels = [
-  {
-    icon: Mail,
-    title: "Email us",
-    value: "support@buyghanalands.com",
-    note: "We respond within 24 hours",
-    href: "mailto:support@buyghanalands.com",
-  },
-  {
-    icon: Phone,
-    title: "Call us",
-    value: "+233 30 000 0000",
-    note: "Mon–Fri, 9am–5pm GMT",
-    href: "tel:+233300000000",
-  },
-  {
-    icon: MapPin,
-    title: "Visit us",
-    value: "Accra, Ghana",
-    note: "By appointment only",
-    href: null,
-  },
-  {
-    icon: Clock,
-    title: "Business hours",
-    value: "Monday – Friday",
-    note: "9:00 AM – 5:00 PM GMT",
-    href: null,
-  },
-];
+export const dynamic = "force-dynamic";
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const content = await getPageContent("contact");
+  const hero = content.hero || {};
+  const channels = content.channels || [];
+
   return (
     <div className="min-h-screen bg-[#faf8f2]">
       <PageHero
-        image="/images/cheerful-woman-with-laptop-grass.jpg"
-        eyebrow="We're here to help"
+        image={hero.image || "/images/cheerful-woman-with-laptop-grass.jpg"}
+        eyebrow={hero.eyebrow || "We're here to help"}
         title={
-          <>
-            Let&apos;s talk about
-            <br />
-            your <span className="italic text-amber-300">land journey</span>
-          </>
+          hero.title ? (
+            <span dangerouslySetInnerHTML={{ __html: hero.title }} />
+          ) : (
+            <>
+              Let&apos;s talk about
+              <br />
+              your <span className="italic text-amber-300">land journey</span>
+            </>
+          )
         }
-        subtitle="Whether you're buying, selling, or verifying — our team is ready to guide you through every step."
+        subtitle={hero.subtitle || ""}
       />
 
       <section className="py-20 lg:py-24">
@@ -70,29 +51,34 @@ export default function ContactPage() {
                 Pick whichever channel works best for you — we&apos;re quick to respond.
               </p>
 
-              <div className="mt-8 space-y-4">
-                {channels.map(({ icon: Icon, title, value, note, href }) => {
-                  const inner = (
-                    <div className="flex items-start gap-4 rounded-2xl border border-emerald-950/10 bg-white p-5 transition-all hover:border-emerald-600/40 hover:shadow-lg">
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                        <Icon className="h-6 w-6" />
+              {channels.length === 0 ? (
+                <p className="mt-8 text-gray-500">Contact channels will appear here once configured.</p>
+              ) : (
+                <div className="mt-8 space-y-4">
+                  {channels.map((channel: any, index: number) => {
+                    const Icon = getIcon(channel.icon || "Mail");
+                    const inner = (
+                      <div className="flex items-start gap-4 rounded-2xl border border-emerald-950/10 bg-white p-5 transition-all hover:border-emerald-600/40 hover:shadow-lg">
+                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">{channel.title}</p>
+                          <p className="font-semibold text-emerald-950">{channel.value}</p>
+                          <p className="mt-0.5 text-sm text-gray-500">{channel.note}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">{title}</p>
-                        <p className="font-semibold text-emerald-950">{value}</p>
-                        <p className="mt-0.5 text-sm text-gray-500">{note}</p>
-                      </div>
-                    </div>
-                  );
-                  return href ? (
-                    <Link key={title} href={href} className="block">
-                      {inner}
-                    </Link>
-                  ) : (
-                    <div key={title}>{inner}</div>
-                  );
-                })}
-              </div>
+                    );
+                    return channel.href ? (
+                      <Link key={index} href={channel.href} className="block">
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={index}>{inner}</div>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="mt-6 flex items-center gap-3 rounded-2xl bg-emerald-700 p-5 text-white">
                 <MessageCircle className="h-6 w-6 flex-shrink-0 text-amber-300" />

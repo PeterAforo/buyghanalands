@@ -1,66 +1,68 @@
 import { Metadata } from "next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, FileCheck, Shield, Key } from "lucide-react";
+import { PageHero, Eyebrow } from "@/components/marketing/page-hero";
+import { getPageContent } from "@/lib/cms";
+import { getIcon } from "@/lib/icon-map";
 
 export const metadata: Metadata = {
   title: "How It Works | Buy Ghana Lands",
   description: "Learn how to find, verify, and securely purchase land in Ghana through Buy Ghana Lands.",
 };
 
-export default function HowItWorksPage() {
-  const steps = [
-    {
-      icon: Search,
-      title: "1. Find Your Land",
-      description: "Browse verified listings across all regions of Ghana. Filter by location, size, price, and land type to find your perfect property.",
-    },
-    {
-      icon: FileCheck,
-      title: "2. Verify the Property",
-      description: "Request professional verification from licensed surveyors and lawyers. Get comprehensive reports on land ownership and documentation.",
-    },
-    {
-      icon: Shield,
-      title: "3. Secure Transaction",
-      description: "Use our escrow service to protect your payment. Funds are only released when all conditions are met and verified.",
-    },
-    {
-      icon: Key,
-      title: "4. Complete Transfer",
-      description: "Finalize the transaction with proper documentation. We guide you through the entire transfer process.",
-    },
-  ];
+export const dynamic = "force-dynamic";
+
+export default async function HowItWorksPage() {
+  const content = await getPageContent("how-it-works");
+  const hero = content.hero || {};
+  const steps = content.steps || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl px-4 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">How It Works</h1>
-          <p className="text-xl text-gray-600">
-            A simple, secure process for buying land in Ghana
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#faf8f2]">
+      <PageHero
+        image="/images/african-nature-scenery-with-road-trees.jpg"
+        eyebrow="A safer path to ownership"
+        title={hero.title || "How It Works"}
+        subtitle={hero.subtitle || "A simple, secure process for buying land in Ghana"}
+      />
 
-        <div className="space-y-6">
-          {steps.map((step, index) => (
-            <Card key={index}>
-              <CardHeader>
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <step.icon className="h-6 w-6 text-emerald-600" />
+      {steps.length === 0 ? (
+        <section className="py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-xl font-semibold text-gray-900">No content available yet</h2>
+            <p className="mt-2 text-gray-600">Steps will appear here once configured.</p>
+          </div>
+        </section>
+      ) : (
+        <section className="py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+              {steps.map((step: any, index: number) => {
+                const Icon = getIcon(step.icon || "Search");
+                return (
+                  <div key={index} className="relative">
+                    <div className="rounded-3xl border border-emerald-950/10 bg-white p-8 transition-all hover:shadow-lg">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+                        <Icon className="h-7 w-7" />
+                      </div>
+                      <span className="font-display mt-4 block text-5xl font-semibold text-emerald-100">
+                        {(index + 1).toString().padStart(2, "0")}
+                      </span>
+                      <h3 className="font-display mt-2 text-xl font-semibold text-emerald-950">
+                        {step.title}
+                      </h3>
+                      <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                        {step.description}
+                      </p>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div className="hidden lg:block absolute top-1/2 -right-4 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-emerald-950/10 bg-white" />
+                    )}
                   </div>
-                  <div>
-                    <CardTitle className="text-xl">{step.title}</CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 ml-16">{step.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -42,6 +42,7 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -60,6 +61,20 @@ export default function PaymentsPage() {
     }
     load();
   }, [status, type]);
+
+  async function updateStatus(id: string, status: string) {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) {
+        setPayments((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
+      }
+    } catch { } finally { setUpdating(null); }
+  }
 
   return (
     <div className="space-y-6">
@@ -120,6 +135,7 @@ export default function PaymentsPage() {
                     <th className="px-4 py-3 font-medium text-gray-600">Status</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Ref</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Date</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -132,6 +148,21 @@ export default function PaymentsPage() {
                       <td className="px-4 py-3"><Badge className={statusColors[p.status] || "bg-gray-100"}>{p.status}</Badge></td>
                       <td className="px-4 py-3 text-xs font-mono text-gray-500">{p.providerRef || "—"}</td>
                       <td className="px-4 py-3 text-gray-500">{formatDate(p.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={p.status}
+                          disabled={updating === p.id}
+                          onChange={(e) => updateStatus(p.id, e.target.value)}
+                          className="text-xs border rounded px-2 py-1 bg-white"
+                        >
+                          <option value="PENDING">Pending</option>
+                          <option value="SUCCESS">Success</option>
+                          <option value="FAILED">Failed</option>
+                          <option value="REFUNDED">Refunded</option>
+                          <option value="PARTIALLY_REFUNDED">Partially Refunded</option>
+                          <option value="CANCELLED">Cancelled</option>
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

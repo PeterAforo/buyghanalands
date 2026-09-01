@@ -45,3 +45,39 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch payments" }, { status: 500 });
   }
 }
+
+// PUT — update payment status (admin action: refund, mark failed, etc.)
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await isAdmin(session.user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { id, status, note } = await request.json();
+    if (!id || !status) return NextResponse.json({ error: "id and status are required" }, { status: 400 });
+
+    const validStatuses = ["PENDING", "SUCCESS", "FAILED", "REFUNDED", "PARTIALLY_REFUNDED", "CANCELLED"];
+    if (!validStatuses.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+
+    const payment = await withDbRetry(() => prisma.payment.update({
+      where: { id },
+      data: { status },
+    }));
+
+    await withDbRetry(() => prisma.auditLog.create({
+      data: {
+        entityType: "PAYMENT",
+        entityId: id,
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "UPDATE",
+        diff: { status, note },
+      },
+    }));
+
+    return NextResponse.json(serializeForJson(payment));
+  } catch (error) {
+    console.error("Error updating payment:", error);
+    return NextResponse.json({ error: "Failed to update payment" }, { status: 500 });
+  }
+}

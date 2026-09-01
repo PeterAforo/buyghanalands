@@ -1,121 +1,89 @@
 import { Metadata } from "next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Lock, RefreshCw, CheckCircle } from "lucide-react";
+import { PageHero, Eyebrow } from "@/components/marketing/page-hero";
+import { getPageContent } from "@/lib/cms";
+import { getIcon } from "@/lib/icon-map";
 
 export const metadata: Metadata = {
   title: "Escrow Policy | Buy Ghana Lands",
   description: "Learn how our escrow service protects your money during land transactions on Buy Ghana Lands.",
 };
 
-export default function EscrowPolicyPage() {
+export const dynamic = "force-dynamic";
+
+export default async function EscrowPolicyPage() {
+  const content = await getPageContent("escrow-policy");
+  const hero = content.hero || {};
+  const features = content.features || [];
+  const process = content.process || [];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl px-4 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Escrow Policy</h1>
-          <p className="text-xl text-gray-600">
-            How we protect your money during land transactions
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#faf8f2]">
+      <PageHero
+        image="/images/african-nature-scenery-with-road-trees.jpg"
+        eyebrow="Your money, protected"
+        title={hero.title || "Escrow Policy"}
+        subtitle={hero.subtitle || "How we protect your money during land transactions"}
+      />
 
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <Lock className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Secure Holding</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Funds are held in a secure escrow account until all transaction 
-                conditions are met and verified.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Buyer Protection</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Your payment is protected. If the seller fails to meet conditions, 
-                you receive a full refund.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <CheckCircle className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Seller Assurance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Sellers are assured of payment once they fulfill all agreed 
-                conditions and documentation requirements.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <RefreshCw className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Dispute Resolution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                In case of disputes, our team mediates to find a fair resolution 
-                for both parties.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>How Escrow Works</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-4">
-              <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">1</div>
-              <div>
-                <h3 className="font-semibold">Offer Accepted</h3>
-                <p className="text-gray-600 text-sm">Buyer and seller agree on terms and price</p>
-              </div>
+      {/* Features */}
+      {features.length > 0 && (
+        <section className="py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {features.map((feature: any, index: number) => {
+                const Icon = getIcon(feature.icon || "Shield");
+                return (
+                  <div
+                    key={index}
+                    className="rounded-3xl border border-emerald-950/10 bg-white p-8 transition-all hover:shadow-lg"
+                  >
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+                      <Icon className="h-7 w-7" />
+                    </div>
+                    <h3 className="font-display mt-5 text-lg font-semibold text-emerald-950">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-gray-600">{feature.body}</p>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex gap-4">
-              <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">2</div>
-              <div>
-                <h3 className="font-semibold">Funds Deposited</h3>
-                <p className="text-gray-600 text-sm">Buyer deposits payment into escrow</p>
+          </div>
+        </section>
+      )}
+
+      {/* Process */}
+      {process.length > 0 && (
+        <section className="bg-emerald-950/[0.03] py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-14 text-center">
+              <div className="flex justify-center">
+                <Eyebrow tone="green">Step by step</Eyebrow>
               </div>
+              <h2 className="font-display mt-4 text-3xl font-semibold text-emerald-950 sm:text-4xl">
+                How escrow works
+              </h2>
             </div>
-            <div className="flex gap-4">
-              <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">3</div>
-              <div>
-                <h3 className="font-semibold">Verification Period</h3>
-                <p className="text-gray-600 text-sm">Minimum 7 days for document verification and due diligence</p>
-              </div>
+            <div className="grid gap-8 md:grid-cols-4">
+              {process.map((step: any, index: number) => (
+                <div key={index} className="relative">
+                  <div className="rounded-3xl border border-emerald-950/10 bg-white p-8">
+                    <span className="font-display text-5xl font-semibold text-emerald-100">
+                      {step.number}
+                    </span>
+                    <h3 className="font-display mt-3 text-lg font-semibold text-emerald-950">
+                      {step.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex gap-4">
-              <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">4</div>
-              <div>
-                <h3 className="font-semibold">Funds Released</h3>
-                <p className="text-gray-600 text-sm">Upon successful verification, funds are released to seller</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

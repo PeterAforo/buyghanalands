@@ -40,6 +40,7 @@ export default function OffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -53,6 +54,20 @@ export default function OffersPage() {
     }
     load();
   }, [filter]);
+
+  async function updateStatus(id: string, status: string) {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/offers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) {
+        setOffers((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
+      }
+    } catch { } finally { setUpdating(null); }
+  }
 
   const filters = [
     { key: "", label: "All" },
@@ -98,6 +113,7 @@ export default function OffersPage() {
                     <th className="px-4 py-3 font-medium text-gray-600">Status</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Transaction</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Date</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -122,6 +138,20 @@ export default function OffersPage() {
                         ) : "—"}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{formatDate(o.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={o.status}
+                          disabled={updating === o.id}
+                          onChange={(e) => updateStatus(o.id, e.target.value)}
+                          className="text-xs border rounded px-2 py-1 bg-white"
+                        >
+                          <option value="PENDING">Pending</option>
+                          <option value="ACCEPTED">Accepted</option>
+                          <option value="REJECTED">Rejected</option>
+                          <option value="EXPIRED">Expired</option>
+                          <option value="WITHDRAWN">Withdrawn</option>
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

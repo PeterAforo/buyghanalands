@@ -1,109 +1,97 @@
 import { Metadata } from "next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, FileCheck, Users, Award } from "lucide-react";
+import { PageHero, Eyebrow } from "@/components/marketing/page-hero";
+import { getPageContent } from "@/lib/cms";
+import { getIcon } from "@/lib/icon-map";
 
 export const metadata: Metadata = {
   title: "Verification | Buy Ghana Lands",
   description: "Professional land verification services to ensure your land purchase is secure in Ghana.",
 };
 
-export default function VerificationPage() {
+export const dynamic = "force-dynamic";
+
+const levelColors: Record<string, string> = {
+  gray: "bg-gray-100 text-gray-700",
+  yellow: "bg-yellow-100 text-yellow-700",
+  blue: "bg-blue-100 text-blue-700",
+  emerald: "bg-emerald-100 text-emerald-700",
+};
+
+export default async function VerificationPage() {
+  const content = await getPageContent("verification");
+  const hero = content.hero || {};
+  const services = content.services || [];
+  const levels = content.levels || [];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl px-4 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Land Verification</h1>
-          <p className="text-xl text-gray-600">
-            Professional verification services to ensure your land purchase is secure
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#faf8f2]">
+      <PageHero
+        image="/images/african-nature-scenery-with-road-trees.jpg"
+        eyebrow="Trust, verified"
+        title={hero.title || "Land Verification"}
+        subtitle={hero.subtitle || "Professional verification services to ensure your land purchase is secure"}
+      />
 
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <FileCheck className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Document Verification</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Our legal experts verify all land documents including indentures, 
-                site plans, and title certificates.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Ownership Confirmation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                We confirm the seller&apos;s legal right to sell the property through 
-                official records and family documentation.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Site Inspection</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Licensed surveyors physically inspect the land to verify boundaries, 
-                size, and any encumbrances.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                <Award className="h-6 w-6 text-emerald-600" />
-              </div>
-              <CardTitle>Verification Certificate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">
-                Receive a comprehensive verification report and certificate 
-                for your records and peace of mind.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Verification Levels</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="border-l-4 border-gray-300 pl-4">
-              <h3 className="font-semibold">Level 0 - Unverified</h3>
-              <p className="text-gray-600 text-sm">Listing submitted, no verification performed</p>
+      {/* Services */}
+      {services.length > 0 && (
+        <section className="py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {services.map((service: any, index: number) => {
+                const Icon = getIcon(service.icon || "FileCheck");
+                return (
+                  <div
+                    key={index}
+                    className="rounded-3xl border border-emerald-950/10 bg-white p-8 transition-all hover:shadow-lg"
+                  >
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+                      <Icon className="h-7 w-7" />
+                    </div>
+                    <h3 className="font-display mt-5 text-lg font-semibold text-emerald-950">
+                      {service.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-gray-600">{service.body}</p>
+                  </div>
+                );
+              })}
             </div>
-            <div className="border-l-4 border-yellow-500 pl-4">
-              <h3 className="font-semibold">Level 1 - Documents Uploaded</h3>
-              <p className="text-gray-600 text-sm">Seller has uploaded supporting documents</p>
+          </div>
+        </section>
+      )}
+
+      {/* Verification Levels */}
+      {levels.length > 0 && (
+        <section className="bg-emerald-950/[0.03] py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-14 text-center">
+              <div className="flex justify-center">
+                <Eyebrow tone="green">Trust levels</Eyebrow>
+              </div>
+              <h2 className="font-display mt-4 text-3xl font-semibold text-emerald-950 sm:text-4xl">
+                Verification levels
+              </h2>
             </div>
-            <div className="border-l-4 border-blue-500 pl-4">
-              <h3 className="font-semibold">Level 2 - Platform Reviewed</h3>
-              <p className="text-gray-600 text-sm">Our team has reviewed and verified documents</p>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {levels.map((level: any, index: number) => (
+                <div
+                  key={index}
+                  className="rounded-3xl border border-emerald-950/10 bg-white p-8"
+                >
+                  <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${levelColors[level.color] || levelColors.gray}`}>
+                    Level {level.level}
+                  </div>
+                  <h3 className="font-display mt-4 text-lg font-semibold text-emerald-950">
+                    {level.label}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                    {level.description}
+                  </p>
+                </div>
+              ))}
             </div>
-            <div className="border-l-4 border-emerald-500 pl-4">
-              <h3 className="font-semibold">Level 3 - Officially Verified</h3>
-              <p className="text-gray-600 text-sm">Verified by licensed professionals with site inspection</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

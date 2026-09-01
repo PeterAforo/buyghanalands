@@ -48,6 +48,7 @@ export default function SupportTicketsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("open");
   const [search, setSearch] = useState("");
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -69,6 +70,20 @@ export default function SupportTicketsPage() {
     }
     load();
   }, [filter, search]);
+
+  async function updateStatus(id: string, status: string) {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/support", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) {
+        setTickets((prev) => prev.map((t) => t.id === id ? { ...t, status } : t));
+      }
+    } catch { } finally { setUpdating(null); }
+  }
 
   const filters = [
     { key: "open", label: "Open" },
@@ -150,6 +165,7 @@ export default function SupportTicketsPage() {
                     <th className="px-4 py-3 font-medium text-gray-600">Transaction</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Status</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Created</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -174,6 +190,20 @@ export default function SupportTicketsPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{formatDate(t.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={t.status}
+                          disabled={updating === t.id}
+                          onChange={(e) => updateStatus(t.id, e.target.value)}
+                          className="text-xs border rounded px-2 py-1 bg-white"
+                        >
+                          <option value="OPEN">Open</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="WAITING_USER">Waiting User</option>
+                          <option value="RESOLVED">Resolved</option>
+                          <option value="CLOSED">Closed</option>
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

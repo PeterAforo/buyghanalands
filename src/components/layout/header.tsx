@@ -2,27 +2,42 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
   X,
   User,
+  UserCircle,
   LogOut,
   Home,
+  LayoutDashboard,
   Search,
-  Plus,
   Briefcase,
   Info,
   Newspaper,
   Mail,
   HelpCircle,
+  ChevronDown,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 
 export function Header() {
   const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close user dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    if (userMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [userMenuOpen]);
 
   const navigation = [
     { name: "Browse Lands", href: "/listings", icon: Search, testId: "nav-listings" },
@@ -32,6 +47,8 @@ export function Header() {
     { name: "Contact", href: "/contact", icon: Mail, testId: undefined },
     { name: "Support", href: "/support", icon: HelpCircle, testId: undefined },
   ];
+
+  const userInitial = (session?.user?.name || session?.user?.email || "U").charAt(0).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
@@ -68,25 +85,87 @@ export function Header() {
             {status === "loading" ? (
               <div className="h-10 w-24 bg-gray-100 animate-pulse rounded-md" aria-hidden="true" />
             ) : session ? (
-              <div className="flex items-center space-x-4">
+              /* Logged-in user menu: Profile + Dashboard + Sign Out always visible */
+              <div className="flex items-center space-x-3">
+                {/* Profile link — always visible when logged in */}
+                <Link
+                  href="/dashboard/profile"
+                  className="flex items-center space-x-1.5 text-sm font-medium text-gray-700 hover:text-emerald-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 rounded-md px-2 py-1"
+                  data-testid="nav-profile"
+                >
+                  <UserCircle className="h-5 w-5" aria-hidden="true" />
+                  <span>Profile</span>
+                </Link>
+
+                {/* Dashboard link — always visible when logged in */}
                 <Link
                   href="/dashboard"
-                  className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 rounded-md"
+                  className="flex items-center space-x-1.5 text-sm font-medium text-gray-700 hover:text-emerald-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 rounded-md px-2 py-1"
                   data-testid="nav-dashboard"
                 >
-                  <User className="h-4 w-4" aria-hidden="true" />
-                  <span>{session.user.name || "Dashboard"}</span>
+                  <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                  <span>Dashboard</span>
                 </Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                >
-                  <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-                  Sign Out
-                </Button>
+
+                {/* User dropdown with avatar + Sign Out */}
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center space-x-2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 p-0.5"
+                    aria-expanded={userMenuOpen}
+                    aria-label="User menu"
+                    data-testid="nav-user-menu"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-sm font-semibold">
+                      {userInitial}
+                    </div>
+                    <ChevronDown className={`h-3 w-3 text-gray-500 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                  </button>
+
+                  {userMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1" role="menu">
+                      <div className="px-4 py-2 border-b border-gray-100">
+                        <p className="text-sm font-medium text-gray-900 truncate">{session.user.name || "User"}</p>
+                        <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
+                      </div>
+                      <Link
+                        href="/dashboard/profile"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setUserMenuOpen(false)}
+                        role="menuitem"
+                        data-testid="nav-user-profile"
+                      >
+                        <UserCircle className="h-4 w-4" aria-hidden="true" />
+                        <span>Profile</span>
+                      </Link>
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setUserMenuOpen(false)}
+                        role="menuitem"
+                      >
+                        <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                        <span>Dashboard</span>
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          signOut({ callbackUrl: "/" });
+                        }}
+                        className="flex w-full items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        role="menuitem"
+                        data-testid="nav-signout"
+                      >
+                        <LogOut className="h-4 w-4" aria-hidden="true" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
+              /* Logged-out: Sign In + Get Started */
               <>
                 <Link href="/auth/login" data-testid="nav-login">
                   <Button variant="ghost">Sign In</Button>
@@ -136,12 +215,28 @@ export function Header() {
               <div className="pt-4 border-t border-gray-200 space-y-2">
                 {session ? (
                   <>
+                    {/* Logged in: Profile + Dashboard + Sign Out always visible on mobile */}
+                    <div className="px-3 py-2 mb-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">{session.user.name || "User"}</p>
+                      <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
+                    </div>
+                    <Link
+                      href="/dashboard/profile"
+                      className="flex items-center space-x-2 px-3 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      onClick={() => setMobileMenuOpen(false)}
+                      role="menuitem"
+                      data-testid="nav-mobile-profile"
+                    >
+                      <UserCircle className="h-5 w-5" aria-hidden="true" />
+                      <span>Profile</span>
+                    </Link>
                     <Link
                       href="/dashboard"
-                      className="flex items-center space-x-2 px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-md"
+                      className="flex items-center space-x-2 px-3 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                       onClick={() => setMobileMenuOpen(false)}
+                      role="menuitem"
                     >
-                      <Home className="h-5 w-5" aria-hidden="true" />
+                      <LayoutDashboard className="h-5 w-5" aria-hidden="true" />
                       <span>Dashboard</span>
                     </Link>
                     <button
@@ -149,7 +244,8 @@ export function Header() {
                         setMobileMenuOpen(false);
                         signOut({ callbackUrl: "/" });
                       }}
-                      className="flex w-full items-center space-x-2 px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      className="flex w-full items-center space-x-2 px-3 py-3 text-base font-medium text-red-600 hover:bg-red-50 rounded-md min-h-[44px]"
+                      data-testid="nav-mobile-signout"
                     >
                       <LogOut className="h-5 w-5" aria-hidden="true" />
                       <span>Sign Out</span>

@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, AlertCircle, FileText, StickyNote, Bell, User, Home, DollarSign } from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle, FileText, StickyNote, Bell, User, Home, DollarSign, Save } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface Workflow {
   id: string;
@@ -44,6 +45,9 @@ export default function WorkflowDetailPage() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newNote, setNewNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -56,6 +60,38 @@ export default function WorkflowDetailPage() {
     }
     load();
   }, [id]);
+
+  async function addNote() {
+    if (!newNote.trim()) return;
+    setSavingNote(true);
+    try {
+      const res = await fetch(`/api/admin/workflows/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteText: newNote }),
+      });
+      if (res.ok) {
+        setNewNote("");
+        // Reload to show the new note
+        const reloadRes = await fetch(`/api/admin/workflows/${id}`);
+        if (reloadRes.ok) setWorkflow(await reloadRes.json());
+      }
+    } catch { } finally { setSavingNote(false); }
+  }
+
+  async function updateModule(module: string) {
+    setUpdatingStatus(true);
+    try {
+      const res = await fetch(`/api/admin/workflows/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: module }),
+      });
+      if (res.ok) {
+        setWorkflow((prev) => prev ? { ...prev, currentModule: module } : prev);
+      }
+    } catch { } finally { setUpdatingStatus(false); }
+  }
 
   if (loading) return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-[#1a3a2f]" /></div>;
   if (error || !workflow) return (
@@ -177,9 +213,41 @@ export default function WorkflowDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Add Note */}
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><StickyNote className="h-5 w-5" /> Add Note</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <Input placeholder="Write a note..." value={newNote} onChange={(e) => setNewNote(e.target.value)} />
+              <Button onClick={addNote} disabled={savingNote || !newNote.trim()} className="gap-2 bg-[#1a3a2f]">
+                {savingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Note
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6">
+          {/* Admin Actions */}
+          <Card>
+            <CardHeader><CardTitle>Admin Actions</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Current Module</label>
+                <select
+                  value={workflow.currentModule}
+                  disabled={updatingStatus}
+                  onChange={(e) => updateModule(e.target.value)}
+                  className="w-full text-sm border rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value="LAND_ACQUISITION">Land Acquisition</option>
+                  <option value="PRE_CONSTRUCTION">Pre-Construction</option>
+                  <option value="BUILDING_PERMIT">Building Permit</option>
+                  <option value="CONSTRUCTION">Construction</option>
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Owner</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">

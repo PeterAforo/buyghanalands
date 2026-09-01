@@ -76,21 +76,6 @@ interface ListingsClientProps {
 
 const HERO_IMAGE = "/images/african-nature-scenery-with-road-trees.jpg";
 
-// Demo bare-land imagery used when a listing has no uploaded media
-const DEMO_LAND_IMAGES = Array.from(
-  { length: 15 },
-  (_, i) => `/images/listings/land-${i + 1}.jpg`
-);
-
-// Deterministic pick so each listing keeps a stable demo image
-function demoLandImage(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return DEMO_LAND_IMAGES[hash % DEMO_LAND_IMAGES.length];
-}
-
 function getVerificationBadge(level: string) {
   switch (level) {
     case "LEVEL_3_OFFICIAL_VERIFIED":
@@ -830,19 +815,25 @@ function ListingCard({
 }) {
   const badge = getVerificationBadge(listing.verificationLevel);
   const BadgeIcon = badge.icon;
-  const imageUrl = listing.media[0]?.url || demoLandImage(listing.id);
+  const imageUrl = listing.media[0]?.url || null;
   const LandIcon = landTypeIcons[listing.landType] || Layers;
 
   return (
     <Link href={`/listings/${listing.id}`}>
       <div data-testid="listing-card" className="group h-full overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
         <div className="relative aspect-[16/11] overflow-hidden bg-gray-100">
-          <Image
-            src={imageUrl}
-            alt={listing.title}
-            fill
-            className="object-cover transition-transform duration-700 group-hover:scale-110"
-          />
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={listing.title}
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-emerald-50">
+              <LandIcon className="h-12 w-12 text-emerald-300" />
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
           {/* Verification badge */}
@@ -924,7 +915,7 @@ function ListingListItem({
 }) {
   const badge = getVerificationBadge(listing.verificationLevel);
   const BadgeIcon = badge.icon;
-  const imageUrl = listing.media[0]?.url || demoLandImage(listing.id);
+  const imageUrl = listing.media[0]?.url || null;
   const LandIcon = landTypeIcons[listing.landType] || Layers;
 
   return (
@@ -932,12 +923,18 @@ function ListingListItem({
       <div data-testid="listing-card" className="group overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:shadow-2xl">
         <div className="flex flex-col sm:flex-row">
           <div className="relative h-52 w-full flex-shrink-0 overflow-hidden bg-gray-100 sm:h-auto sm:w-80">
-            <Image
-              src={imageUrl}
-              alt={listing.title}
-              fill
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-            />
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt={listing.title}
+                fill
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center bg-emerald-50">
+                <LandIcon className="h-12 w-12 text-emerald-300" />
+              </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
             <button
               onClick={(e) => onToggleSave(listing.id, e)}

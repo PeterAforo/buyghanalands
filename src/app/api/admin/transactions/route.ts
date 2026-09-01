@@ -47,6 +47,21 @@ export async function GET(request: NextRequest) {
       case "pending":
         where.status = { in: ["CREATED", "ESCROW_REQUESTED", "VERIFICATION_PERIOD"] };
         break;
+      case "verification":
+        where.status = "VERIFICATION_PERIOD";
+        break;
+      case "ready_to_release":
+        where.status = "READY_TO_RELEASE";
+        break;
+      case "pending_admin_approval":
+        // Transactions that have milestones requiring admin approval that haven't been approved
+        where.milestones = {
+          some: {
+            requiresAdminApproval: true,
+            adminApprovedAt: null,
+          },
+        };
+        break;
       case "all":
         break;
     }
@@ -68,12 +83,38 @@ export async function GET(request: NextRequest) {
         seller: { select: { id: true, fullName: true, phone: true } },
         payments: { select: { id: true, amount: true, status: true, type: true } },
         disputes: { select: { id: true, status: true } },
+        milestones: {
+          select: {
+            id: true,
+            requiresAdminApproval: true,
+            adminApprovedAt: true,
+            buyerApprovedAt: true,
+            sellerApprovedAt: true,
+            requiresBuyerApproval: true,
+            requiresSellerApproval: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
     }));
 
-    return NextResponse.json(serializeForJson(transactions));
+    // Add a summary of pending admin milestones to each transaction
+    const transactionsWithSummary = transactions.map((t) => ({
+      ...t,
+      pendingAdminMilestones: t.milestones.filter(
+        (m) => m.requiresAdminApproval && !m.adminApprovedAt
+      ).length,
+      totalMilestones: t.milestones.length,
+      approvedMilestones: t.milestones.filter(
+        (m) =>
+          (m.buyerApprovedAt || !m.requiresBuyerApproval) &&
+          (m.sellerApprovedAt || !m.requiresSellerApproval) &&
+          (m.adminApprovedAt || !m.requiresAdminApproval)
+      ).length,
+    }));
+
+    return NextResponse.json(serializeForJson(transactionsWithSummary));
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
   }

@@ -54,16 +54,13 @@ interface ProfessionalsClientProps {
 const HERO_IMAGE = "/images/african-american-woman-looking-map.jpg";
 const CTA_IMAGE = "/images/medium-shot-smiley-man-posing.jpg";
 
-// Deterministic, profession-appropriate demo portrait when no avatar exists
-function demoAvatar(id: string, professionalType: string) {
-  const prof = professionalType.toLowerCase();
-  const known = ["surveyor", "lawyer", "architect", "engineer", "planner", "valuer"];
-  const folder = known.includes(prof) ? prof : "surveyor";
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+// Generate initials from a full name for avatar placeholder
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-  return `/images/professionals/${folder}-${(hash % 3) + 1}.jpg`;
+  return name.slice(0, 2).toUpperCase();
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -477,13 +474,19 @@ function ProfessionalCard({ professional }: { professional: Professional }) {
           <div className="mb-4 flex items-end gap-4">
             <div className="relative">
               <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-white shadow-lg">
-                <Image
-                  src={professional.user.avatarUrl || demoAvatar(professional.id, professional.professionalType)}
-                  alt={professional.user.fullName}
-                  width={80}
-                  height={80}
-                  className="h-full w-full object-cover"
-                />
+                {professional.user.avatarUrl ? (
+                  <Image
+                    src={professional.user.avatarUrl}
+                    alt={professional.user.fullName}
+                    width={80}
+                    height={80}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-emerald-50 font-display text-xl font-semibold text-emerald-700">
+                    {getInitials(professional.user.fullName)}
+                  </div>
+                )}
               </div>
               {isVerified && (
                 <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-500">

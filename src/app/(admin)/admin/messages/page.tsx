@@ -14,6 +14,8 @@ import {
   User,
   Clock,
   AlertTriangle,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 interface Conversation {
@@ -47,6 +49,7 @@ export default function AdminMessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchConversations() {
@@ -67,6 +70,20 @@ export default function AdminMessagesPage() {
       fetchConversations();
     }
   }, [session, search]);
+
+  async function deleteConversation(id: string) {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/admin/messages?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setConversations((prev) => prev.filter((c) => c.id !== id));
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   if (authStatus === "loading" || loading) {
     return (
@@ -144,6 +161,15 @@ export default function AdminMessagesPage() {
                       </div>
                       <p className="text-sm text-gray-600 mt-1 line-clamp-1">{conv.lastMessage}</p>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={deleting === conv.id}
+                      onClick={() => deleteConversation(conv.id)}
+                      className="gap-1 text-red-600 hover:text-red-700 ml-4"
+                    >
+                      {deleting === conv.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </Button>
                   </div>
                 ))}
               </div>

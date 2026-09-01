@@ -1,52 +1,43 @@
 import { Metadata } from "next";
+import { getPageContent } from "@/lib/cms";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Buy Ghana Lands",
   description: "Read our privacy policy to understand how we collect, use, and protect your information on Buy Ghana Lands.",
 };
 
-export default function PrivacyPage() {
+export const dynamic = "force-dynamic";
+
+export default async function PrivacyPage() {
+  const content = await getPageContent("privacy");
+  const meta = content.meta || {};
+  const sections = content.sections || [];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl px-4 py-16">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">Privacy Policy</h1>
-        
-        <div className="prose prose-lg max-w-none">
-          <p className="text-gray-600 mb-6">
-            Last updated: January 2026
-          </p>
+    <div className="min-h-screen bg-[#faf8f2] py-12 lg:py-16">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className="rounded-3xl border border-emerald-950/10 bg-white p-8 shadow-sm lg:p-12">
+          <h1 className="font-display text-3xl font-semibold text-emerald-950 sm:text-4xl">
+            {meta.title || "Privacy Policy"}
+          </h1>
+          {meta.lastUpdated && (
+            <p className="mt-2 text-sm text-gray-500">Last updated: {meta.lastUpdated}</p>
+          )}
 
-          <h2 className="text-2xl font-semibold text-gray-900 mt-8 mb-4">1. Information We Collect</h2>
-          <p className="text-gray-600 mb-4">
-            We collect information you provide directly to us, including your name, phone number, 
-            email address, and any other information you choose to provide when using our platform.
-          </p>
-
-          <h2 className="text-2xl font-semibold text-gray-900 mt-8 mb-4">2. How We Use Your Information</h2>
-          <p className="text-gray-600 mb-4">
-            We use the information we collect to provide, maintain, and improve our services, 
-            process transactions, send you technical notices and support messages, and respond 
-            to your comments and questions.
-          </p>
-
-          <h2 className="text-2xl font-semibold text-gray-900 mt-8 mb-4">3. Information Sharing</h2>
-          <p className="text-gray-600 mb-4">
-            We do not share your personal information with third parties except as described 
-            in this policy or with your consent. We may share information with service providers 
-            who assist us in operating our platform.
-          </p>
-
-          <h2 className="text-2xl font-semibold text-gray-900 mt-8 mb-4">4. Data Security</h2>
-          <p className="text-gray-600 mb-4">
-            We take reasonable measures to help protect your personal information from loss, 
-            theft, misuse, unauthorized access, disclosure, alteration, and destruction.
-          </p>
-
-          <h2 className="text-2xl font-semibold text-gray-900 mt-8 mb-4">5. Contact Us</h2>
-          <p className="text-gray-600 mb-4">
-            If you have any questions about this Privacy Policy, please contact us at 
-            privacy@buyghanalands.com.
-          </p>
+          {sections.length === 0 ? (
+            <p className="mt-8 text-gray-600">No privacy content available yet.</p>
+          ) : (
+            <div className="mt-8 space-y-8">
+              {sections.map((section: any, index: number) => (
+                <div key={index}>
+                  <h2 className="font-display text-xl font-semibold text-emerald-950">
+                    {section.heading}
+                  </h2>
+                  <p className="mt-3 leading-relaxed text-gray-600">{section.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -9,6 +9,8 @@ import {
   Bell,
   Search,
   Home,
+  UserCircle,
+  LayoutDashboard,
 } from "lucide-react";
 
 async function checkAdminAccess(userId: string) {
@@ -99,9 +101,9 @@ export default async function AdminLayout({
       {/* Main Content Area */}
       <div className="flex-1 md:ml-[240px]">
         {/* Top Header */}
-        <header className="h-14 bg-[#f8f7f4] flex items-center justify-end px-6 sticky top-0 z-40">
+        <header className="h-14 bg-[#f8f7f4] flex items-center justify-between px-6 sticky top-0 z-40">
+          {/* Left: Search */}
           <div className="flex items-center gap-3">
-            {/* Search */}
             <div className="relative">
               <input
                 type="text"
@@ -111,7 +113,10 @@ export default async function AdminLayout({
               />
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
             </div>
+          </div>
 
+          {/* Right: User details + actions */}
+          <div className="flex items-center gap-3">
             {/* Notifications */}
             <Link
               href="/admin/messages"
@@ -125,11 +130,57 @@ export default async function AdminLayout({
             {/* View Site */}
             <Link
               href="/"
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#1a3a2f] text-white rounded-lg text-xs font-medium hover:bg-[#2a4a3f] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063]"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-[#1a3a2f] text-white rounded-lg text-xs font-medium hover:bg-[#2a4a3f] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063]"
             >
               <Home className="h-3.5 w-3.5" aria-hidden="true" />
               View Site
             </Link>
+
+            {/* Profile link */}
+            <Link
+              href="/dashboard/profile"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a3a2f]"
+              aria-label="View profile"
+            >
+              <UserCircle className="h-4 w-4 text-[#1a3a2f]" aria-hidden="true" />
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
+
+            {/* Dashboard link */}
+            <Link
+              href="/dashboard"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a3a2f]"
+              aria-label="Go to dashboard"
+            >
+              <LayoutDashboard className="h-4 w-4 text-[#1a3a2f]" aria-hidden="true" />
+              <span>Dashboard</span>
+            </Link>
+
+            {/* User avatar + name + sign out */}
+            <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
+              <div className="w-8 h-8 rounded-full bg-[#1a3a2f] text-white flex items-center justify-center text-sm font-semibold" aria-hidden="true">
+                {name.charAt(0).toUpperCase()}
+              </div>
+              <div className="hidden lg:block min-w-0">
+                <p className="text-xs font-medium text-gray-900 truncate max-w-[120px]">{name}</p>
+                <p className="text-xs text-gray-500 truncate max-w-[120px]">{email}</p>
+              </div>
+              <form
+                action={async () => {
+                  "use server";
+                  await signOut({ redirectTo: "/auth/login" });
+                }}
+              >
+                <button
+                  type="submit"
+                  className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  title="Sign out"
+                  aria-label="Sign out"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </form>
+            </div>
           </div>
         </header>
 

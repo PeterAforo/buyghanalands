@@ -23,6 +23,7 @@ import {
   RefreshCw,
   XCircle,
   ArrowRightLeft,
+  Shield,
 } from "lucide-react";
 
 interface Transaction {
@@ -124,6 +125,7 @@ export default function AdminTransactionsPage() {
     funded: 0,
     released: 0,
     disputed: 0,
+    pendingRelease: 0,
     totalValue: "0",
   });
 
@@ -139,9 +141,12 @@ export default function AdminTransactionsPage() {
         const funded = data.filter((t: Transaction) => t.status === "FUNDED").length;
         const released = data.filter((t: Transaction) => t.status === "RELEASED").length;
         const disputed = data.filter((t: Transaction) => t.status === "DISPUTED").length;
+        const pendingRelease = data.filter((t: Transaction) =>
+          ["READY_TO_RELEASE", "VERIFICATION_PERIOD"].includes(t.status)
+        ).length;
         const totalValue = data.reduce((sum: number, t: Transaction) => sum + parseFloat(t.agreedPriceGhs), 0);
-        
-        setStats({ total, funded, released, disputed, totalValue: totalValue.toString() });
+
+        setStats({ total, funded, released, disputed, pendingRelease, totalValue: totalValue.toString() });
       }
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
@@ -299,8 +304,8 @@ export default function AdminTransactionsPage() {
             <ChevronRight className="h-3 w-3" />
             <span className="text-[#1a3a2f]">Transactions</span>
           </div>
-          <h1 className="text-lg font-semibold text-[#1a3a2f]">Transaction Management</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Monitor and manage all escrow transactions</p>
+          <h1 className="text-lg font-semibold text-[#1a3a2f]">Escrow & Transaction Management</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Monitor escrow lifecycle, verify KYC, and release funds</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -314,7 +319,7 @@ export default function AdminTransactionsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         <div className="bg-white rounded-xl border border-gray-100 p-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -356,6 +361,17 @@ export default function AdminTransactionsPage() {
             <div>
               <p className="text-[10px] text-gray-400 uppercase">Disputed</p>
               <p className="text-lg font-bold text-[#1a3a2f]">{stats.disputed}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 p-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
+              <Shield className="h-4 w-4 text-teal-600" />
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase">Pending Release</p>
+              <p className="text-lg font-bold text-[#1a3a2f]">{stats.pendingRelease}</p>
             </div>
           </div>
         </div>
@@ -423,7 +439,7 @@ export default function AdminTransactionsPage() {
       <div className="bg-white rounded-xl border border-gray-100 p-3 mb-4">
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div className="flex gap-1.5">
-            {["all", "pending", "funded", "released", "disputed"].map((f) => (
+            {["all", "pending", "funded", "verification", "ready_to_release", "pending_admin_approval", "released", "disputed"].map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}

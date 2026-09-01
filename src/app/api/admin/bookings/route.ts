@@ -42,3 +42,39 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 });
   }
 }
+
+// PUT — update booking status (admin action)
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await isAdmin(session.user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { id, status } = await request.json();
+    if (!id || !status) return NextResponse.json({ error: "id and status are required" }, { status: 400 });
+
+    const validStatuses = ["REQUESTED", "SCHEDULED", "IN_PROGRESS", "DELIVERED", "COMPLETED", "CANCELLED", "DECLINED"];
+    if (!validStatuses.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+
+    const booking = await withDbRetry(() => prisma.booking.update({
+      where: { id },
+      data: { status, ...(status === "COMPLETED" ? { completedAt: new Date() } : {}) },
+    }));
+
+    await withDbRetry(() => prisma.auditLog.create({
+      data: {
+        entityType: "BOOKING",
+        entityId: id,
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "UPDATE",
+        diff: { status },
+      },
+    }));
+
+    return NextResponse.json(serializeForJson(booking));
+  } catch (error) {
+    console.error("Error updating booking:", error);
+    return NextResponse.json({ error: "Failed to update booking" }, { status: 500 });
+  }
+}

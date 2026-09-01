@@ -34,6 +34,7 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [category, setCategory] = useState("");
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -51,6 +52,20 @@ export default function SubscriptionsPage() {
     }
     load();
   }, [filter, category]);
+
+  async function updateStatus(id: string, status: string) {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) {
+        setSubscriptions((prev) => prev.map((s) => s.id === id ? { ...s, status } : s));
+      }
+    } catch { } finally { setUpdating(null); }
+  }
 
   const filters = [
     { key: "all", label: "All" },
@@ -116,6 +131,7 @@ export default function SubscriptionsPage() {
                     <th className="px-4 py-3 font-medium text-gray-600">Start</th>
                     <th className="px-4 py-3 font-medium text-gray-600">End</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Payments</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -130,6 +146,20 @@ export default function SubscriptionsPage() {
                       <td className="px-4 py-3 text-gray-500">{formatDate(s.startDate)}</td>
                       <td className="px-4 py-3 text-gray-500">{s.endDate ? formatDate(s.endDate) : "—"}</td>
                       <td className="px-4 py-3 text-center">{s._count.payments}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={s.status}
+                          disabled={updating === s.id}
+                          onChange={(e) => updateStatus(s.id, e.target.value)}
+                          className="text-xs border rounded px-2 py-1 bg-white"
+                        >
+                          <option value="ACTIVE">Active</option>
+                          <option value="CANCELLED">Cancelled</option>
+                          <option value="EXPIRED">Expired</option>
+                          <option value="PAST_DUE">Past Due</option>
+                          <option value="TRIALING">Trialing</option>
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

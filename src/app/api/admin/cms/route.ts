@@ -16,12 +16,20 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!(await isAdmin(session.user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const [newsArticles, supportCategories, faqItems, homepageStats, siteSettings] = await withDbRetry(() => Promise.all([
+    const [newsArticles, supportCategories, faqItems, homepageStats, siteSettings, testimonials, homepageSteps, homepageLandTypes, homepageProfessionals, homepageRegions, trustBarItems, heroContent, contactMessages] = await withDbRetry(() => Promise.all([
       prisma.newsArticle.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.supportCategory.findMany({ orderBy: { displayOrder: "asc" } }),
       prisma.faqItem.findMany({ orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }] }),
       prisma.homepageStat.findMany({ orderBy: { displayOrder: "asc" } }),
       prisma.siteSetting.findMany({ orderBy: { key: "asc" } }),
+      prisma.testimonial.findMany({ orderBy: { sortOrder: "asc" } }),
+      prisma.homepageStep.findMany({ orderBy: { sortOrder: "asc" } }),
+      prisma.homepageLandType.findMany({ orderBy: { sortOrder: "asc" } }),
+      prisma.homepageProfessional.findMany({ orderBy: { sortOrder: "asc" } }),
+      prisma.homepageRegion.findMany({ orderBy: { sortOrder: "asc" } }),
+      prisma.trustBarItem.findMany({ orderBy: { sortOrder: "asc" } }),
+      prisma.heroContent.findMany({ orderBy: { updatedAt: "desc" } }),
+      prisma.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     ]));
 
     return NextResponse.json(serializeForJson({
@@ -30,6 +38,14 @@ export async function GET(request: NextRequest) {
       faqItems,
       homepageStats,
       siteSettings,
+      testimonials,
+      homepageSteps,
+      homepageLandTypes,
+      homepageProfessionals,
+      homepageRegions,
+      trustBarItems,
+      heroContent,
+      contactMessages,
     }));
   } catch (error) {
     console.error("Error fetching CMS content:", error);
@@ -39,8 +55,12 @@ export async function GET(request: NextRequest) {
 
 // POST — create or update any CMS entity
 const cmsSchema = z.object({
-  entityType: z.enum(["news", "faq", "supportCategory", "homepageStat", "siteSetting", "pageContent"]),
-  id: z.string().optional(), // present for updates
+  entityType: z.enum([
+    "news", "faq", "supportCategory", "homepageStat", "siteSetting", "pageContent",
+    "testimonial", "homepageStep", "homepageLandType", "homepageProfessional",
+    "homepageRegion", "trustBarItem", "heroContent", "contactMessage",
+  ]),
+  id: z.string().optional(),
   data: z.any(),
 });
 
@@ -108,6 +128,70 @@ export async function POST(request: NextRequest) {
         }));
         break;
       }
+      case "testimonial": {
+        if (id) {
+          result = await withDbRetry(() => prisma.testimonial.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.testimonial.create({ data }));
+        }
+        break;
+      }
+      case "homepageStep": {
+        if (id) {
+          result = await withDbRetry(() => prisma.homepageStep.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.homepageStep.create({ data }));
+        }
+        break;
+      }
+      case "homepageLandType": {
+        if (id) {
+          result = await withDbRetry(() => prisma.homepageLandType.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.homepageLandType.create({ data }));
+        }
+        break;
+      }
+      case "homepageProfessional": {
+        if (id) {
+          result = await withDbRetry(() => prisma.homepageProfessional.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.homepageProfessional.create({ data }));
+        }
+        break;
+      }
+      case "homepageRegion": {
+        if (id) {
+          result = await withDbRetry(() => prisma.homepageRegion.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.homepageRegion.create({ data }));
+        }
+        break;
+      }
+      case "trustBarItem": {
+        if (id) {
+          result = await withDbRetry(() => prisma.trustBarItem.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.trustBarItem.create({ data }));
+        }
+        break;
+      }
+      case "heroContent": {
+        if (id) {
+          result = await withDbRetry(() => prisma.heroContent.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.heroContent.create({ data }));
+        }
+        break;
+      }
+      case "contactMessage": {
+        if (id) {
+          result = await withDbRetry(() => prisma.contactMessage.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.contactMessage.create({ data }));
+        }
+        break;
+      }
       default:
         return NextResponse.json({ error: "Invalid entity type" }, { status: 400 });
     }
@@ -167,6 +251,30 @@ export async function DELETE(request: NextRequest) {
         break;
       case "pageContent":
         await withDbRetry(() => prisma.siteSetting.delete({ where: { key: id } }));
+        break;
+      case "testimonial":
+        await withDbRetry(() => prisma.testimonial.delete({ where: { id } }));
+        break;
+      case "homepageStep":
+        await withDbRetry(() => prisma.homepageStep.delete({ where: { id } }));
+        break;
+      case "homepageLandType":
+        await withDbRetry(() => prisma.homepageLandType.delete({ where: { id } }));
+        break;
+      case "homepageProfessional":
+        await withDbRetry(() => prisma.homepageProfessional.delete({ where: { id } }));
+        break;
+      case "homepageRegion":
+        await withDbRetry(() => prisma.homepageRegion.delete({ where: { id } }));
+        break;
+      case "trustBarItem":
+        await withDbRetry(() => prisma.trustBarItem.delete({ where: { id } }));
+        break;
+      case "heroContent":
+        await withDbRetry(() => prisma.heroContent.delete({ where: { id } }));
+        break;
+      case "contactMessage":
+        await withDbRetry(() => prisma.contactMessage.delete({ where: { id } }));
         break;
       default:
         return NextResponse.json({ error: "Invalid entity type" }, { status: 400 });

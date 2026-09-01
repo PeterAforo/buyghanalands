@@ -6,9 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Newspaper, HelpCircle, FolderTree, BarChart3, Settings, FileText, Plus, Trash2, Save, X } from "lucide-react";
+import {
+  Loader2, Newspaper, HelpCircle, FolderTree, BarChart3, Settings, FileText,
+  Plus, Trash2, Save, X, Star, ListOrdered, Home, Compass, Map, Shield,
+  Image as ImageIcon, Mail,
+} from "lucide-react";
 
-type Tab = "news" | "faqs" | "supportCategories" | "homepageStats" | "pageContent" | "siteSettings";
+type Tab =
+  | "news" | "faqs" | "supportCategories" | "homepageStats" | "pageContent"
+  | "siteSettings" | "testimonials" | "homepageSteps" | "landTypes"
+  | "professionalTypes" | "regions" | "trustBar" | "heroContent" | "contactMessages";
 
 interface CmsData {
   newsArticles: any[];
@@ -16,6 +23,14 @@ interface CmsData {
   faqItems: any[];
   homepageStats: any[];
   siteSettings: any[];
+  testimonials: any[];
+  homepageSteps: any[];
+  homepageLandTypes: any[];
+  homepageProfessionals: any[];
+  homepageRegions: any[];
+  trustBarItems: any[];
+  heroContent: any[];
+  contactMessages: any[];
 }
 
 export default function CmsPage() {
@@ -59,12 +74,20 @@ export default function CmsPage() {
   }
 
   const tabs: { key: Tab; label: string; icon: any }[] = [
-    { key: "news", label: "News Articles", icon: Newspaper },
+    { key: "news", label: "News", icon: Newspaper },
     { key: "faqs", label: "FAQs", icon: HelpCircle },
-    { key: "supportCategories", label: "Support Categories", icon: FolderTree },
-    { key: "homepageStats", label: "Homepage Stats", icon: BarChart3 },
+    { key: "supportCategories", label: "Support Cats", icon: FolderTree },
+    { key: "homepageStats", label: "Stats", icon: BarChart3 },
+    { key: "homepageSteps", label: "Steps", icon: ListOrdered },
+    { key: "landTypes", label: "Land Types", icon: Home },
+    { key: "professionalTypes", label: "Professionals", icon: Compass },
+    { key: "regions", label: "Regions", icon: Map },
+    { key: "testimonials", label: "Testimonials", icon: Star },
+    { key: "trustBar", label: "Trust Bar", icon: Shield },
+    { key: "heroContent", label: "Hero", icon: ImageIcon },
     { key: "pageContent", label: "Page Content", icon: FileText },
-    { key: "siteSettings", label: "Site Settings", icon: Settings },
+    { key: "contactMessages", label: "Messages", icon: Mail },
+    { key: "siteSettings", label: "Settings", icon: Settings },
   ];
 
   if (loading) {
@@ -89,40 +112,20 @@ export default function CmsPage() {
         ))}
       </div>
 
-      {/* News Articles */}
-      {activeTab === "news" && (
-        <NewsTab articles={data?.newsArticles || []} editing={editing} setEditing={setEditing}
-          save={save} remove={remove} saving={saving} />
-      )}
-
-      {/* FAQs */}
-      {activeTab === "faqs" && (
-        <FaqsTab items={data?.faqItems || []} editing={editing} setEditing={setEditing}
-          save={save} remove={remove} saving={saving} />
-      )}
-
-      {/* Support Categories */}
-      {activeTab === "supportCategories" && (
-        <SupportCategoriesTab categories={data?.supportCategories || []} editing={editing} setEditing={setEditing}
-          save={save} remove={remove} saving={saving} />
-      )}
-
-      {/* Homepage Stats */}
-      {activeTab === "homepageStats" && (
-        <HomepageStatsTab stats={data?.homepageStats || []} editing={editing} setEditing={setEditing}
-          save={save} remove={remove} saving={saving} />
-      )}
-
-      {/* Page Content */}
-      {activeTab === "pageContent" && (
-        <PageContentTab settings={data?.siteSettings || []} save={save} saving={saving} />
-      )}
-
-      {/* Site Settings */}
-      {activeTab === "siteSettings" && (
-        <SiteSettingsTab settings={data?.siteSettings || []} editing={editing} setEditing={setEditing}
-          save={save} remove={remove} saving={saving} />
-      )}
+      {activeTab === "news" && <NewsTab articles={data?.newsArticles || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
+      {activeTab === "faqs" && <FaqsTab items={data?.faqItems || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
+      {activeTab === "supportCategories" && <SupportCategoriesTab categories={data?.supportCategories || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
+      {activeTab === "homepageStats" && <HomepageStatsTab stats={data?.homepageStats || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
+      {activeTab === "pageContent" && <PageContentTab settings={data?.siteSettings || []} save={save} saving={saving} />}
+      {activeTab === "siteSettings" && <SiteSettingsTab settings={data?.siteSettings || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
+      {activeTab === "testimonials" && <SimpleListTab items={data?.testimonials || []} entityType="testimonial" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["name", "Name"], ["role", "Role"], ["country", "Country"], ["quote", "Quote", "textarea"], ["rating", "Rating (1-5)", "number"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="name" subtitleField="role" />}
+      {activeTab === "homepageSteps" && <SimpleListTab items={data?.homepageSteps || []} entityType="homepageStep" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["icon", "Icon (lucide name)"], ["title", "Title"], ["description", "Description", "textarea"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="title" subtitleField="description" />}
+      {activeTab === "landTypes" && <SimpleListTab items={data?.homepageLandTypes || []} entityType="homepageLandType" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["type", "Type (e.g. RESIDENTIAL)"], ["label", "Label"], ["icon", "Icon (lucide name)"], ["count", "Count", "number"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="label" subtitleField="type" />}
+      {activeTab === "professionalTypes" && <SimpleListTab items={data?.homepageProfessionals || []} entityType="homepageProfessional" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["type", "Type (e.g. SURVEYOR)"], ["label", "Label"], ["icon", "Icon (lucide name)"], ["description", "Description"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="label" subtitleField="description" />}
+      {activeTab === "regions" && <SimpleListTab items={data?.homepageRegions || []} entityType="homepageRegion" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["name", "Name"], ["count", "Count", "number"], ["image", "Image URL"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="name" subtitleField="count" />}
+      {activeTab === "trustBar" && <SimpleListTab items={data?.trustBarItems || []} entityType="trustBarItem" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["icon", "Icon (lucide name)"], ["label", "Label"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="label" subtitleField="icon" />}
+      {activeTab === "heroContent" && <HeroContentTab heroContent={data?.heroContent || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
+      {activeTab === "contactMessages" && <ContactMessagesTab messages={data?.contactMessages || []} save={save} remove={remove} />}
     </div>
   );
 }
@@ -276,7 +279,11 @@ function HomepageStatsTab({ stats, editing, setEditing, save, remove, saving }: 
         <Card>
           <CardContent className="space-y-3 py-4">
             <Input placeholder="Label (e.g. Verified listings)" value={editing.label || ""} onChange={(e) => setEditing({ ...editing, label: e.target.value })} />
-            <Input placeholder="Value (e.g. 1000+)" value={editing.value || ""} onChange={(e) => setEditing({ ...editing, value: e.target.value })} />
+            <Input placeholder="Value (e.g. 1000)" value={editing.value || ""} onChange={(e) => setEditing({ ...editing, value: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input placeholder="Prefix (e.g. ₵)" value={editing.prefix || ""} onChange={(e) => setEditing({ ...editing, prefix: e.target.value })} />
+              <Input placeholder="Suffix (e.g. +)" value={editing.suffix || ""} onChange={(e) => setEditing({ ...editing, suffix: e.target.value })} />
+            </div>
             <Input placeholder="Description" value={editing.description || ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
             <div className="grid grid-cols-2 gap-3">
               <Input placeholder="Icon (lucide name)" value={editing.icon || ""} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} />
@@ -296,7 +303,7 @@ function HomepageStatsTab({ stats, editing, setEditing, save, remove, saving }: 
         {stats.map((s: any) => (
           <Card key={s.id}>
             <CardContent className="flex items-center justify-between py-3">
-              <div><p className="font-medium text-sm">{s.label}: {s.value}</p><p className="text-xs text-gray-500">{s.icon} • Order: {s.displayOrder} • {s.isActive ? "Active" : "Inactive"}</p></div>
+              <div><p className="font-medium text-sm">{s.label}: {s.prefix || ""}{s.value}{s.suffix || ""}</p><p className="text-xs text-gray-500">{s.icon} • Order: {s.displayOrder} • {s.isActive ? "Active" : "Inactive"}</p></div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => setEditing(s)}>Edit</Button>
                 <Button variant="ghost" size="sm" onClick={() => remove("homepageStat", s.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
@@ -309,14 +316,153 @@ function HomepageStatsTab({ stats, editing, setEditing, save, remove, saving }: 
   );
 }
 
+// --- Generic Simple List Tab (used for testimonials, steps, land types, etc.) ---
+function SimpleListTab({ items, entityType, editing, setEditing, save, remove, saving, fields, titleField, subtitleField }: any) {
+  return (
+    <div className="space-y-4">
+      <Button onClick={() => setEditing({})} className="gap-2 bg-[#1a3a2f]"><Plus className="h-4 w-4" /> New Item</Button>
+      {editing && (
+        <Card>
+          <CardContent className="space-y-3 py-4">
+            {fields.map(([key, label, type]: any) => (
+              <div key={key}>
+                {type === "textarea" ? (
+                  <Textarea placeholder={label} rows={3} value={editing[key] || ""} onChange={(e) => setEditing({ ...editing, [key]: e.target.value })} />
+                ) : type === "checkbox" ? (
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing[key] !== false} onChange={(e) => setEditing({ ...editing, [key]: e.target.checked })} /> {label}</label>
+                ) : type === "number" ? (
+                  <Input placeholder={label} type="number" value={editing[key] ?? ""} onChange={(e) => setEditing({ ...editing, [key]: parseInt(e.target.value) || 0 })} />
+                ) : (
+                  <Input placeholder={label} value={editing[key] || ""} onChange={(e) => setEditing({ ...editing, [key]: e.target.value })} />
+                )}
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Button onClick={() => save(entityType, editing.id, editing)} disabled={saving} className="gap-2 bg-[#1a3a2f]">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
+              </Button>
+              <Button variant="ghost" onClick={() => setEditing(null)} className="gap-2"><X className="h-4 w-4" /> Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      <div className="space-y-2">
+        {items.map((item: any) => (
+          <Card key={item.id}>
+            <CardContent className="flex items-center justify-between py-3">
+              <div>
+                <p className="font-medium text-sm">{item[titleField]}</p>
+                <p className="text-xs text-gray-500">{item[subtitleField]} • Order: {item.sortOrder ?? item.displayOrder} • {item.isActive === false ? "Inactive" : "Active"}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditing(item)}>Edit</Button>
+                <Button variant="ghost" size="sm" onClick={() => remove(entityType, item.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Hero Content Tab ---
+function HeroContentTab({ heroContent, editing, setEditing, save, remove, saving }: any) {
+  return (
+    <div className="space-y-4">
+      <Button onClick={() => setEditing({ backgroundImages: "[]" })} className="gap-2 bg-[#1a3a2f]"><Plus className="h-4 w-4" /> New Hero Content</Button>
+      {editing && (
+        <Card>
+          <CardHeader><CardTitle>{editing.id ? "Edit Hero Content" : "New Hero Content"}</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <Input placeholder="Eyebrow" value={editing.eyebrow || ""} onChange={(e) => setEditing({ ...editing, eyebrow: e.target.value })} />
+            <Input placeholder="Headline" value={editing.headline || ""} onChange={(e) => setEditing({ ...editing, headline: e.target.value })} />
+            <Textarea placeholder="Subheadline" rows={3} value={editing.subheadline || ""} onChange={(e) => setEditing({ ...editing, subheadline: e.target.value })} />
+            <Textarea placeholder='Background Images (JSON array, e.g. ["/images/img1.jpg", "/images/img2.jpg"])' rows={3} value={editing.backgroundImages || ""} onChange={(e) => setEditing({ ...editing, backgroundImages: e.target.value })} />
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.isActive !== false} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} /> Active</label>
+            <div className="flex gap-2">
+              <Button onClick={() => save("heroContent", editing.id, { ...editing, backgroundImages: editing.backgroundImages })} disabled={saving || !editing.headline} className="gap-2 bg-[#1a3a2f]">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
+              </Button>
+              <Button variant="ghost" onClick={() => setEditing(null)} className="gap-2"><X className="h-4 w-4" /> Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      <div className="space-y-2">
+        {heroContent.map((h: any) => (
+          <Card key={h.id}>
+            <CardContent className="flex items-center justify-between py-3">
+              <div>
+                <p className="font-medium text-sm">{h.eyebrow} — {h.headline}</p>
+                <p className="text-xs text-gray-500">{h.isActive ? "Active" : "Inactive"}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditing({ ...h, backgroundImages: typeof h.backgroundImages === "string" ? h.backgroundImages : JSON.stringify(h.backgroundImages || []) })}>Edit</Button>
+                <Button variant="ghost" size="sm" onClick={() => remove("heroContent", h.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Contact Messages Tab ---
+function ContactMessagesTab({ messages, save, remove }: any) {
+  const statusColors: Record<string, string> = {
+    NEW: "bg-blue-100 text-blue-700",
+    READ: "bg-yellow-100 text-yellow-700",
+    RESPONDED: "bg-green-100 text-green-700",
+    ARCHIVED: "bg-gray-100 text-gray-700",
+  };
+
+  async function updateStatus(id: string, status: string) {
+    await save("contactMessage", id, { status });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="text-sm text-gray-500">Contact form submissions from the public contact page.</div>
+      <div className="space-y-2">
+        {messages.length === 0 && (
+          <Card><CardContent className="py-8 text-center text-gray-500">No contact messages yet.</CardContent></Card>
+        )}
+        {messages.map((m: any) => (
+          <Card key={m.id}>
+            <CardContent className="py-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">{m.name} <span className="text-gray-400">•</span> <span className="text-gray-500">{m.email}</span></p>
+                  <p className="text-xs text-gray-500">{m.subject} • {new Date(m.createdAt).toLocaleDateString()}</p>
+                </div>
+                <Badge variant="outline" className={statusColors[m.status] || statusColors.NEW}>{m.status}</Badge>
+              </div>
+              <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">{m.message}</p>
+              <div className="flex gap-2">
+                {m.status === "NEW" && <Button size="sm" variant="outline" onClick={() => updateStatus(m.id, "READ")}>Mark Read</Button>}
+                {m.status !== "RESPONDED" && m.status !== "ARCHIVED" && <Button size="sm" variant="outline" onClick={() => updateStatus(m.id, "RESPONDED")}>Mark Responded</Button>}
+                {m.status !== "ARCHIVED" && <Button size="sm" variant="outline" onClick={() => updateStatus(m.id, "ARCHIVED")}>Archive</Button>}
+                <Button size="sm" variant="ghost" onClick={() => remove("contactMessage", m.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // --- Page Content Tab ---
 function PageContentTab({ settings, save, saving }: any) {
-  const pageKeys = ["homepage", "about", "contact", "howItWorks", "pricing", "escrowPolicy", "terms", "privacy"];
-  const [selectedPage, setSelectedPage] = useState("homepage");
+  const pageKeys = ["about", "contact", "how-it-works", "pricing", "escrow-policy", "terms", "privacy", "verification", "support"];
+  const [selectedPage, setSelectedPage] = useState("about");
+  const [sectionKey, setSectionKey] = useState("hero");
   const [content, setContent] = useState("");
 
   const pageContentSettings = settings.filter((s: any) => s.key.startsWith("page."));
-  const currentSetting = pageContentSettings.find((s: any) => s.key === `page.${selectedPage}.content`);
+  const currentSetting = pageContentSettings.find((s: any) => s.key === `page.${selectedPage}.${sectionKey}`);
 
   useEffect(() => {
     if (currentSetting) {
@@ -325,33 +471,36 @@ function PageContentTab({ settings, save, saving }: any) {
     } else {
       setContent("");
     }
-  }, [selectedPage, currentSetting]);
+  }, [selectedPage, sectionKey, currentSetting]);
 
   async function handleSave() {
     let parsed;
     try { parsed = JSON.parse(content); }
     catch { parsed = content; }
-    await save("pageContent", undefined, { pageKey: selectedPage, sectionKey: "content", content: parsed });
+    await save("pageContent", undefined, { pageKey: selectedPage, sectionKey, content: parsed });
   }
 
   return (
     <div className="space-y-4">
       <Card>
         <CardContent className="py-4">
-          <p className="text-sm text-gray-500 mb-3">Edit structured content for each marketing page. Content is stored as JSON and rendered on the public page with fallback to defaults.</p>
+          <p className="text-sm text-gray-500 mb-3">Edit structured content for each marketing page. Content is stored as JSON and rendered on the public page.</p>
           <div className="flex gap-2 flex-wrap mb-4">
             {pageKeys.map((k) => (
               <Button key={k} variant={selectedPage === k ? "default" : "outline"} size="sm"
                 onClick={() => setSelectedPage(k)} className={selectedPage === k ? "bg-[#1a3a2f]" : ""}>
-                {k.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                {k.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
               </Button>
             ))}
+          </div>
+          <div className="mb-3">
+            <Input placeholder="Section key (e.g. hero, stats, story, values, cta)" value={sectionKey} onChange={(e) => setSectionKey(e.target.value)} />
           </div>
           <Textarea
             rows={16}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={`{\n  "hero": {\n    "headline": "...",\n    "subtext": "..."\n  },\n  "steps": [...]\n}`}
+            placeholder={`{\n  "title": "...",\n  "subtitle": "..."\n}`}
             className="font-mono text-sm"
           />
           <Button onClick={handleSave} disabled={saving || !content} className="mt-3 gap-2 bg-[#1a3a2f]">
@@ -359,6 +508,21 @@ function PageContentTab({ settings, save, saving }: any) {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Existing sections */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-gray-700">Existing sections for {selectedPage}:</p>
+        {pageContentSettings.filter((s: any) => s.key.startsWith(`page.${selectedPage}.`)).map((s: any) => (
+          <Card key={s.id}>
+            <CardContent className="flex items-center justify-between py-2">
+              <p className="text-xs font-mono text-gray-600">{s.key.replace(`page.${selectedPage}.`, "")}</p>
+              <Button size="sm" variant="ghost" onClick={() => setSectionKey(s.key.replace(`page.${selectedPage}.`, ""))}>
+                Load
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

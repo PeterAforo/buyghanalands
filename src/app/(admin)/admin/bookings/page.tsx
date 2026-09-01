@@ -39,6 +39,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -50,6 +51,20 @@ export default function BookingsPage() {
     }
     load();
   }, [filter]);
+
+  async function updateStatus(id: string, status: string) {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/bookings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) {
+        setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status } : b));
+      }
+    } catch { } finally { setUpdating(null); }
+  }
 
   const filters = [
     { key: "all", label: "All" },
@@ -93,6 +108,7 @@ export default function BookingsPage() {
                     <th className="px-4 py-3 font-medium text-gray-600">Amount</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Status</th>
                     <th className="px-4 py-3 font-medium text-gray-600">Date</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -110,6 +126,22 @@ export default function BookingsPage() {
                       <td className="px-4 py-3">{b.serviceRequest.acceptedPriceGhs ? formatPrice(b.serviceRequest.acceptedPriceGhs) : "—"}</td>
                       <td className="px-4 py-3"><Badge className={statusColors[b.status] || "bg-gray-100"}>{b.status.replace(/_/g, " ")}</Badge></td>
                       <td className="px-4 py-3 text-gray-500">{formatDate(b.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={b.status}
+                          disabled={updating === b.id}
+                          onChange={(e) => updateStatus(b.id, e.target.value)}
+                          className="text-xs border rounded px-2 py-1 bg-white"
+                        >
+                          <option value="REQUESTED">Requested</option>
+                          <option value="SCHEDULED">Scheduled</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="DELIVERED">Delivered</option>
+                          <option value="COMPLETED">Completed</option>
+                          <option value="CANCELLED">Cancelled</option>
+                          <option value="DECLINED">Declined</option>
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -41,3 +41,56 @@ export async function GET(
     return NextResponse.json({ error: "Failed to fetch workflow" }, { status: 500 });
   }
 }
+
+// PUT — update workflow status or add a note (admin action)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await isAdmin(session.user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { id } = await params;
+    const body = await request.json();
+    const { status, noteText, noteAuthorId } = body;
+
+    const updateData: any = {};
+    if (status) updateData.currentModule = status;
+
+    // If note text provided, create a workflow note
+    if (noteText) {
+      await withDbRetry(() => prisma.workflowNote.create({
+        data: {
+          propertyWorkflowId: id,
+          content: noteText,
+          createdBy: noteAuthorId || session.user.id,
+          module: "LAND_ACQUISITION",
+          stage: 0,
+        },
+      }));
+    }
+
+    const workflow = await withDbRetry(() => prisma.propertyWorkflow.update({
+      where: { id },
+      data: updateData,
+    }));
+
+    await withDbRetry(() => prisma.auditLog.create({
+      data: {
+        entityType: "WORKFLOW",
+        entityId: id,
+        actorType: "USER",
+        actorUserId: session.user.id,
+        action: "UPDATE",
+        diff: { status, noteText },
+      },
+    }));
+
+    return NextResponse.json(serializeForJson(workflow));
+  } catch (error) {
+    console.error("Error updating workflow:", error);
+    return NextResponse.json({ error: "Failed to update workflow" }, { status: 500 });
+  }
+}
