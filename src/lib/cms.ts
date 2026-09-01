@@ -23,3 +23,40 @@ export async function getPageContent(pageKey: string): Promise<Record<string, an
   }
   return content;
 }
+
+/**
+ * Fetch all active footer content sections, grouped by section name.
+ */
+export async function getFooterContent(): Promise<Record<string, any>> {
+  const items = await withDbRetry(() =>
+    prisma.footerContent.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    })
+  );
+
+  const grouped: Record<string, any> = {};
+  for (const item of items) {
+    if (!grouped[item.section]) {
+      grouped[item.section] = [];
+    }
+    let links: any[] = [];
+    if (item.linksJson) {
+      try {
+        links = typeof item.linksJson === "string" ? JSON.parse(item.linksJson) : item.linksJson;
+      } catch {
+        links = [];
+      }
+    }
+    grouped[item.section].push({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      htmlContent: item.htmlContent,
+      links: links,
+      imageUrl: item.imageUrl,
+      sortOrder: item.sortOrder,
+    });
+  }
+  return grouped;
+}

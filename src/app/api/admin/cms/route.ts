@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!(await isAdmin(session.user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const [newsArticles, supportCategories, faqItems, homepageStats, siteSettings, testimonials, homepageSteps, homepageLandTypes, homepageProfessionals, homepageRegions, trustBarItems, heroContent, contactMessages] = await withDbRetry(() => Promise.all([
+    const [newsArticles, supportCategories, faqItems, homepageStats, siteSettings, testimonials, homepageSteps, homepageLandTypes, homepageProfessionals, homepageRegions, trustBarItems, heroContent, contactMessages, footerContent] = await withDbRetry(() => Promise.all([
       prisma.newsArticle.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.supportCategory.findMany({ orderBy: { displayOrder: "asc" } }),
       prisma.faqItem.findMany({ orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }] }),
@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       prisma.trustBarItem.findMany({ orderBy: { sortOrder: "asc" } }),
       prisma.heroContent.findMany({ orderBy: { updatedAt: "desc" } }),
       prisma.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.footerContent.findMany({ orderBy: { sortOrder: "asc" } }),
     ]));
 
     return NextResponse.json(serializeForJson({
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
       trustBarItems,
       heroContent,
       contactMessages,
+      footerContent,
     }));
   } catch (error) {
     console.error("Error fetching CMS content:", error);
@@ -58,7 +60,7 @@ const cmsSchema = z.object({
   entityType: z.enum([
     "news", "faq", "supportCategory", "homepageStat", "siteSetting", "pageContent",
     "testimonial", "homepageStep", "homepageLandType", "homepageProfessional",
-    "homepageRegion", "trustBarItem", "heroContent", "contactMessage",
+    "homepageRegion", "trustBarItem", "heroContent", "contactMessage", "footerContent",
   ]),
   id: z.string().optional(),
   data: z.any(),
@@ -192,6 +194,14 @@ export async function POST(request: NextRequest) {
         }
         break;
       }
+      case "footerContent": {
+        if (id) {
+          result = await withDbRetry(() => prisma.footerContent.update({ where: { id }, data }));
+        } else {
+          result = await withDbRetry(() => prisma.footerContent.create({ data }));
+        }
+        break;
+      }
       default:
         return NextResponse.json({ error: "Invalid entity type" }, { status: 400 });
     }
@@ -275,6 +285,9 @@ export async function DELETE(request: NextRequest) {
         break;
       case "contactMessage":
         await withDbRetry(() => prisma.contactMessage.delete({ where: { id } }));
+        break;
+      case "footerContent":
+        await withDbRetry(() => prisma.footerContent.delete({ where: { id } }));
         break;
       default:
         return NextResponse.json({ error: "Invalid entity type" }, { status: 400 });

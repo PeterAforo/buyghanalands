@@ -30,12 +30,23 @@ import {
   FileSearch,
   ChevronDown,
   LucideIcon,
+  ImageIcon,
+  PanelBottom,
+  Star,
+  ListOrdered,
+  Home,
+  Compass,
+  Map,
+  HelpCircle,
+  FolderTree,
+  Mail,
 } from "lucide-react";
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  children?: NavItem[];
 }
 
 interface NavSection {
@@ -88,7 +99,28 @@ const sections: NavSection[] = [
   {
     title: "Content",
     items: [
-      { href: "/admin/cms", label: "Website CMS", icon: Newspaper },
+      {
+        href: "/admin/cms",
+        label: "Website CMS",
+        icon: Newspaper,
+        children: [
+          { href: "/admin/cms?tab=news", label: "News Articles", icon: Newspaper },
+          { href: "/admin/cms?tab=heroContent", label: "Hero Content", icon: ImageIcon },
+          { href: "/admin/cms?tab=pageContent", label: "Page Content", icon: FileText },
+          { href: "/admin/cms?tab=footerContent", label: "Footer Content", icon: PanelBottom },
+          { href: "/admin/cms?tab=testimonials", label: "Testimonials", icon: Star },
+          { href: "/admin/cms?tab=homepageStats", label: "Homepage Stats", icon: BarChart3 },
+          { href: "/admin/cms?tab=homepageSteps", label: "How It Works Steps", icon: ListOrdered },
+          { href: "/admin/cms?tab=landTypes", label: "Land Types", icon: Home },
+          { href: "/admin/cms?tab=professionalTypes", label: "Professionals", icon: Compass },
+          { href: "/admin/cms?tab=regions", label: "Regions", icon: Map },
+          { href: "/admin/cms?tab=trustBar", label: "Trust Bar", icon: Shield },
+          { href: "/admin/cms?tab=faqs", label: "FAQs", icon: HelpCircle },
+          { href: "/admin/cms?tab=supportCategories", label: "Support Categories", icon: FolderTree },
+          { href: "/admin/cms?tab=contactMessages", label: "Contact Messages", icon: Mail },
+          { href: "/admin/cms?tab=siteSettings", label: "Site Settings", icon: Settings },
+        ],
+      },
       { href: "/admin/messages", label: "Messages", icon: MessageSquare },
       { href: "/admin/notifications", label: "Notifications", icon: Bell },
     ],
@@ -158,18 +190,39 @@ export function AdminSidebar() {
                   const Icon = item.icon;
                   const active = isActive(item.href);
                   return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063] ${
-                        active
-                          ? "bg-[#c5e063] text-[#1a3a2f] font-semibold"
-                          : "text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                      <span className="text-sm font-medium flex-1">{item.label}</span>
-                    </Link>
+                    <div key={item.href} className="relative group">
+                      <Link
+                        href={item.href}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c5e063] ${
+                          active
+                            ? "bg-[#c5e063] text-[#1a3a2f] font-semibold"
+                            : "text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white"
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        <span className="text-sm font-medium flex-1">{item.label}</span>
+                        {item.children && (
+                          <ChevronDown className="h-3 w-3 opacity-50" aria-hidden="true" />
+                        )}
+                      </Link>
+                      {item.children && (
+                        <div className="hidden group-hover:block absolute left-full top-0 ml-1 z-50 min-w-[220px] bg-[#1a3a2f] border border-[#2a4a3f] rounded-xl shadow-xl py-2">
+                          {item.children.map((child) => {
+                            const ChildIcon = child.icon;
+                            return (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                className="flex items-center gap-3 px-3 py-2 text-sm text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white transition-colors"
+                              >
+                                <ChildIcon className="h-4 w-4" aria-hidden="true" />
+                                <span>{child.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </nav>

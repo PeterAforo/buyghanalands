@@ -2737,3 +2737,18 @@ model HeroContent {
   updatedAt        DateTime @updatedAt
 }
 
+model FooterContent {
+  id              String   @id @default(cuid())
+  section         String   // "brand", "links", "newsletter", "bottom", "contact"
+  title           String?
+  description     String?  @db.Text
+  htmlContent     String?  @db.Text
+  linksJson       Json?
+  imageUrl        String?
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+

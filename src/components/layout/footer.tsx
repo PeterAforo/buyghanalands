@@ -1,20 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MapPin, Phone, Mail, Facebook, Twitter, Instagram, Shield, Clock, Send, Loader2 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
+
+interface FooterData {
+  brand?: { description?: string; imageUrl?: string; htmlContent?: string }[];
+  links?: { title?: string; links?: { name: string; href: string }[] }[];
+  contact?: { description?: string; htmlContent?: string }[];
+  newsletter?: { title?: string; description?: string }[];
+  bottom?: { htmlContent?: string; description?: string }[];
+}
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "success" | "error">("idle");
+  const [footerData, setFooterData] = useState<FooterData | null>(null);
+
+  useEffect(() => {
+    fetch("/api/cms/footer")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setFooterData(data))
+      .catch(() => {});
+  }, []);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    
+
     setIsSubscribing(true);
     setSubscribeStatus("idle");
 
@@ -37,7 +53,8 @@ export function Footer() {
     }
   };
 
-  const footerLinks = {
+  // Default links (used as fallback when CMS has no data)
+  const defaultLinks = {
     company: [
       { name: "About Us", href: "/about" },
       { name: "How It Works", href: "/how-it-works" },
@@ -59,6 +76,27 @@ export function Footer() {
     ],
   };
 
+  // Use CMS data if available, otherwise defaults
+  const cmsLinkSections = footerData?.links || [];
+  const hasCmsLinks = cmsLinkSections.length > 0;
+
+  // Get link sections — either from CMS or defaults
+  const linkSections = hasCmsLinks
+    ? cmsLinkSections.map((s) => ({ title: s.title || "", links: s.links || [] }))
+    : [
+        { title: "Company", links: defaultLinks.company },
+        { title: "Services", links: defaultLinks.services },
+        { title: "Trust & Compliance", links: defaultLinks.trustCompliance },
+      ];
+
+  const brandDescription = footerData?.brand?.[0]?.description ||
+    "Ghana's trusted platform for secure land transactions. Verified listings, escrow-protected payments, and professional services for buyers and sellers.";
+  const newsletterTitle = footerData?.newsletter?.[0]?.title || "Stay Updated on New Listings";
+  const newsletterDesc = footerData?.newsletter?.[0]?.description ||
+    "Subscribe to receive alerts for new land listings, market updates, and exclusive offers.";
+  const bottomText = footerData?.bottom?.[0]?.htmlContent ||
+    `<p>© ${currentYear} Buy Ghana Lands Ltd. All rights reserved.</p><p>Built with trust for the Ghanaian diaspora and local buyers.</p>`;
+
   return (
     <footer className="dark-section" style={{ backgroundColor: 'var(--c-dark-bg)' }} role="contentinfo">
       {/* Newsletter Subscription */}
@@ -67,10 +105,10 @@ export function Footer() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="lg:max-w-xl">
               <h3 className="text-2xl font-bold" style={{ color: '#ffffff' }}>
-                Stay Updated on New Listings
+                {newsletterTitle}
               </h3>
               <p className="mt-2 text-sm" style={{ color: 'var(--c-dark-muted)' }}>
-                Subscribe to receive alerts for new land listings, market updates, and exclusive offers.
+                {newsletterDesc}
               </p>
             </div>
             <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3 lg:min-w-[400px]">
@@ -121,8 +159,7 @@ export function Footer() {
               <span className="text-xl font-bold" style={{ color: 'var(--c-dark-text)' }}>Buy Ghana Lands</span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed" style={{ color: 'var(--c-dark-muted)' }}>
-              Ghana&apos;s trusted platform for secure land transactions. Verified listings,
-              escrow-protected payments, and professional services for buyers and sellers.
+              {brandDescription}
             </p>
             
             {/* Company Details */}
@@ -162,65 +199,51 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Company Links */}
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--c-dark-text)', letterSpacing: 'var(--ls-caps)' }}>
-              Company
-            </h3>
-            <ul className="mt-4 space-y-3">
-              {footerLinks.company.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm transition-colors hover:opacity-80"
-                    style={{ color: 'var(--c-dark-muted)' }}
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Dynamic Link Sections */}
+          {linkSections.slice(0, 2).map((section) => (
+            <div key={section.title}>
+              <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--c-dark-text)', letterSpacing: 'var(--ls-caps)' }}>
+                {section.title}
+              </h3>
+              <ul className="mt-4 space-y-3">
+                {section.links.map((link, idx) => (
+                  <li key={idx}>
+                    <Link
+                      href={link.href}
+                      className="text-sm transition-colors hover:opacity-80"
+                      style={{ color: 'var(--c-dark-muted)' }}
+                    >
+                      {link.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
-          {/* Services Links */}
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--c-dark-text)', letterSpacing: 'var(--ls-caps)' }}>
-              Services
-            </h3>
-            <ul className="mt-4 space-y-3">
-              {footerLinks.services.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm transition-colors hover:opacity-80"
-                    style={{ color: 'var(--c-dark-muted)' }}
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Trust & Compliance Links */}
+          {/* Trust & Compliance (last section, spans 2 cols) */}
           <div className="lg:col-span-2">
-            <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--c-dark-text)', letterSpacing: 'var(--ls-caps)' }}>
-              <Shield className="h-4 w-4" style={{ color: 'var(--c-brand-accent)' }} />
-              Trust & Compliance
-            </h3>
-            <ul className="mt-4 space-y-3">
-              {footerLinks.trustCompliance.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm transition-colors hover:opacity-80"
-                    style={{ color: 'var(--c-dark-muted)' }}
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            {linkSections[2] && (
+              <>
+                <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--c-dark-text)', letterSpacing: 'var(--ls-caps)' }}>
+                  <Shield className="h-4 w-4" style={{ color: 'var(--c-brand-accent)' }} />
+                  {linkSections[2].title}
+                </h3>
+                <ul className="mt-4 space-y-3">
+                  {linkSections[2].links.map((link, idx) => (
+                    <li key={idx}>
+                      <Link
+                        href={link.href}
+                        className="text-sm transition-colors hover:opacity-80"
+                        style={{ color: 'var(--c-dark-muted)' }}
+                      >
+                        {link.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             
             {/* Trust Badge */}
             <div className="mt-6 p-4 rounded-lg" style={{ backgroundColor: 'var(--c-dark-surface)', border: '1px solid var(--c-dark-border)', borderRadius: 'var(--radius-card)' }}>
@@ -236,14 +259,11 @@ export function Footer() {
       {/* Bottom Bar */}
       <div style={{ borderTop: '1px solid var(--c-dark-border)' }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm" style={{ color: 'var(--c-dark-subtle)' }}>
-              © {currentYear} Buy Ghana Lands Ltd. All rights reserved.
-            </p>
-            <p className="text-sm" style={{ color: 'var(--c-dark-subtle)' }}>
-              Built with trust for the Ghanaian diaspora and local buyers.
-            </p>
-          </div>
+          <div
+            className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm"
+            style={{ color: 'var(--c-dark-subtle)' }}
+            dangerouslySetInnerHTML={{ __html: bottomText }}
+          />
         </div>
       </div>
     </footer>

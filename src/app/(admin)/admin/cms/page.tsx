@@ -1,21 +1,24 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { WysiwygEditor } from "@/components/admin/wysiwyg-editor";
+import { ImageUpload } from "@/components/admin/image-upload";
 import {
   Loader2, Newspaper, HelpCircle, FolderTree, BarChart3, Settings, FileText,
   Plus, Trash2, Save, X, Star, ListOrdered, Home, Compass, Map, Shield,
-  Image as ImageIcon, Mail,
+  Image as ImageIcon, Mail, PanelBottom,
 } from "lucide-react";
 
 type Tab =
   | "news" | "faqs" | "supportCategories" | "homepageStats" | "pageContent"
   | "siteSettings" | "testimonials" | "homepageSteps" | "landTypes"
-  | "professionalTypes" | "regions" | "trustBar" | "heroContent" | "contactMessages";
+  | "professionalTypes" | "regions" | "trustBar" | "heroContent" | "contactMessages" | "footerContent";
 
 interface CmsData {
   newsArticles: any[];
@@ -31,14 +34,28 @@ interface CmsData {
   trustBarItems: any[];
   heroContent: any[];
   contactMessages: any[];
+  footerContent: any[];
 }
 
 export default function CmsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [data, setData] = useState<CmsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("news");
   const [editing, setEditing] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+
+  // Sync tab from URL
+  useEffect(() => {
+    const tab = searchParams.get("tab") as Tab;
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
+
+  const setTab = (tab: Tab) => {
+    setActiveTab(tab);
+    router.push(`/admin/cms?tab=${tab}`, { scroll: false });
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,25 +91,28 @@ export default function CmsPage() {
   }
 
   const tabs: { key: Tab; label: string; icon: any }[] = [
-    { key: "news", label: "News", icon: Newspaper },
-    { key: "faqs", label: "FAQs", icon: HelpCircle },
-    { key: "supportCategories", label: "Support Cats", icon: FolderTree },
-    { key: "homepageStats", label: "Stats", icon: BarChart3 },
-    { key: "homepageSteps", label: "Steps", icon: ListOrdered },
+    { key: "news", label: "News Articles", icon: Newspaper },
+    { key: "heroContent", label: "Hero Content", icon: ImageIcon },
+    { key: "pageContent", label: "Page Content", icon: FileText },
+    { key: "footerContent", label: "Footer Content", icon: PanelBottom },
+    { key: "testimonials", label: "Testimonials", icon: Star },
+    { key: "homepageStats", label: "Homepage Stats", icon: BarChart3 },
+    { key: "homepageSteps", label: "How It Works Steps", icon: ListOrdered },
     { key: "landTypes", label: "Land Types", icon: Home },
     { key: "professionalTypes", label: "Professionals", icon: Compass },
     { key: "regions", label: "Regions", icon: Map },
-    { key: "testimonials", label: "Testimonials", icon: Star },
     { key: "trustBar", label: "Trust Bar", icon: Shield },
-    { key: "heroContent", label: "Hero", icon: ImageIcon },
-    { key: "pageContent", label: "Page Content", icon: FileText },
-    { key: "contactMessages", label: "Messages", icon: Mail },
-    { key: "siteSettings", label: "Settings", icon: Settings },
+    { key: "faqs", label: "FAQs", icon: HelpCircle },
+    { key: "supportCategories", label: "Support Categories", icon: FolderTree },
+    { key: "contactMessages", label: "Contact Messages", icon: Mail },
+    { key: "siteSettings", label: "Site Settings", icon: Settings },
   ];
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-[#1a3a2f]" /></div>;
   }
+
+  const currentTabInfo = tabs.find((t) => t.key === activeTab);
 
   return (
     <div className="space-y-6">
@@ -101,11 +121,21 @@ export default function CmsPage() {
         <p className="text-sm text-gray-500 mt-1">Manage all page content, news, FAQs, and site settings</p>
       </div>
 
-      {/* Tabs */}
+      {/* Breadcrumb showing current section */}
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-gray-400">CMS</span>
+        <span className="text-gray-400">/</span>
+        <span className="font-medium text-[#1a3a2f] flex items-center gap-1.5">
+          {currentTabInfo && <currentTabInfo.icon className="h-4 w-4" />}
+          {currentTabInfo?.label}
+        </span>
+      </div>
+
+      {/* Horizontal tab bar (still available for quick switching) */}
       <div className="flex gap-2 flex-wrap border-b pb-2">
         {tabs.map((t) => (
           <Button key={t.key} variant={activeTab === t.key ? "default" : "ghost"} size="sm"
-            onClick={() => { setActiveTab(t.key); setEditing(null); }}
+            onClick={() => { setTab(t.key); setEditing(null); }}
             className={activeTab === t.key ? "bg-[#1a3a2f] gap-2" : "gap-2"}>
             <t.icon className="h-4 w-4" /> {t.label}
           </Button>
@@ -122,10 +152,11 @@ export default function CmsPage() {
       {activeTab === "homepageSteps" && <SimpleListTab items={data?.homepageSteps || []} entityType="homepageStep" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["icon", "Icon (lucide name)"], ["title", "Title"], ["description", "Description", "textarea"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="title" subtitleField="description" />}
       {activeTab === "landTypes" && <SimpleListTab items={data?.homepageLandTypes || []} entityType="homepageLandType" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["type", "Type (e.g. RESIDENTIAL)"], ["label", "Label"], ["icon", "Icon (lucide name)"], ["count", "Count", "number"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="label" subtitleField="type" />}
       {activeTab === "professionalTypes" && <SimpleListTab items={data?.homepageProfessionals || []} entityType="homepageProfessional" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["type", "Type (e.g. SURVEYOR)"], ["label", "Label"], ["icon", "Icon (lucide name)"], ["description", "Description"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="label" subtitleField="description" />}
-      {activeTab === "regions" && <SimpleListTab items={data?.homepageRegions || []} entityType="homepageRegion" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["name", "Name"], ["count", "Count", "number"], ["image", "Image URL"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="name" subtitleField="count" />}
+      {activeTab === "regions" && <RegionsTab regions={data?.homepageRegions || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
       {activeTab === "trustBar" && <SimpleListTab items={data?.trustBarItems || []} entityType="trustBarItem" editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} fields={[["icon", "Icon (lucide name)"], ["label", "Label"], ["sortOrder", "Sort Order", "number"], ["isActive", "Active", "checkbox"]]} titleField="label" subtitleField="icon" />}
       {activeTab === "heroContent" && <HeroContentTab heroContent={data?.heroContent || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
       {activeTab === "contactMessages" && <ContactMessagesTab messages={data?.contactMessages || []} save={save} remove={remove} />}
+      {activeTab === "footerContent" && <FooterContentTab footerContent={data?.footerContent || []} editing={editing} setEditing={setEditing} save={save} remove={remove} saving={saving} />}
     </div>
   );
 }
@@ -142,11 +173,24 @@ function NewsTab({ articles, editing, setEditing, save, remove, saving }: any) {
             <Input placeholder="Title" value={editing.title || ""} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
             <Input placeholder="Slug" value={editing.slug || ""} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} />
             <Input placeholder="Excerpt" value={editing.excerpt || ""} onChange={(e) => setEditing({ ...editing, excerpt: e.target.value })} />
-            <Textarea placeholder="Content (HTML or text)" rows={6} value={editing.content || ""} onChange={(e) => setEditing({ ...editing, content: e.target.value })} />
+            <div>
+              <label className="text-sm font-medium mb-1 block">Article Content</label>
+              <WysiwygEditor
+                value={editing.content || ""}
+                onChange={(html) => setEditing({ ...editing, content: html })}
+                placeholder="Write your article content here..."
+                minHeight={300}
+              />
+            </div>
+            <ImageUpload
+              value={editing.coverImage || null}
+              onChange={(url) => setEditing({ ...editing, coverImage: url })}
+              label="Cover Image"
+              folder="cms/news"
+            />
             <div className="grid grid-cols-2 gap-3">
               <Input placeholder="Category" value={editing.category || ""} onChange={(e) => setEditing({ ...editing, category: e.target.value })} />
               <Input placeholder="Author" value={editing.author || ""} onChange={(e) => setEditing({ ...editing, author: e.target.value })} />
-              <Input placeholder="Cover Image URL" value={editing.coverImage || ""} onChange={(e) => setEditing({ ...editing, coverImage: e.target.value })} />
               <Input placeholder="Read time (min)" type="number" value={editing.readTime || ""} onChange={(e) => setEditing({ ...editing, readTime: parseInt(e.target.value) || 5 })} />
             </div>
             <div className="flex gap-4">
@@ -166,9 +210,15 @@ function NewsTab({ articles, editing, setEditing, save, remove, saving }: any) {
         {articles.map((a: any) => (
           <Card key={a.id}>
             <CardContent className="flex items-center justify-between py-3">
-              <div>
-                <p className="font-medium text-sm">{a.title}</p>
-                <p className="text-xs text-gray-500">{a.category} • {a.author || "Unknown"} • {a.isPublished ? "Published" : "Draft"}</p>
+              <div className="flex items-center gap-3">
+                {a.coverImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={a.coverImage} alt="" className="w-12 h-12 rounded object-cover" />
+                )}
+                <div>
+                  <p className="font-medium text-sm">{a.title}</p>
+                  <p className="text-xs text-gray-500">{a.category} • {a.author || "Unknown"} • {a.isPublished ? "Published" : "Draft"}</p>
+                </div>
               </div>
               <div className="flex gap-2">
                 {a.isFeatured && <Badge variant="outline" className="bg-amber-50">Featured</Badge>}
@@ -192,7 +242,15 @@ function FaqsTab({ items, editing, setEditing, save, remove, saving }: any) {
         <Card>
           <CardContent className="space-y-3 py-4">
             <Input placeholder="Question" value={editing.question || ""} onChange={(e) => setEditing({ ...editing, question: e.target.value })} />
-            <Textarea placeholder="Answer" rows={3} value={editing.answer || ""} onChange={(e) => setEditing({ ...editing, answer: e.target.value })} />
+            <div>
+              <label className="text-sm font-medium mb-1 block">Answer</label>
+              <WysiwygEditor
+                value={editing.answer || ""}
+                onChange={(html) => setEditing({ ...editing, answer: html })}
+                placeholder="Write the answer here..."
+                minHeight={120}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Input placeholder="Category" value={editing.category || ""} onChange={(e) => setEditing({ ...editing, category: e.target.value })} />
               <Input placeholder="Display Order" type="number" value={editing.displayOrder || 0} onChange={(e) => setEditing({ ...editing, displayOrder: parseInt(e.target.value) || 0 })} />
@@ -278,20 +336,19 @@ function HomepageStatsTab({ stats, editing, setEditing, save, remove, saving }: 
       {editing && (
         <Card>
           <CardContent className="space-y-3 py-4">
-            <Input placeholder="Label (e.g. Verified listings)" value={editing.label || ""} onChange={(e) => setEditing({ ...editing, label: e.target.value })} />
-            <Input placeholder="Value (e.g. 1000)" value={editing.value || ""} onChange={(e) => setEditing({ ...editing, value: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
+            <Input placeholder="Label (e.g. Verified Listings)" value={editing.label || ""} onChange={(e) => setEditing({ ...editing, label: e.target.value })} />
+            <div className="grid grid-cols-3 gap-3">
+              <Input placeholder="Value" value={editing.value || ""} onChange={(e) => setEditing({ ...editing, value: e.target.value })} />
               <Input placeholder="Prefix (e.g. ₵)" value={editing.prefix || ""} onChange={(e) => setEditing({ ...editing, prefix: e.target.value })} />
               <Input placeholder="Suffix (e.g. +)" value={editing.suffix || ""} onChange={(e) => setEditing({ ...editing, suffix: e.target.value })} />
             </div>
-            <Input placeholder="Description" value={editing.description || ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Input placeholder="Icon (lucide name)" value={editing.icon || ""} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} />
               <Input placeholder="Display Order" type="number" value={editing.displayOrder || 0} onChange={(e) => setEditing({ ...editing, displayOrder: parseInt(e.target.value) || 0 })} />
+              <label className="flex items-center gap-2 text-sm self-center"><input type="checkbox" checked={editing.isActive !== false} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} /> Active</label>
             </div>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.isActive !== false} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} /> Active</label>
             <div className="flex gap-2">
-              <Button onClick={() => save("homepageStat", editing.id, editing)} disabled={saving || !editing.label || !editing.value} className="gap-2 bg-[#1a3a2f]">
+              <Button onClick={() => save("homepageStat", editing.id, editing)} disabled={saving || !editing.label} className="gap-2 bg-[#1a3a2f]">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
               </Button>
               <Button variant="ghost" onClick={() => setEditing(null)} className="gap-2"><X className="h-4 w-4" /> Cancel</Button>
@@ -366,8 +423,93 @@ function SimpleListTab({ items, entityType, editing, setEditing, save, remove, s
   );
 }
 
-// --- Hero Content Tab ---
+// --- Regions Tab (with image upload) ---
+function RegionsTab({ regions, editing, setEditing, save, remove, saving }: any) {
+  return (
+    <div className="space-y-4">
+      <Button onClick={() => setEditing({})} className="gap-2 bg-[#1a3a2f]"><Plus className="h-4 w-4" /> New Region</Button>
+      {editing && (
+        <Card>
+          <CardContent className="space-y-3 py-4">
+            <Input placeholder="Name" value={editing.name || ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+            <Input placeholder="Count" type="number" value={editing.count || 0} onChange={(e) => setEditing({ ...editing, count: parseInt(e.target.value) || 0 })} />
+            <ImageUpload
+              value={editing.image || null}
+              onChange={(url) => setEditing({ ...editing, image: url })}
+              label="Region Image"
+              folder="cms/regions"
+              aspectRatio="aspect-[16/10]"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input placeholder="Sort Order" type="number" value={editing.sortOrder || 0} onChange={(e) => setEditing({ ...editing, sortOrder: parseInt(e.target.value) || 0 })} />
+              <label className="flex items-center gap-2 text-sm self-center"><input type="checkbox" checked={editing.isActive !== false} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} /> Active</label>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => save("homepageRegion", editing.id, editing)} disabled={saving || !editing.name} className="gap-2 bg-[#1a3a2f]">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
+              </Button>
+              <Button variant="ghost" onClick={() => setEditing(null)} className="gap-2"><X className="h-4 w-4" /> Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {regions.map((r: any) => (
+          <Card key={r.id}>
+            <CardContent className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                {r.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.image} alt="" className="w-12 h-12 rounded object-cover" />
+                )}
+                <div>
+                  <p className="font-medium text-sm">{r.name}</p>
+                  <p className="text-xs text-gray-500">{r.count} listings • Order: {r.sortOrder}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditing(r)}>Edit</Button>
+                <Button variant="ghost" size="sm" onClick={() => remove("homepageRegion", r.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Hero Content Tab (with image upload) ---
 function HeroContentTab({ heroContent, editing, setEditing, save, remove, saving }: any) {
+  const [bgImages, setBgImages] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (editing?.backgroundImages) {
+      try {
+        const parsed = typeof editing.backgroundImages === "string"
+          ? JSON.parse(editing.backgroundImages)
+          : editing.backgroundImages;
+        setBgImages(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        setBgImages([]);
+      }
+    } else {
+      setBgImages([]);
+    }
+  }, [editing]);
+
+  function addImage(url: string) {
+    const updated = [...bgImages, url];
+    setBgImages(updated);
+    setEditing({ ...editing, backgroundImages: JSON.stringify(updated) });
+  }
+
+  function removeImage(idx: number) {
+    const updated = bgImages.filter((_, i) => i !== idx);
+    setBgImages(updated);
+    setEditing({ ...editing, backgroundImages: JSON.stringify(updated) });
+  }
+
   return (
     <div className="space-y-4">
       <Button onClick={() => setEditing({ backgroundImages: "[]" })} className="gap-2 bg-[#1a3a2f]"><Plus className="h-4 w-4" /> New Hero Content</Button>
@@ -378,10 +520,39 @@ function HeroContentTab({ heroContent, editing, setEditing, save, remove, saving
             <Input placeholder="Eyebrow" value={editing.eyebrow || ""} onChange={(e) => setEditing({ ...editing, eyebrow: e.target.value })} />
             <Input placeholder="Headline" value={editing.headline || ""} onChange={(e) => setEditing({ ...editing, headline: e.target.value })} />
             <Textarea placeholder="Subheadline" rows={3} value={editing.subheadline || ""} onChange={(e) => setEditing({ ...editing, subheadline: e.target.value })} />
-            <Textarea placeholder='Background Images (JSON array, e.g. ["/images/img1.jpg", "/images/img2.jpg"])' rows={3} value={editing.backgroundImages || ""} onChange={(e) => setEditing({ ...editing, backgroundImages: e.target.value })} />
+
+            {/* Background images upload */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Background Images</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {bgImages.map((img, idx) => (
+                  <div key={idx} className="relative group">
+                    <div className="relative aspect-video rounded-lg overflow-hidden border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeImage(idx)}
+                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <ImageUpload
+                  value={null}
+                  onChange={(url) => url && addImage(url)}
+                  label="Add Image"
+                  folder="cms/hero"
+                  aspectRatio="aspect-video"
+                />
+              </div>
+            </div>
+
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editing.isActive !== false} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} /> Active</label>
             <div className="flex gap-2">
-              <Button onClick={() => save("heroContent", editing.id, { ...editing, backgroundImages: editing.backgroundImages })} disabled={saving || !editing.headline} className="gap-2 bg-[#1a3a2f]">
+              <Button onClick={() => save("heroContent", editing.id, { ...editing, backgroundImages: JSON.stringify(bgImages) })} disabled={saving || !editing.headline} className="gap-2 bg-[#1a3a2f]">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
               </Button>
               <Button variant="ghost" onClick={() => setEditing(null)} className="gap-2"><X className="h-4 w-4" /> Cancel</Button>
@@ -400,6 +571,96 @@ function HeroContentTab({ heroContent, editing, setEditing, save, remove, saving
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => setEditing({ ...h, backgroundImages: typeof h.backgroundImages === "string" ? h.backgroundImages : JSON.stringify(h.backgroundImages || []) })}>Edit</Button>
                 <Button variant="ghost" size="sm" onClick={() => remove("heroContent", h.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Footer Content Tab ---
+function FooterContentTab({ footerContent, editing, setEditing, save, remove, saving }: any) {
+  const sections = ["brand", "links", "newsletter", "contact", "bottom"];
+
+  return (
+    <div className="space-y-4">
+      <Button onClick={() => setEditing({ section: "brand", linksJson: "[]" })} className="gap-2 bg-[#1a3a2f]"><Plus className="h-4 w-4" /> New Footer Section</Button>
+      {editing && (
+        <Card>
+          <CardHeader><CardTitle>{editing.id ? "Edit Footer Section" : "New Footer Section"}</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <select
+              value={editing.section || "brand"}
+              onChange={(e) => setEditing({ ...editing, section: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg text-sm"
+            >
+              {sections.map((s) => (
+                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              ))}
+            </select>
+            <Input placeholder="Title (e.g. Company, Services)" value={editing.title || ""} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
+            <Textarea placeholder="Description (for brand section)" rows={2} value={editing.description || ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
+
+            {editing.section === "links" && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Links (JSON array: [{"{ \"name\": \"About\", \"href\": \"/about\" }"}])</label>
+                <Textarea
+                  rows={4}
+                  placeholder='[{"name": "About Us", "href": "/about"}, {"name": "Contact", "href": "/contact"}]'
+                  value={editing.linksJson || ""}
+                  onChange={(e) => setEditing({ ...editing, linksJson: e.target.value })}
+                  className="font-mono text-sm"
+                />
+              </div>
+            )}
+
+            {(editing.section === "bottom" || editing.section === "brand") && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">HTML Content</label>
+                <WysiwygEditor
+                  value={editing.htmlContent || ""}
+                  onChange={(html) => setEditing({ ...editing, htmlContent: html })}
+                  placeholder="HTML content for this section..."
+                  minHeight={100}
+                />
+              </div>
+            )}
+
+            {(editing.section === "brand" || editing.section === "newsletter") && (
+              <ImageUpload
+                value={editing.imageUrl || null}
+                onChange={(url) => setEditing({ ...editing, imageUrl: url })}
+                label="Image (optional)"
+                folder="cms/footer"
+              />
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input placeholder="Sort Order" type="number" value={editing.sortOrder || 0} onChange={(e) => setEditing({ ...editing, sortOrder: parseInt(e.target.value) || 0 })} />
+              <label className="flex items-center gap-2 text-sm self-center"><input type="checkbox" checked={editing.isActive !== false} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} /> Active</label>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => save("footerContent", editing.id, editing)} disabled={saving} className="gap-2 bg-[#1a3a2f]">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
+              </Button>
+              <Button variant="ghost" onClick={() => setEditing(null)} className="gap-2"><X className="h-4 w-4" /> Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      <div className="space-y-2">
+        {footerContent.map((f: any) => (
+          <Card key={f.id}>
+            <CardContent className="flex items-center justify-between py-3">
+              <div>
+                <p className="font-medium text-sm capitalize">{f.section}: {f.title || "(no title)"}</p>
+                <p className="text-xs text-gray-500">Order: {f.sortOrder} • {f.isActive ? "Active" : "Inactive"}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditing({ ...f, linksJson: typeof f.linksJson === "string" ? f.linksJson : JSON.stringify(f.linksJson || []) })}>Edit</Button>
+                <Button variant="ghost" size="sm" onClick={() => remove("footerContent", f.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
               </div>
             </CardContent>
           </Card>
@@ -454,20 +715,33 @@ function ContactMessagesTab({ messages, save, remove }: any) {
   );
 }
 
-// --- Page Content Tab ---
+// --- Page Content Tab (with WYSIWYG) ---
 function PageContentTab({ settings, save, saving }: any) {
   const pageKeys = ["about", "contact", "how-it-works", "pricing", "escrow-policy", "terms", "privacy", "verification", "support"];
   const [selectedPage, setSelectedPage] = useState("about");
   const [sectionKey, setSectionKey] = useState("hero");
   const [content, setContent] = useState("");
+  const [useHtml, setUseHtml] = useState(true);
 
   const pageContentSettings = settings.filter((s: any) => s.key.startsWith("page."));
   const currentSetting = pageContentSettings.find((s: any) => s.key === `page.${selectedPage}.${sectionKey}`);
 
   useEffect(() => {
     if (currentSetting) {
-      try { setContent(JSON.stringify(JSON.parse(currentSetting.value), null, 2)); }
-      catch { setContent(currentSetting.value); }
+      try {
+        const parsed = JSON.parse(currentSetting.value);
+        // If it's an object, stringify it; if it's a string (HTML), use directly
+        if (typeof parsed === "string") {
+          setContent(parsed);
+          setUseHtml(true);
+        } else {
+          setContent(JSON.stringify(parsed, null, 2));
+          setUseHtml(false);
+        }
+      } catch {
+        setContent(currentSetting.value);
+        setUseHtml(true);
+      }
     } else {
       setContent("");
     }
@@ -475,8 +749,13 @@ function PageContentTab({ settings, save, saving }: any) {
 
   async function handleSave() {
     let parsed;
-    try { parsed = JSON.parse(content); }
-    catch { parsed = content; }
+    if (useHtml) {
+      // Save HTML as a string
+      parsed = content;
+    } else {
+      try { parsed = JSON.parse(content); }
+      catch { parsed = content; }
+    }
     await save("pageContent", undefined, { pageKey: selectedPage, sectionKey, content: parsed });
   }
 
@@ -484,7 +763,7 @@ function PageContentTab({ settings, save, saving }: any) {
     <div className="space-y-4">
       <Card>
         <CardContent className="py-4">
-          <p className="text-sm text-gray-500 mb-3">Edit structured content for each marketing page. Content is stored as JSON and rendered on the public page.</p>
+          <p className="text-sm text-gray-500 mb-3">Edit content for each marketing page. Use the WYSIWYG editor for rich HTML content, or toggle to JSON for structured data.</p>
           <div className="flex gap-2 flex-wrap mb-4">
             {pageKeys.map((k) => (
               <Button key={k} variant={selectedPage === k ? "default" : "outline"} size="sm"
@@ -493,16 +772,39 @@ function PageContentTab({ settings, save, saving }: any) {
               </Button>
             ))}
           </div>
-          <div className="mb-3">
-            <Input placeholder="Section key (e.g. hero, stats, story, values, cta)" value={sectionKey} onChange={(e) => setSectionKey(e.target.value)} />
+          <div className="flex gap-2 items-center mb-3">
+            <Input placeholder="Section key (e.g. hero, stats, story, values, cta)" value={sectionKey} onChange={(e) => setSectionKey(e.target.value)} className="flex-1" />
+            <div className="flex gap-1 border rounded-lg p-0.5">
+              <button
+                onClick={() => setUseHtml(true)}
+                className={`px-3 py-1 text-xs rounded ${useHtml ? "bg-[#1a3a2f] text-white" : "text-gray-600"}`}
+              >
+                WYSIWYG
+              </button>
+              <button
+                onClick={() => setUseHtml(false)}
+                className={`px-3 py-1 text-xs rounded ${!useHtml ? "bg-[#1a3a2f] text-white" : "text-gray-600"}`}
+              >
+                JSON
+              </button>
+            </div>
           </div>
-          <Textarea
-            rows={16}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={`{\n  "title": "...",\n  "subtitle": "..."\n}`}
-            className="font-mono text-sm"
-          />
+          {useHtml ? (
+            <WysiwygEditor
+              value={content}
+              onChange={setContent}
+              placeholder="Write your page content here..."
+              minHeight={300}
+            />
+          ) : (
+            <Textarea
+              rows={16}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={`{\n  "title": "...",\n  "subtitle": "..."\n}`}
+              className="font-mono text-sm"
+            />
+          )}
           <Button onClick={handleSave} disabled={saving || !content} className="mt-3 gap-2 bg-[#1a3a2f]">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Page Content
           </Button>

@@ -8,9 +8,11 @@ import {
   AlertTriangle, Shield, Lock, BarChart3, Home, LogOut, Tag, FileText,
   ShieldCheck, Flag, ScrollText, Briefcase, Calendar, Workflow, Bell,
   Newspaper, MessageSquare, LifeBuoy, FileSearch, ChevronDown, LucideIcon,
+  ImageIcon, PanelBottom, Star, ListOrdered, Compass, Map, HelpCircle,
+  FolderTree, Mail,
 } from "lucide-react";
 
-interface NavItem { href: string; label: string; icon: LucideIcon; }
+interface NavItem { href: string; label: string; icon: LucideIcon; children?: NavItem[]; }
 interface NavSection { title: string; items: NavItem[]; }
 
 const sections: NavSection[] = [
@@ -58,7 +60,28 @@ const sections: NavSection[] = [
   {
     title: "Content",
     items: [
-      { href: "/admin/cms", label: "Website CMS", icon: Newspaper },
+      {
+        href: "/admin/cms",
+        label: "Website CMS",
+        icon: Newspaper,
+        children: [
+          { href: "/admin/cms?tab=news", label: "News Articles", icon: Newspaper },
+          { href: "/admin/cms?tab=heroContent", label: "Hero Content", icon: ImageIcon },
+          { href: "/admin/cms?tab=pageContent", label: "Page Content", icon: FileText },
+          { href: "/admin/cms?tab=footerContent", label: "Footer Content", icon: PanelBottom },
+          { href: "/admin/cms?tab=testimonials", label: "Testimonials", icon: Star },
+          { href: "/admin/cms?tab=homepageStats", label: "Homepage Stats", icon: BarChart3 },
+          { href: "/admin/cms?tab=homepageSteps", label: "How It Works Steps", icon: ListOrdered },
+          { href: "/admin/cms?tab=landTypes", label: "Land Types", icon: Home },
+          { href: "/admin/cms?tab=professionalTypes", label: "Professionals", icon: Compass },
+          { href: "/admin/cms?tab=regions", label: "Regions", icon: Map },
+          { href: "/admin/cms?tab=trustBar", label: "Trust Bar", icon: Shield },
+          { href: "/admin/cms?tab=faqs", label: "FAQs", icon: HelpCircle },
+          { href: "/admin/cms?tab=supportCategories", label: "Support Categories", icon: FolderTree },
+          { href: "/admin/cms?tab=contactMessages", label: "Contact Messages", icon: Mail },
+          { href: "/admin/cms?tab=siteSettings", label: "Site Settings", icon: Settings },
+        ],
+      },
       { href: "/admin/messages", label: "Messages", icon: MessageSquare },
       { href: "/admin/notifications", label: "Notifications", icon: Bell },
     ],
@@ -146,13 +169,29 @@ export function AdminMobileNav({ userName, userEmail, onSignOut }: AdminMobileNa
                         const Icon = item.icon;
                         const active = isActive(item.href);
                         return (
-                          <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)}
-                            className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all min-h-[44px] ${
-                              active ? "bg-[#c5e063] text-[#1a3a2f]" : "text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white"
-                            }`}>
-                            <Icon className="h-5 w-5" />
-                            <span className="text-sm font-medium">{item.label}</span>
-                          </Link>
+                          <div key={item.href}>
+                            <Link href={item.href} onClick={() => setIsOpen(false)}
+                              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all min-h-[44px] ${
+                                active ? "bg-[#c5e063] text-[#1a3a2f]" : "text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white"
+                              }`}>
+                              <Icon className="h-5 w-5" />
+                              <span className="text-sm font-medium flex-1">{item.label}</span>
+                            </Link>
+                            {item.children && (
+                              <div className="ml-4 mt-1 space-y-0.5 border-l border-[#2a4a3f] pl-2">
+                                {item.children.map((child) => {
+                                  const ChildIcon = child.icon;
+                                  return (
+                                    <Link key={child.href} href={child.href} onClick={() => setIsOpen(false)}
+                                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-[#a3c4b5] hover:bg-[#2a4a3f] hover:text-white transition-colors">
+                                      <ChildIcon className="h-4 w-4" />
+                                      <span className="text-xs">{child.label}</span>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </nav>
